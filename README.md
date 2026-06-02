@@ -2,15 +2,13 @@ Working title: Preference-Aware Coefficient Correction for Rewarded-Soups-Style 
 
 ## Goal
 
-This repository contains code, notes, experiments, and thesis drafts for my master's thesis.
-
 The main goal is to study mappings of the form
 
-\[
-\lambda = f(p, R)
-\]
+$$
+\boldsymbol{\lambda} = f(\mathbf{p}, \mathbf{R})
+$$
 
-where \(p\) is a user preference vector, \(R\) is a relationship matrix derived from task-vector or LoRA-adapter geometry, and \(\lambda\) are corrected merge coefficients for Rewarded-Soups-style model merging.
+where $\mathbf{p}$ is a user preference vector, $\mathbf{R}$ is a relationship matrix derived from task-vector or LoRA-adapter geometry, and $\boldsymbol{\lambda}$ are corrected merge coefficients for Rewarded-Soups-style model merging.
 
 ## Current Prototype
 
