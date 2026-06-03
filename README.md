@@ -34,14 +34,11 @@ The current prototype is a small-scale Google Colab setup using:
 
 After the initial GPT-2 prototype, the project may move to a more realistic small LLM setup using TinyLlama and multi-objective alignment datasets such as UltraFeedback or HelpSteer.
 
-These datasets could provide richer objective structures for evaluating geometry-aware coefficient correction beyond the initial helpfulness/harmlessness prototype.
-
 ## Repository Structure
 
-- `thesis/`: LaTeX thesis draft and definitions
-- `proposal/`: proposal or exposé documents
+- `thesis/`: Proposal & LaTeX thesis draft
 - `notebooks/`: Colab notebooks and experiments
 - `src/`: reusable Python code
 - `results/`: experiment outputs, tables, and plots
-- `meetings/`: meeting notes
-- `presentations/`: meeting slides
+- `meetings/`: meeting slides
+
