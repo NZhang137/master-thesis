@@ -1,0 +1,652 @@
+\begin{filecontents*}{references.bib}
+@article{rame2023rewarded,title={Rewarded Soups: Towards Pareto-Optimal Alignment by Interpolating Weights Fine-Tuned on Diverse Rewards},author={Ram{\'e}, Alexandre and Couairon, Guillaume and Shukor, Mustafa and Dancette, Corentin and Gaya, Jean-Baptiste and Soulier, Laure and Cord, Matthieu},journal={arXiv preprint arXiv:2306.04488},year={2023}}
+@article{wortsman2022modelsoups,title={Model Soups: Averaging Weights of Multiple Fine-Tuned Models Improves Accuracy without Increasing Inference Time},author={Wortsman, Mitchell and Ilharco, Gabriel and Gadre, Samir Yitzhak and Roelofs, Rebecca and Gontijo-Lopes, Raphael and Morcos, Ari S. and Namkoong, Hongseok and Farhadi, Ali and Carmon, Yair and Kornblith, Simon and Schmidt, Ludwig},journal={arXiv preprint arXiv:2203.05482},year={2022}}
+@article{ilharco2022taskarithmetic,title={Editing Models with Task Arithmetic},author={Ilharco, Gabriel and Ribeiro, Marco Tulio and Wortsman, Mitchell and Gururangan, Suchin and Schmidt, Ludwig and Hajishirzi, Hannaneh and Farhadi, Ali},journal={arXiv preprint arXiv:2212.04089},year={2022}}
+@article{yadav2023ties,title={{TIES}-{Merging}: Resolving Interference When Merging Models},author={Yadav, Prateek and Tam, Derek and Choshen, Leshem and Raffel, Colin and Bansal, Mohit},journal={arXiv preprint arXiv:2306.01708},year={2023}}
+@article{yu2023dare,title={Language Models are Super Mario: Absorbing Abilities from Homologous Models as a Free Lunch},author={Yu, Le and Yu, Bowen and Yu, Haiyang and Huang, Fei and Li, Yongbin},journal={arXiv preprint arXiv:2311.03099},year={2023}}
+@article{yang2023adamerging,title={{AdaMerging}: Adaptive Model Merging for Multi-Task Learning},author={Yang, Enneng and Wang, Zhenyi and Shen, Li and Liu, Shiwei and Guo, Guibing and Wang, Xingwei and Tao, Dacheng},journal={arXiv preprint arXiv:2310.02575},year={2023}}
+@article{sener2018mgda,title={Multi-Task Learning as Multi-Objective Optimization},author={Sener, Ozan and Koltun, Vladlen},journal={arXiv preprint arXiv:1810.04650},year={2018}}
+@article{yu2020pcgrad,title={Gradient Surgery for Multi-Task Learning},author={Yu, Tianhe and Kumar, Saurabh and Gupta, Abhishek and Levine, Sergey and Hausman, Karol and Finn, Chelsea},journal={arXiv preprint arXiv:2001.06782},year={2020}}
+@article{liu2021cagrad,title={Conflict-Averse Gradient Descent for Multi-task Learning},author={Liu, Bo and Liu, Xingchao and Jin, Xiaojie and Stone, Peter and Liu, Qiang},journal={arXiv preprint arXiv:2110.14048},year={2021}}
+@article{hu2021lora,title={{LoRA}: Low-Rank Adaptation of Large Language Models},author={Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},journal={arXiv preprint arXiv:2106.09685},year={2021}}
+@article{bai2022hh,title={Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback},author={Bai, Yuntao and Jones, Andy and Ndousse, Kamal and Askell, Amanda and Chen, Anna and others},journal={arXiv preprint arXiv:2204.05862},year={2022}}
+@article{ji2023beavertails,title={BeaverTails: Towards Improved Safety Alignment of LLM via a Human-Preference Dataset},author={Ji, Jiaming and Liu, Mickel and Dai, Juntao and Pan, Xuehai and Zhang, Chi and others},journal={arXiv preprint arXiv:2307.04657},year={2023}}
+@article{stiennon2020summarize,title={Learning to Summarize from Human Feedback},author={Stiennon, Nisan and Ouyang, Long and Wu, Jeff and Ziegler, Daniel M. and Lowe, Ryan and Voss, Chelsea and Radford, Alec and Amodei, Dario and Christiano, Paul},journal={arXiv preprint arXiv:2009.01325},year={2020}}
+@article{cui2023ultrafeedback,title={{UltraFeedback}: Boosting Language Models with Scaled AI Feedback},author={Cui, Ganqu and Yuan, Lifan and Ding, Ning and Yao, Guanming and He, Bingxiang and others},journal={arXiv preprint arXiv:2310.01377},year={2023}}
+@article{wang2023helpsteer,title={{HelpSteer}: Multi-Attribute Helpfulness Dataset for {SteerLM}},author={Wang, Zhilin and Dong, Yi and Zeng, Jiaqi and Adams, Virginia and Sreedhar, Makesh Narsimhan and others},journal={arXiv preprint arXiv:2311.09528},year={2023}}
+@article{wang2024dpa,title={Arithmetic Control of LLMs for Diverse User Preferences: Directional Preference Alignment with Multi-Objective Rewards},author={Wang, Haoxiang and Lin, Yong and Xiong, Wei and Yang, Rui and Diao, Shizhe and Qiu, Shuang and Zhao, Han and Zhang, Tong},journal={arXiv preprint arXiv:2402.18571},year={2024}}
+@article{wang2024armorm,title={Interpretable Preferences via Multi-Objective Reward Modeling and Mixture-of-Experts},author={Wang, Haoxiang and Xiong, Wei and Xie, Tengyang and Zhao, Han and Zhang, Tong},journal={arXiv preprint arXiv:2406.12845},year={2024}}
+\end{filecontents*}
+
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage[a4paper,margin=3cm]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{natbib}
+\usepackage{hyperref}
+
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\1}{\mathbf{1}}
+\newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
+\newcommand{\todo}[1]{\textbf{TODO:} #1}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\Diag}{Diag}
+\DeclareMathOperator{\softmin}{softmin}
+\DeclareMathOperator{\vecop}{vec}
+\DeclareMathOperator{\concat}{concat}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[chapter]
+\newtheorem{remark}[definition]{Remark}
+\newtheorem{assumption}[definition]{Assumption}
+\newtheorem{proposition}[definition]{Proposition}
+
+\title{Preference-Aware Coefficient Correction for Rewarded-Soups-Style Model Merging via Task-Vector Geometry}
+\author{TODO: Name}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\chapter*{Abstract}
+This document is an intentionally rough first draft. Its purpose is to fix notation, define the main mathematical objects, and specify thesis-suitable candidate methods for coefficient selection inside one fixed Rewarded-Soups-style interpolation family. It does not report experiments, does not invent results, and does not claim any global Pareto-front improvement. \todo{Replace with final abstract later.}
+
+\chapter{Introduction}
+
+This thesis studies preference-aware coefficient correction for model merging under a fixed interpolation family. The central question is whether a geometry-aware mapping
+\[
+\lambda=f(p,R)
+\]
+can improve coefficient selection relative to the direct baseline \(\lambda=p\), while staying in the same Rewarded-Soups-style family.
+
+\paragraph{Scope statement.}
+The contribution studied here is \emph{coefficient selection inside a fixed interpolation family}. It is \emph{not} a claim about globally improving or expanding the Pareto front over all model parameters.
+
+\paragraph{Draft status.}
+The definitions and propositions below are intended to be mathematically reusable later. Most non-definition text remains intentionally short and marked as TODO.
+
+\chapter{Background and Related Work}
+
+Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Model Soups motivates weight averaging across related fine-tuned models \citep{wortsman2022modelsoups}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES, DARE, and AdaMerging are nearby model-merging baselines, but they are not the main theoretical object of this thesis \citep{yadav2023ties,yu2023dare,yang2023adamerging}. MGDA, PCGrad, and CAGrad are gradient-based multi-objective methods that here serve only as inspiration for one-shot, static, \(R\)-based coefficient mappings rather than their original training-time algorithms \citep{sener2018mgda,yu2020pcgrad,liu2021cagrad}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}. Directional Preference Alignment and ArmoRM provide optional context for richer preference-aware reward modeling \citep{wang2024dpa,wang2024armorm}.
+
+\todo{Expand this chapter into a proper related-work review with clearer separation between weight averaging, delta merging, sparse merging, and adapter merging.}
+
+\chapter{Problem Formulation}
+
+In this chapter, \(m\ge 2\) denotes the number of objectives and \(d\) the flattened parameter dimension.
+
+\section{Objectives and rewards}
+
+\begin{definition}[Objectives and rewards]
+Let \(\Theta:=\R^d\) denote the parameter space. For each objective \(i\in\{1,\dots,m\}\), let
+\[
+r_i:\Theta\to\R
+\]
+be a reward function. Define
+\[
+r(\theta):=\bigl(r_1(\theta),\dots,r_m(\theta)\bigr)\in\R^m.
+\]
+If a loss notation is useful, define optionally
+\[
+F_i(\theta):=-\,r_i(\theta).
+\]
+This thesis does \emph{not} define coefficient-space losses such as \(F_i(\lambda)\).
+\end{definition}
+
+\begin{definition}[Preference vector]
+The user preference vector is
+\[
+p\in\Delta_m,\qquad
+\Delta_m:=\{x\in\R^m:x_i\ge 0\ \forall i,\ \1^\top x=1\}.
+\]
+The vector \(p\) lives in reward/objective space and should not automatically be identified with a merge coefficient vector.
+\end{definition}
+
+\begin{definition}[Preference-weighted utility]
+For fixed \(p\in\Delta_m\), define
+\[
+U_p(\theta):=\sum_{i=1}^m p_i\,r_i(\theta).
+\]
+If reward scales differ, let \(\tilde r_i(\theta)\) denote fixed normalized rewards and evaluate with
+\[
+U_p(\theta):=\sum_{i=1}^m p_i\,\tilde r_i(\theta).
+\]
+\end{definition}
+
+\begin{remark}[Normalization]
+If normalized rewards are used, the normalization rule should be fixed before comparing coefficient-selection methods. \todo{Specify the exact normalization protocol later.}
+\end{remark}
+
+\section{Base model, specialists, and task vectors}
+
+\begin{assumption}[Shared-base requirement]
+There exists a shared base model \(\theta_0\in\Theta\). For each objective \(i\in\{1,\dots,m\}\), the specialist model \(\theta_i\in\Theta\) is obtained from the same base model \(\theta_0\), with the same parameterization and parameter ordering.
+\end{assumption}
+
+\begin{definition}[Task vectors]
+For each specialist \(i\), define
+\[
+\delta_i:=\theta_i-\theta_0\in\R^d.
+\]
+The shared-base requirement is necessary for the task-vector interpretation and the linear interpolation family used in this thesis.
+\end{definition}
+
+\begin{definition}[Rewarded-Soups-style interpolation family]
+For \(\lambda\in\Delta_m\), define
+\[
+\theta(\lambda):=\theta_0+\sum_{i=1}^m \lambda_i\delta_i.
+\]
+Equivalently, because \(\sum_i\lambda_i=1\) and \(\delta_i=\theta_i-\theta_0\),
+\[
+\theta(\lambda)=\sum_{i=1}^m \lambda_i\theta_i.
+\]
+Define the fixed interpolation family
+\[
+\mathcal{M}:=\{\theta(\lambda):\lambda\in\Delta_m\}.
+\]
+This thesis operates only inside \(\mathcal{M}\).
+\end{definition}
+
+\begin{remark}[Non-claim]
+Any empirical gain discussed later would concern only \emph{selection of \(\lambda\) inside \(\mathcal{M}\)}. It would not imply a global Pareto-front improvement over all \(\theta\in\Theta\).
+\end{remark}
+
+\section{Relationship matrix from task-vector geometry}
+
+\begin{definition}[Task-vector matrix]
+Let
+\[
+D:=[\delta_1,\dots,\delta_m]\in\R^{d\times m}.
+\]
+Then \(\theta(\lambda)=\theta_0+D\lambda\).
+\end{definition}
+
+\begin{definition}[Relationship matrix]
+A static relationship matrix \(R\in\R^{m\times m}\) can be defined in two canonical ways:
+
+\[
+R:=D^\top D,\qquad R_{ij}=\delta_i^\top\delta_j,
+\]
+or, if \(\delta_i\neq 0\) for all \(i\), through normalized task vectors
+\[
+\hat\delta_i:=\frac{\delta_i}{\norm{\delta_i}_2},\qquad \hat D:=[\hat\delta_1,\dots,\hat\delta_m],\qquad R:=\hat D^\top\hat D,
+\]
+so that
+\[
+R_{ij}=\cos(\delta_i,\delta_j)=\frac{\delta_i^\top\delta_j}{\norm{\delta_i}_2\norm{\delta_j}_2}.
+\]
+
+Interpretation:
+\begin{itemize}
+    \item positive values may indicate alignment or complementarity,
+    \item negative values may indicate conflict or suppression,
+    \item high positive similarity may also indicate redundancy.
+\end{itemize}
+
+This remains only a parameter-geometric proxy and must be empirically validated.
+\end{definition}
+
+\begin{remark}[PSD status]
+If \(R=D^\top D\), then \(R\) is positive semidefinite. If cosine similarity is implemented as the normalized Gram matrix \(R=\hat D^\top\hat D\), then it is also positive semidefinite. If one uses a non-Gram similarity table, PSD is not guaranteed.
+\end{remark}
+
+\section{Preference-to-coefficient mapping}
+
+\begin{definition}[Preference-to-coefficient mapping]
+The main object of study is
+\[
+f:\Delta_m\times\R^{m\times m}\to\Delta_m,\qquad \lambda=f(p,R).
+\]
+The direct preference baseline is
+\[
+\lambda_{\mathrm{direct}}:=p.
+\]
+Even though \(p\) and \(\lambda\) lie in the same simplex, they are conceptually different:
+\begin{itemize}
+    \item \(p\) is a preference vector in reward/objective space,
+    \item \(\lambda\) is a merge coefficient vector in parameter/model space.
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Coefficient-selection problem]
+Given \(p\in\Delta_m\) and a fixed relationship matrix \(R\), the thesis studies whether a geometry-aware correction
+\[
+\lambda=f(p,R)
+\]
+can improve coefficient selection relative to \(\lambda=p\), while keeping \(\theta(\lambda)\) inside the same interpolation family \(\mathcal{M}\). The intended pipeline is
+\[
+(\delta_i)_{i=1}^m \longrightarrow R \longrightarrow \lambda=f(p,R) \longrightarrow \theta(\lambda).
+\]
+\end{definition}
+
+\section{Baselines and evaluation}
+
+\begin{definition}[Baselines]
+The following baselines are considered:
+\[
+\lambda_i^{\mathrm{unif}}=\frac{1}{m},\qquad
+\lambda^{\mathrm{direct}}=p.
+\]
+In addition, one may use random search, Dirichlet sampling, or Sobol-style search over \(\Delta_m\).
+\end{definition}
+
+\begin{remark}[Finite-search notation]
+To avoid a clash with LoRA matrices \(B_i\), the finite evaluated coefficient set is denoted by \(\mathcal{B}\subset\Delta_m\).
+\end{remark}
+
+\begin{definition}[High-budget best-found reference]
+Given finite \(\mathcal{B}\subset\Delta_m\), define
+\[
+\lambda_{\mathrm{best}}(p):=\argmax_{\lambda\in\mathcal{B}}U_p(\theta(\lambda)).
+\]
+This is a finite-search reference, not a true oracle over all of \(\Delta_m\).
+\end{definition}
+
+\begin{definition}[Evaluation metrics]
+Let \(\tilde r_i(\theta(\lambda))\) denote normalized rewards, with \(\tilde r_i=r_i\) if no normalization is needed.
+
+The individual objective scores are
+\[
+\tilde r_i(\theta(\lambda)),\qquad i=1,\dots,m.
+\]
+
+The average reward is
+\[
+\operatorname{AvgReward}(\lambda):=\frac{1}{m}\sum_{i=1}^m \tilde r_i(\theta(\lambda)).
+\]
+
+The preference-weighted utility is
+\[
+U_p(\theta(\lambda)):=\sum_{i=1}^m p_i\,\tilde r_i(\theta(\lambda)).
+\]
+
+The improvement over direct preference interpolation is
+\[
+\Delta U_p(\lambda_{\mathrm{method}}):=
+U_p(\theta(\lambda_{\mathrm{method}}))-U_p(\theta(p)).
+\]
+
+The within-family utility gap to the best-found reference is
+\[
+\operatorname{Gap}_p(\lambda_{\mathrm{method}}):=
+U_p(\theta(\lambda_{\mathrm{best}}(p)))-U_p(\theta(\lambda_{\mathrm{method}})).
+\]
+
+Preference faithfulness can be measured by
+\[
+\norm{\lambda_{\mathrm{method}}-p}_1
+\qquad \text{or}\qquad
+\norm{\lambda_{\mathrm{method}}-p}_2.
+\]
+
+Optionally define the \(R\)-geometric preference distance
+\[
+D_R(\lambda_{\mathrm{method}},p):=
+(\lambda_{\mathrm{method}}-p)^\top R(\lambda_{\mathrm{method}}-p).
+\]
+If \(R=D^\top D\), then
+\[
+D_R(\lambda_{\mathrm{method}},p)=\norm{D(\lambda_{\mathrm{method}}-p)}_2^2.
+\]
+
+Let
+\[
+z_i^{\mathrm{best}}:=\max_{\lambda\in\mathcal{B}}\tilde r_i(\theta(\lambda)),
+\qquad
+z_i^{\mathrm{worst}}:=\min_{\lambda\in\mathcal{B}}\tilde r_i(\theta(\lambda)).
+\]
+Then define the normalized Tchebychev-style metric
+\[
+T_p^{\mathrm{norm}}(\lambda):=
+\max_{i=1,\dots,m}
+p_i\left[
+\frac{z_i^{\mathrm{best}}-\tilde r_i(\theta(\lambda))}
+{z_i^{\mathrm{best}}-z_i^{\mathrm{worst}}+\varepsilon}
+\right],
+\qquad \varepsilon>0.
+\]
+Smaller values are better.
+
+Its improvement over direct preference interpolation is
+\[
+\Delta T_p^{\mathrm{norm}}(\lambda_{\mathrm{method}}):=
+T_p^{\mathrm{norm}}(p)-T_p^{\mathrm{norm}}(\lambda_{\mathrm{method}}).
+\]
+A positive value means a reduced worst-case preference-weighted objective shortfall relative to \(\lambda=p\).
+\end{definition}
+
+\begin{definition}[Evaluation over multiple preferences]
+Let
+\[
+\mathcal{P}:=\{p^{(1)},\dots,p^{(K)}\}\subset\Delta_m
+\]
+be a set of evaluation preferences. Metrics should be aggregated over \(\mathcal{P}\) using mean, median, and robust summary statistics.
+\end{definition}
+
+\begin{remark}[Metric scope]
+All metrics above evaluate coefficient selection \emph{inside the fixed interpolation family} \(\mathcal{M}\). They do not imply global Pareto-front improvement.
+\end{remark}
+
+\chapter{Method}
+
+This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the preference vector \(p\) and a static relationship matrix \(R\). No coefficient-space gradients are introduced.
+
+\section{General setup}
+
+For optimization-based methods below, assume \(R\) is symmetric and positive semidefinite, e.g. \(R=D^\top D\) or \(R=\hat D^\top\hat D\). \todo{Decide later whether implementation uses raw \(R\), symmetrized \(R\), or a PSD approximation.}
+
+\section{MGDA-inspired coefficient mapping}
+
+\begin{definition}[MGDA-inspired one-shot mapping]
+Given \(p\in\Delta_m\), \(R\in\R^{m\times m}\), and \(\rho>0\), define
+\[
+\lambda_{\mathrm{MGDA}}
+:=
+\argmin_{\lambda\in\Delta_m}
+\lambda^\top R\lambda+\rho\norm{\lambda-p}_2^2.
+\]
+This is inspired by min-norm balancing, but adapted to coefficient selection rather than gradient descent.
+\end{definition}
+
+\begin{remark}[Possible limitation]
+Depending on how informative \(R\) is, this objective may encourage cancellation or move too strongly toward low-norm combinations.
+\end{remark}
+
+\begin{definition}[Preference-weighted \(\alpha\)-MGDA variant]
+Let
+\[
+G_p:=\Diag(p)\,R\,\Diag(p),\qquad u:=\frac{1}{m}\1.
+\]
+Define
+\[
+\alpha^\star
+:=
+\argmin_{\alpha\in\Delta_m}
+\alpha^\top G_p\alpha+\rho\norm{\alpha-u}_2^2,
+\]
+and then
+\[
+\lambda^\star:=
+\frac{\alpha^\star\odot p}{\1^\top(\alpha^\star\odot p)}.
+\]
+This variant corrects \(p\) multiplicatively instead of replacing it outright.
+\end{definition}
+
+\section{PCGrad-inspired coefficient mapping}
+
+\begin{definition}[Task-vector PCGrad with simplex reconstruction]
+Initialize preference-weighted task directions by
+\[
+d_i:=p_i\delta_i,\qquad i=1,\dots,m.
+\]
+Process conflicting pairs in a fixed deterministic order. Whenever a current pair satisfies
+\[
+d_i^\top d_j<0,
+\]
+update
+\[
+d_i\leftarrow d_i-\frac{d_i^\top d_j}{\norm{d_j}_2^2+\varepsilon}d_j,\qquad \varepsilon\ge 0.
+\]
+After all chosen projections, aggregate
+\[
+d_{\mathrm{PC}}:=\sum_{i=1}^m d_i.
+\]
+Since \(d_{\mathrm{PC}}\) need not correspond to a valid convex merge coefficient, reconstruct coefficients by solving
+\[
+\lambda_{\mathrm{PC}}
+:=
+\argmin_{\lambda\in\Delta_m}
+\norm{D\lambda-d_{\mathrm{PC}}}_2^2+\rho\norm{\lambda-p}_2^2.
+\]
+\end{definition}
+
+\begin{remark}[Equivalent \(R\)-metric implementation]
+Let \(e_i\) be the \(i\)-th standard basis vector and
+\[
+c_i:=p_i e_i.
+\]
+Then \(Dc_i=p_i\delta_i=d_i\), and
+\[
+c_i^\top R c_j=(Dc_i)^\top(Dc_j).
+\]
+Thus projection can also be performed in the \(R\)-induced metric:
+\[
+c_i\leftarrow c_i-\frac{c_i^\top Rc_j}{c_j^\top Rc_j+\varepsilon}\,c_j.
+\]
+\end{remark}
+
+\begin{remark}[Heuristic nature]
+This PCGrad-inspired mapping is heuristic and may depend on projection order. A deterministic ordering by strongest negative conflict can be used for reproducibility.
+\end{remark}
+
+\section{CAGrad-inspired coefficient mapping}
+
+\begin{definition}[Trust-Region CAGrad-inspired method]
+Let \(p\in\Delta_m\), let \(R\succeq 0\), let \(c\ge 0\), and let \(\varepsilon>0\). Define
+\[
+\lambda_{\mathrm{CAGrad}}
+:=
+\argmax_{\lambda\in\Delta_m}\min_{i=1,\dots,m}(R\lambda)_i
+\]
+subject to
+\[
+(\lambda-p)^\top R(\lambda-p)\le c^2\max(p^\top Rp,\varepsilon).
+\]
+
+Equivalently, introduce \(t\in\R\) and solve
+\[
+\max_{\lambda\in\Delta_m,\ t} t
+\]
+subject to
+\[
+(R\lambda)_i\ge t\quad \forall i,
+\qquad
+(\lambda-p)^\top R(\lambda-p)\le c^2\max(p^\top Rp,\varepsilon).
+\]
+\end{definition}
+
+\begin{remark}[Interpretation]
+If \(R=D^\top D\), then
+\[
+(R\lambda)_i=\delta_i^\top D\lambda.
+\]
+Thus the objective protects against worst-case negative alignment in the proxy geometry while the trust region keeps \(\lambda\) close to \(p\). This is a one-shot coefficient mapping inspired by conflict-averse aggregation, not the original CAGrad training algorithm.
+\end{remark}
+
+\begin{definition}[Soft-min CAGrad-inspired variant]
+For \(\tau>0\), define
+\[
+\softmin_\tau(z):=-\tau\log\sum_{i=1}^m \exp(-z_i/\tau).
+\]
+Then
+\[
+\lambda_{\mathrm{soft}}
+:=
+\argmax_{\lambda\in\Delta_m}
+\softmin_\tau(R\lambda)-\rho(\lambda-p)^\top R(\lambda-p).
+\]
+This is a smooth approximation of the worst-case alignment objective.
+\end{definition}
+
+\section{Mathematical properties and provable statements}
+
+\begin{proposition}[PSD of Gram-based \(R\)]
+If \(R=D^\top D\), then \(R\) is positive semidefinite.
+\end{proposition}
+
+\begin{proposition}[Family preservation]
+All proposed mappings output \(\lambda\in\Delta_m\). Therefore \(\theta(\lambda)\in\mathcal{M}\).
+\end{proposition}
+
+\begin{proposition}[Convexity of the MGDA-inspired QP]
+If \(R\succeq 0\) and \(\rho>0\), then the optimization problem defining \(\lambda_{\mathrm{MGDA}}\) is convex.
+\end{proposition}
+
+\begin{proposition}[Convexity of the Trust-Region CAGrad-inspired problem]
+If \(R\succeq 0\), the trust-region CAGrad-inspired formulation with auxiliary variable \(t\) is a convex QCQP.
+\end{proposition}
+
+\begin{proposition}[CAGrad proxy guarantee]
+Because \(\lambda=p\) is feasible for the trust-region problem, any optimal solution \(\lambda^\star\) satisfies
+\[
+\min_i(R\lambda^\star)_i\ge \min_i(Rp)_i.
+\]
+This is only a guarantee in proxy space, not a reward-space guarantee.
+\end{proposition}
+
+\begin{proposition}[Trust-region implication in parameter geometry]
+If \(R=D^\top D\) and \(\lambda^\star\) satisfies
+\[
+(\lambda^\star-p)^\top R(\lambda^\star-p)\le c^2 p^\top Rp,
+\]
+then
+\[
+\norm{D(\lambda^\star-p)}_2\le c\,\norm{Dp}_2.
+\]
+\end{proposition}
+
+\begin{proposition}[Orthogonality after a PCGrad-style projection]
+If \(\varepsilon=0\) and \(d_j\neq 0\), then the update
+\[
+d_i\leftarrow d_i-\frac{d_i^\top d_j}{\norm{d_j}_2^2}d_j
+\]
+makes the updated \(d_i\) orthogonal to \(d_j\).
+\end{proposition}
+
+\begin{remark}[Interpretation]
+These are structural guarantees about feasibility, convexity, and the proxy geometry \(R\). They do \emph{not} imply guaranteed improvement in the true utility \(U_p\) without additional assumptions linking \(R\) to reward behavior.
+\end{remark}
+
+\todo{Write out full proofs in the later thesis version.}
+
+\chapter{Practical LoRA-Based Implementation}
+
+LoRA is a practical implementation choice here, not the theoretical contribution and not part of original Rewarded Soups.
+
+\section{LoRA definition}
+
+Let \(\mathcal{L}\) be the set of adapted linear layers. For layer \(\ell\in\mathcal{L}\), let \(W_\ell\) denote the frozen base weight. For objective \(i\), define
+\[
+W'_{i,\ell}=W_\ell+\Delta W_{i,\ell},
+\qquad
+\Delta W_{i,\ell}=B_{i,\ell}A_{i,\ell}.
+\]
+Optionally, with the usual scaling,
+\[
+\Delta W_{i,\ell}=\frac{\alpha_\ell}{r_\ell}B_{i,\ell}A_{i,\ell}.
+\]
+
+Define the effective multi-layer LoRA update
+\[
+\Delta_i^{\mathrm{LoRA}}:=(\Delta W_{i,\ell})_{\ell\in\mathcal{L}},
+\]
+and define the flattened LoRA task vector by
+\[
+\delta_i^{\mathrm{LoRA}}:=
+\vecop\!\Bigl(\concat_{\ell\in\mathcal{L}}\Delta W_{i,\ell}\Bigr)\in\R^{d_{\mathrm{LoRA}}}.
+\]
+
+\section{LoRA geometry and merging}
+
+Define the LoRA relationship matrix by either
+\[
+R_{ij}=(\delta_i^{\mathrm{LoRA}})^\top \delta_j^{\mathrm{LoRA}}
+\]
+or
+\[
+R_{ij}=
+\cos(\delta_i^{\mathrm{LoRA}},\delta_j^{\mathrm{LoRA}})
+=
+\frac{(\delta_i^{\mathrm{LoRA}})^\top \delta_j^{\mathrm{LoRA}}}
+{\norm{\delta_i^{\mathrm{LoRA}}}_2\norm{\delta_j^{\mathrm{LoRA}}}_2}.
+\]
+
+For \(\lambda\in\Delta_m\), define the merged effective LoRA update layerwise by
+\[
+\Delta W^{\mathrm{LoRA}}_{\mathrm{merged},\ell}
+=
+\sum_{i=1}^m \lambda_i \Delta W_{i,\ell}.
+\]
+Equivalently,
+\[
+\Delta^{\mathrm{LoRA}}_{\mathrm{merged}}
+=
+\sum_{i=1}^m \lambda_i \Delta_i^{\mathrm{LoRA}}.
+\]
+
+\begin{remark}[Important caveat]
+In general,
+\[
+\left(\sum_{i=1}^m \lambda_i B_{i,\ell}\right)\left(\sum_{i=1}^m \lambda_i A_{i,\ell}\right)\neq \sum_{i=1}^m \lambda_i B_{i,\ell}A_{i,\ell}.
+\]
+Therefore the thesis must distinguish between linearly combining \emph{effective LoRA updates} and naively averaging \(A_i\) and \(B_i\) separately.
+\end{remark}
+
+\todo{Decide later whether the implementation forms effective updates explicitly or uses a provably equivalent adapter-merging routine.}
+
+\chapter{Experimental Setup}
+
+\section{Candidate datasets}
+
+Possible datasets for the thesis include:
+\begin{itemize}
+    \item Anthropic HH-RLHF for helpfulness and harmlessness,
+    \item PKU-Alignment BeaverTails for safety-related objectives,
+    \item the summarize-from-feedback setup for summarization quality,
+    \item UltraFeedback and HelpSteer for richer many-objective alignment settings.
+\end{itemize}
+
+\todo{Specify the exact subset, splits, reward models, preprocessing, and evaluation prompts.}
+
+\section{First prototype}
+
+For a first prototype:
+\begin{itemize}
+    \item use GPT-2 or TinyLlama as the shared base model,
+    \item train separate LoRA adapters from the same base model,
+    \item start with two objectives from HH-RLHF: helpfulness and harmlessness,
+    \item merge adapters for different \(\lambda\in\Delta_2\),
+    \item compute \(R\) from adapter geometry,
+    \item later extend to more objectives.
+\end{itemize}
+
+Evaluation should compare \(\lambda=p\) against corrected \(\lambda=f(p,R)\) and aggregate results over \(\mathcal{P}\subset\Delta_m\).
+
+\todo{Add the concrete compute budget, LoRA ranks, search sets \(\mathcal{B}\), and held-out evaluation protocol.}
+
+\chapter{Results}
+
+This draft intentionally contains no experimental results.
+
+\todo{Later report only measured quantities such as objective-wise normalized rewards, \(\operatorname{AvgReward}\), \(U_p\), \(\Delta U_p\), \(\operatorname{Gap}_p\), preference-faithfulness norms, and \(T_p^{\mathrm{norm}}\) over \(\mathcal{P}\).}
+
+\chapter{Discussion}
+
+\todo{Discuss when task-vector geometry is likely to correlate with reward trade-offs and when it may fail.}
+
+\todo{Discuss failure modes of the MGDA-inspired, PCGrad-inspired, and CAGrad-inspired mappings, including cancellation, order sensitivity, and sensitivity to reward normalization.}
+
+\todo{State clearly that improvement over the direct preference baseline inside \(\mathcal{M}\) does not imply global Pareto-front improvement.}
+
+\chapter{Conclusion}
+
+This thesis draft formalizes the problem around the pipeline
+\[
+(\delta_i)_{i=1}^m \longrightarrow R \longrightarrow \lambda=f(p,R) \longrightarrow \theta(\lambda),
+\]
+with all methods restricted to the same fixed interpolation family.
+
+\todo{Replace this placeholder with the final conclusion after experiments are completed.}
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\end{document}
