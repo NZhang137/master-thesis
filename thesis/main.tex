@@ -1,9 +1,7 @@
 \begin{filecontents*}{references.bib}
 @article{rame2023rewarded,title={Rewarded Soups: Towards Pareto-Optimal Alignment by Interpolating Weights Fine-Tuned on Diverse Rewards},author={Ram{\'e}, Alexandre and Couairon, Guillaume and Shukor, Mustafa and Dancette, Corentin and Gaya, Jean-Baptiste and Soulier, Laure and Cord, Matthieu},journal={arXiv preprint arXiv:2306.04488},year={2023}}
-@article{wortsman2022modelsoups,title={Model Soups: Averaging Weights of Multiple Fine-Tuned Models Improves Accuracy without Increasing Inference Time},author={Wortsman, Mitchell and Ilharco, Gabriel and Gadre, Samir Yitzhak and Roelofs, Rebecca and Gontijo-Lopes, Raphael and Morcos, Ari S. and Namkoong, Hongseok and Farhadi, Ali and Carmon, Yair and Kornblith, Simon and Schmidt, Ludwig},journal={arXiv preprint arXiv:2203.05482},year={2022}}
 @article{ilharco2022taskarithmetic,title={Editing Models with Task Arithmetic},author={Ilharco, Gabriel and Ribeiro, Marco Tulio and Wortsman, Mitchell and Gururangan, Suchin and Schmidt, Ludwig and Hajishirzi, Hannaneh and Farhadi, Ali},journal={arXiv preprint arXiv:2212.04089},year={2022}}
 @article{yadav2023ties,title={{TIES}-{Merging}: Resolving Interference When Merging Models},author={Yadav, Prateek and Tam, Derek and Choshen, Leshem and Raffel, Colin and Bansal, Mohit},journal={arXiv preprint arXiv:2306.01708},year={2023}}
-@article{yu2023dare,title={Language Models are Super Mario: Absorbing Abilities from Homologous Models as a Free Lunch},author={Yu, Le and Yu, Bowen and Yu, Haiyang and Huang, Fei and Li, Yongbin},journal={arXiv preprint arXiv:2311.03099},year={2023}}
 @article{yang2023adamerging,title={{AdaMerging}: Adaptive Model Merging for Multi-Task Learning},author={Yang, Enneng and Wang, Zhenyi and Shen, Li and Liu, Shiwei and Guo, Guibing and Wang, Xingwei and Tao, Dacheng},journal={arXiv preprint arXiv:2310.02575},year={2023}}
 @article{sener2018mgda,title={Multi-Task Learning as Multi-Objective Optimization},author={Sener, Ozan and Koltun, Vladlen},journal={arXiv preprint arXiv:1810.04650},year={2018}}
 @article{yu2020pcgrad,title={Gradient Surgery for Multi-Task Learning},author={Yu, Tianhe and Kumar, Saurabh and Gupta, Abhishek and Levine, Sergey and Hausman, Karol and Finn, Chelsea},journal={arXiv preprint arXiv:2001.06782},year={2020}}
@@ -11,18 +9,16 @@
 @article{hu2021lora,title={{LoRA}: Low-Rank Adaptation of Large Language Models},author={Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},journal={arXiv preprint arXiv:2106.09685},year={2021}}
 @article{bai2022hh,title={Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback},author={Bai, Yuntao and Jones, Andy and Ndousse, Kamal and Askell, Amanda and Chen, Anna and others},journal={arXiv preprint arXiv:2204.05862},year={2022}}
 @article{ji2023beavertails,title={BeaverTails: Towards Improved Safety Alignment of LLM via a Human-Preference Dataset},author={Ji, Jiaming and Liu, Mickel and Dai, Juntao and Pan, Xuehai and Zhang, Chi and others},journal={arXiv preprint arXiv:2307.04657},year={2023}}
-@article{stiennon2020summarize,title={Learning to Summarize from Human Feedback},author={Stiennon, Nisan and Ouyang, Long and Wu, Jeff and Ziegler, Daniel M. and Lowe, Ryan and Voss, Chelsea and Radford, Alec and Amodei, Dario and Christiano, Paul},journal={arXiv preprint arXiv:2009.01325},year={2020}}
 @article{cui2023ultrafeedback,title={{UltraFeedback}: Boosting Language Models with Scaled AI Feedback},author={Cui, Ganqu and Yuan, Lifan and Ding, Ning and Yao, Guanming and He, Bingxiang and others},journal={arXiv preprint arXiv:2310.01377},year={2023}}
 @article{wang2023helpsteer,title={{HelpSteer}: Multi-Attribute Helpfulness Dataset for {SteerLM}},author={Wang, Zhilin and Dong, Yi and Zeng, Jiaqi and Adams, Virginia and Sreedhar, Makesh Narsimhan and others},journal={arXiv preprint arXiv:2311.09528},year={2023}}
 @article{wang2024dpa,title={Arithmetic Control of LLMs for Diverse User Preferences: Directional Preference Alignment with Multi-Objective Rewards},author={Wang, Haoxiang and Lin, Yong and Xiong, Wei and Yang, Rui and Diao, Shizhe and Qiu, Shuang and Zhao, Han and Zhang, Tong},journal={arXiv preprint arXiv:2402.18571},year={2024}}
-@article{wang2024armorm,title={Interpretable Preferences via Multi-Objective Reward Modeling and Mixture-of-Experts},author={Wang, Haoxiang and Xiong, Wei and Xie, Tengyang and Zhao, Han and Zhang, Tong},journal={arXiv preprint arXiv:2406.12845},year={2024}}
 \end{filecontents*}
 
 \documentclass[12pt,a4paper]{report}
 
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[ngerman]{babel}
+\usepackage[english]{babel}
 \usepackage[a4paper,margin=3cm]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{natbib}
@@ -47,8 +43,8 @@
 \newtheorem{assumption}[definition]{Assumption}
 \newtheorem{proposition}[definition]{Proposition}
 
-\title{Preference-Aware Coefficient Correction for Rewarded-Soups-Style Model Merging via Task-Vector Geometry}
-\author{TODO: Name}
+\title{Preference-Aware Coefficient Correction for Rewarded-Soups-Style Model Merging}
+\author{Nils}
 \date{\today}
 
 \begin{document}
@@ -57,7 +53,7 @@
 \tableofcontents
 
 \chapter*{Abstract}
-This document is an intentionally rough first draft. Its purpose is to fix notation, define the main mathematical objects, and specify thesis-suitable candidate methods for coefficient selection inside one fixed Rewarded-Soups-style interpolation family. It does not report experiments, does not invent results, and does not claim any global Pareto-front improvement. \todo{Replace with final abstract later.}
+This document is a rough first draft. It does not report experiments.
 
 \chapter{Introduction}
 
@@ -67,17 +63,11 @@ This thesis studies preference-aware coefficient correction for model merging un
 \]
 can improve coefficient selection relative to the direct baseline \(\lambda=p\), while staying in the same Rewarded-Soups-style family.
 
-\paragraph{Scope statement.}
-The contribution studied here is \emph{coefficient selection inside a fixed interpolation family}. It is \emph{not} a claim about globally improving or expanding the Pareto front over all model parameters.
-
-\paragraph{Draft status.}
-The definitions and propositions below are intended to be mathematically reusable later. Most non-definition text remains intentionally short and marked as TODO.
-
 \chapter{Background and Related Work}
 
-Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Model Soups motivates weight averaging across related fine-tuned models \citep{wortsman2022modelsoups}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES, DARE, and AdaMerging are nearby model-merging baselines, but they are not the main theoretical object of this thesis \citep{yadav2023ties,yu2023dare,yang2023adamerging}. MGDA, PCGrad, and CAGrad are gradient-based multi-objective methods that here serve only as inspiration for one-shot, static, \(R\)-based coefficient mappings rather than their original training-time algorithms \citep{sener2018mgda,yu2020pcgrad,liu2021cagrad}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}. Directional Preference Alignment and ArmoRM provide optional context for richer preference-aware reward modeling \citep{wang2024dpa,wang2024armorm}.
+Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES and AdaMerging are nearby model-merging baselines \citep{yadav2023ties,yang2023adamerging}. MGDA, PCGrad, and CAGrad are gradient-based multi-objective methods that here serve only as inspiration for one-shot, \(R\)-based coefficient mappings rather than their original training-time algorithms \citep{sener2018mgda,yu2020pcgrad,liu2021cagrad}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}. 
 
-\todo{Expand this chapter into a proper related-work review with clearer separation between weight averaging, delta merging, sparse merging, and adapter merging.}
+\todo{Expand this chapter into a proper related-work review.}
 
 \chapter{Problem Formulation}
 
@@ -107,7 +97,6 @@ The user preference vector is
 p\in\Delta_m,\qquad
 \Delta_m:=\{x\in\R^m:x_i\ge 0\ \forall i,\ \1^\top x=1\}.
 \]
-The vector \(p\) lives in reward/objective space and should not automatically be identified with a merge coefficient vector.
 \end{definition}
 
 \begin{definition}[Preference-weighted utility]
@@ -122,7 +111,7 @@ U_p(\theta):=\sum_{i=1}^m p_i\,\tilde r_i(\theta).
 \end{definition}
 
 \begin{remark}[Normalization]
-If normalized rewards are used, the normalization rule should be fixed before comparing coefficient-selection methods. \todo{Specify the exact normalization protocol later.}
+If normalized rewards are used, the normalization rule should be fixed before comparing coefficient-selection methods.
 \end{remark}
 
 \section{Base model, specialists, and task vectors}
@@ -599,8 +588,6 @@ Therefore the thesis must distinguish between linearly combining \emph{effective
 Possible datasets for the thesis include:
 \begin{itemize}
     \item Anthropic HH-RLHF for helpfulness and harmlessness,
-    \item PKU-Alignment BeaverTails for safety-related objectives,
-    \item the summarize-from-feedback setup for summarization quality,
     \item UltraFeedback and HelpSteer for richer many-objective alignment settings.
 \end{itemize}
 
@@ -624,9 +611,8 @@ Evaluation should compare \(\lambda=p\) against corrected \(\lambda=f(p,R)\) and
 
 \chapter{Results}
 
-This draft intentionally contains no experimental results.
+This draft contains no experimental results.
 
-\todo{Later report only measured quantities such as objective-wise normalized rewards, \(\operatorname{AvgReward}\), \(U_p\), \(\Delta U_p\), \(\operatorname{Gap}_p\), preference-faithfulness norms, and \(T_p^{\mathrm{norm}}\) over \(\mathcal{P}\).}
 
 \chapter{Discussion}
 
@@ -643,8 +629,6 @@ This thesis draft formalizes the problem around the pipeline
 (\delta_i)_{i=1}^m \longrightarrow R \longrightarrow \lambda=f(p,R) \longrightarrow \theta(\lambda),
 \]
 with all methods restricted to the same fixed interpolation family.
-
-\todo{Replace this placeholder with the final conclusion after experiments are completed.}
 
 \bibliographystyle{plainnat}
 \bibliography{references}
