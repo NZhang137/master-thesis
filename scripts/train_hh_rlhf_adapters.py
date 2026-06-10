@@ -2,7 +2,8 @@
 
 Both adapters start from a freshly loaded GPT-2 base model. The script uses
 the chosen HH-RLHF conversations for lightweight supervised language modeling.
-It is not full RLHF, PPO, or a final preference-training method.
+The rejected responses are not used. This is not full RLHF or PPO, and it is
+not the final preference-aware coefficient correction method lambda = f(p, R).
 """
 
 from __future__ import annotations
@@ -34,17 +35,24 @@ def train_objective_adapter(
     num_epochs: int,
     learning_rate: float,
     max_length: int,
+    batch_size: int,
     device: torch.device,
     seed: int = 42,
 ) -> None:
     """Train and save one objective-specific adapter from a fresh base model."""
     print(f"\n=== {objective_name} adapter ===")
     print(f"Loading Anthropic/hh-rlhf data_dir={data_dir!r}, split={split!r}")
+    print(f"Output adapter path: {output_path}")
     training_texts = load_hh_rlhf_objective_dataset(
         data_dir=data_dir,
         split=split,
     )
     print(f"Loaded {len(training_texts)} chosen training texts.")
+    print(
+        "Training settings: "
+        f"epochs={num_epochs}, batch_size={batch_size}, "
+        f"learning_rate={learning_rate}, max_length={max_length}"
+    )
 
     # Reset the seed before each load so both objectives start comparably.
     torch.manual_seed(seed)
@@ -66,6 +74,7 @@ def train_objective_adapter(
         num_epochs=num_epochs,
         learning_rate=learning_rate,
         max_length=max_length,
+        batch_size=batch_size,
     )
 
     output_path.mkdir(parents=True, exist_ok=True)
@@ -84,11 +93,42 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train helpful and harmless GPT-2 LoRA prototype adapters."
     )
-    parser.add_argument("--model-name", default="gpt2")
-    parser.add_argument("--split", default="train[:20]")
-    parser.add_argument("--num-epochs", type=int, default=1)
-    parser.add_argument("--learning-rate", type=float, default=1e-4)
-    parser.add_argument("--max-length", type=int, default=512)
+    parser.add_argument(
+        "--model_name",
+        "--model-name",
+        dest="model_name",
+        default="gpt2",
+    )
+    parser.add_argument("--split", default="train[:100]")
+    parser.add_argument(
+        "--num_epochs",
+        "--num-epochs",
+        dest="num_epochs",
+        type=int,
+        default=2,
+    )
+    parser.add_argument(
+        "--learning_rate",
+        "--learning-rate",
+        dest="learning_rate",
+        type=float,
+        default=1e-4,
+    )
+    parser.add_argument(
+        "--max_length",
+        "--max-length",
+        dest="max_length",
+        type=int,
+        default=512,
+    )
+    parser.add_argument(
+        "--batch_size",
+        "--batch-size",
+        dest="batch_size",
+        type=int,
+        default=1,
+        help="Small batches keep the prototype stable on Colab GPUs.",
+    )
     return parser.parse_args()
 
 
@@ -107,6 +147,7 @@ def main() -> None:
         num_epochs=args.num_epochs,
         learning_rate=args.learning_rate,
         max_length=args.max_length,
+        batch_size=args.batch_size,
         device=device,
     )
 
@@ -119,6 +160,7 @@ def main() -> None:
         num_epochs=args.num_epochs,
         learning_rate=args.learning_rate,
         max_length=args.max_length,
+        batch_size=args.batch_size,
         device=device,
     )
 

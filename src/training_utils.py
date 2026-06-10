@@ -10,9 +10,10 @@ def train_lora_on_texts(
     tokenizer,
     training_texts: Sequence[str],
     device: torch.device | str,
-    num_epochs: int = 1,
+    num_epochs: int = 2,
     learning_rate: float = 1e-4,
     max_length: int = 512,
+    batch_size: int = 1,
 ) -> list[float]:
     """Train LoRA on chosen HH-RLHF texts with causal language modeling.
 
@@ -30,6 +31,8 @@ def train_lora_on_texts(
         raise ValueError("num_epochs must be at least 1.")
     if max_length < 2:
         raise ValueError("max_length must be at least 2.")
+    if batch_size < 1:
+        raise ValueError("batch_size must be at least 1.")
 
     device = torch.device(device)
     trainable_parameters = [
@@ -49,30 +52,36 @@ def train_lora_on_texts(
 
     for epoch in range(num_epochs):
         total_loss = 0.0
+        processed_examples = 0
 
-        for text in texts:
+        for start in range(0, len(texts), batch_size):
+            batch_texts = texts[start : start + batch_size]
             encoded = tokenizer(
-                text,
+                batch_texts,
                 return_tensors="pt",
                 truncation=True,
                 max_length=max_length,
+                padding=True,
             )
             input_ids = encoded["input_ids"].to(device)
             attention_mask = encoded["attention_mask"].to(device)
+            labels = input_ids.clone()
+            labels[attention_mask == 0] = -100
 
             optimizer.zero_grad(set_to_none=True)
             outputs = model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                labels=input_ids,
+                labels=labels,
             )
             loss = outputs.loss
             loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()
+            total_loss += loss.item() * len(batch_texts)
+            processed_examples += len(batch_texts)
 
-        average_loss = total_loss / len(texts)
+        average_loss = total_loss / processed_examples
         epoch_losses.append(average_loss)
         print(f"Epoch {epoch + 1}/{num_epochs} - average loss: {average_loss:.4f}")
 
@@ -87,6 +96,7 @@ def train_lora_on_prompts(
     num_epochs: int = 1,
     lr: float = 1e-4,
     max_length: int = 512,
+    batch_size: int = 1,
 ) -> list[float]:
     """Train LoRA with a minimal language-modeling loop on prompts only.
 
@@ -105,4 +115,5 @@ def train_lora_on_prompts(
         num_epochs=num_epochs,
         learning_rate=lr,
         max_length=max_length,
+        batch_size=batch_size,
     )

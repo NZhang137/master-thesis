@@ -28,7 +28,7 @@ The current prototype is a small-scale Google Colab setup using:
 - LoRA / PEFT for efficient adapter training
 - Anthropic HH-RLHF as the first dataset
 - separate helpfulness and harmlessness adapters as the first two-objective setup
-- Rewarded-Soups-style adapter merging with different $\boldsymbol{\lambda}$ values
+- planned Rewarded-Soups-style adapter merging with different $\boldsymbol{\lambda}$ values
 
 ## Planned Extensions
 
@@ -38,10 +38,47 @@ After the initial GPT-2 prototype, the project may move to a more realistic smal
 
 `scripts/train_hh_rlhf_adapters.py` trains separate helpfulness and
 harmlessness LoRA adapters from fresh GPT-2 base models. It uses the `chosen`
-HH-RLHF conversations for lightweight supervised language modeling; it is not
-full RLHF, PPO, or the final thesis method.
+HH-RLHF responses for lightweight supervised language modeling. The
+corresponding `rejected` responses are not used yet. This is not full RLHF or
+PPO, and it is not the final preference-aware coefficient correction method
+$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
 
 Generated adapters and checkpoints are intentionally ignored by git.
+
+The default settings are `gpt2`, `train[:100]`, 2 epochs, learning rate
+`1e-4`, maximum sequence length 512, and batch size 1. Batch size 1 is the
+default for simplicity and stability on Colab GPUs.
+
+Fast smoke test:
+
+```bash
+python scripts/train_hh_rlhf_adapters.py --split "train[:20]" --num_epochs 1
+```
+
+Small prototype run:
+
+```bash
+python scripts/train_hh_rlhf_adapters.py --split "train[:100]" --num_epochs 2
+```
+
+Verify the generated adapters:
+
+```bash
+python scripts/check_adapters.py
+```
+
+For Google Colab, clone or open the repository, enable a GPU runtime, change
+into the repository root, install `torch`, `transformers`, `datasets`, and
+`peft`, and run one of the commands above. The training script does not save
+intermediate checkpoints. It saves only:
+
+- `adapters/gpt2-helpful-adapter`
+- `adapters/gpt2-harmless-adapter`
+
+These generated adapters are ignored by git. Training uses only the `chosen`
+responses as lightweight supervised language-modeling text. It is not full
+RLHF or PPO, and it does not yet implement the final
+$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ method.
 
 ## Repository Structure
 
