@@ -102,6 +102,26 @@ It does not compute the relationship matrix $\mathbf{R}$ and does not yet
 implement the final
 $\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ correction method.
 
+## Prototype Lambda-Sweep Evaluation
+
+After generating `results/adapter_merge_generations.csv`, run:
+
+```bash
+python scripts/evaluate_lambda_sweep.py
+```
+
+This produces:
+
+- `results/adapter_merge_scored_generations.csv`
+- `results/lambda_sweep_summary.csv`
+
+The script applies simple deterministic helpfulness and harmlessness proxy
+heuristics, then summarizes the fixed lambda grid for three example preference
+vectors. These proxies are placeholders, not final reward-model scores and not
+a full RLHF evaluation. This step does not compute $\mathbf{R}$ and does not
+implement the final
+$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ correction method.
+
 ## Repository Structure
 
 - `thesis/`: Proposal & LaTeX thesis draft
