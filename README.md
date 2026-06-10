@@ -34,11 +34,21 @@ The current prototype is a small-scale Google Colab setup using:
 
 After the initial GPT-2 prototype, the project may move to a more realistic small LLM setup using TinyLlama and multi-objective alignment datasets such as UltraFeedback or HelpSteer.
 
+## Prototype Adapter Training
+
+`scripts/train_hh_rlhf_adapters.py` trains separate helpfulness and
+harmlessness LoRA adapters from fresh GPT-2 base models. It uses the `chosen`
+HH-RLHF conversations for lightweight supervised language modeling; it is not
+full RLHF, PPO, or the final thesis method.
+
+Generated adapters and checkpoints are intentionally ignored by git.
+
 ## Repository Structure
 
 - `thesis/`: Proposal & LaTeX thesis draft
 - `notebooks/`: Colab notebooks and experiments
 - `src/`: reusable Python code
+- `scripts/`: runnable prototype training scripts
 - `results/`: experiment outputs, tables, and plots
 - `meetings/`: meeting slides
 

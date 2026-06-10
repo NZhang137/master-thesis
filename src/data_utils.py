@@ -33,3 +33,33 @@ def load_hh_rlhf_prompts(split: str = "train[:20]") -> list[str]:
     """
     dataset = load_dataset("Anthropic/hh-rlhf", split=split)
     return [extract_prompt_from_hh(example["chosen"]) for example in dataset]
+
+
+def load_hh_rlhf_objective_dataset(
+    data_dir: str,
+    split: str = "train[:20]",
+) -> list[str]:
+    """Load chosen HH-RLHF dialogues for one prototype objective.
+
+    This lightweight supervised prototype uses ``chosen`` as positive causal
+    language-modeling text. It does not use the corresponding ``rejected``
+    response and is not yet a preference-training or RLHF data pipeline.
+
+    Args:
+        data_dir: HH-RLHF objective directory, such as ``helpful-base`` or
+            ``harmless-base``.
+        split: Dataset split or split slice to load.
+
+    Returns:
+        Non-empty chosen conversation texts suitable for prototype training.
+    """
+    dataset = load_dataset(
+        "Anthropic/hh-rlhf",
+        data_dir=data_dir,
+        split=split,
+    )
+    return [
+        text
+        for example in dataset
+        if (text := str(example["chosen"]).strip())
+    ]
