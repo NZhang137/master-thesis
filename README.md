@@ -28,7 +28,7 @@ The current prototype is a small-scale Google Colab setup using:
 - LoRA / PEFT for efficient adapter training
 - Anthropic HH-RLHF as the first dataset
 - separate helpfulness and harmlessness adapters as the first two-objective setup
-- planned Rewarded-Soups-style adapter merging with different $\boldsymbol{\lambda}$ values
+- prototype Rewarded-Soups-style adapter merging with fixed $\boldsymbol{\lambda}$ values
 
 ## Planned Extensions
 
@@ -79,6 +79,28 @@ These generated adapters are ignored by git. Training uses only the `chosen`
 responses as lightweight supervised language-modeling text. It is not full
 RLHF or PPO, and it does not yet implement the final
 $\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ method.
+
+## Prototype Adapter Merging
+
+After training and checking both local adapters, run:
+
+```bash
+python scripts/evaluate_adapter_merges.py
+```
+
+The script expects these directories to exist locally:
+
+- `adapters/gpt2-helpful-adapter`
+- `adapters/gpt2-harmless-adapter`
+
+It evaluates five helpful/harmless coefficient pairs and writes 15 generated
+responses to `results/adapter_merge_generations.csv`. The adapter files remain
+ignored by git, while the small CSV result is not ignored.
+
+This step only verifies fixed Rewarded-Soups-style LoRA adapter interpolation.
+It does not compute the relationship matrix $\mathbf{R}$ and does not yet
+implement the final
+$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ correction method.
 
 ## Repository Structure
 
