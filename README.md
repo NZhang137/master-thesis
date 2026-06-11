@@ -186,6 +186,14 @@ This remains a lightweight prototype comparison, not final reward-model
 evaluation. Learned reward-model evaluation is future work, and these proxy
 results do not establish global Pareto-front improvement.
 
+## Current Prototype Results
+
+The current matrices, coefficient corrections, baseline comparisons,
+limitations, and next steps are summarized in
+[`results/prototype_results.md`](results/prototype_results.md). The supporting
+small CSV and JSON result files are stored under `results/`. Generated LoRA
+adapters and model-weight files remain local and are ignored by git.
+
 ## Repository Structure
 
 - `thesis/`: Proposal & LaTeX thesis draft
