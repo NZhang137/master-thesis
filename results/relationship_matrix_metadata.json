@@ -1,0 +1,18 @@
+{
+  "adapter_names": [
+    "helpful",
+    "harmless"
+  ],
+  "adapter_paths": [
+    "adapters/gpt2-helpful-adapter",
+    "adapters/gpt2-harmless-adapter"
+  ],
+  "similarity_type": "cosine",
+  "representation": "flattened LoRA adapter parameters",
+  "vector_lengths": [
+    811008,
+    811008
+  ],
+  "note": "This static matrix is computed from flattened saved LoRA adapter parameters and is a proxy for objective or specialist relationships.",
+  "caveat": "The geometry proxy must be empirically validated and does not yet implement the final lambda = f(p, R) method."
+}
