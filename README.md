@@ -196,6 +196,21 @@ The current HelpSteer2 matrices, coefficient behavior, fixed-sweep results,
 artifact status, limitations, and next steps are summarized in
 [`results/helpsteer2_prototype_results.md`](results/helpsteer2_prototype_results.md).
 
+### HelpSteer2 M1 and C1 Result Summary
+
+After creating `results/helpsteer2_m1_c1_comparison.csv`, run:
+
+```bash
+python scripts/summarize_helpsteer2_m1_c1_results.py
+```
+
+The script selects the best tested hyperparameter per method and preference,
+writes compact comparison tables, and creates three plots under
+`results/plots/`. A short thesis-oriented interpretation is available in
+[`results/helpsteer2_m1_c1_result_summary.md`](results/helpsteer2_m1_c1_result_summary.md).
+The reported values remain lightweight heuristic proxy scores rather than
+HelpSteer2 human labels or reward-model scores.
+
 ## Prototype Adapter Merging
 
 After training and checking both local adapters, run:

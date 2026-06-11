@@ -1,0 +1,5 @@
+preference_name,best_method,best_hyperparameter_name,best_hyperparameter_value,best_utility_for_preference,direct_preference_utility,improvement_over_direct_preference,uniform_utility,improvement_over_uniform
+balanced,C1,rho,0.1000000000,0.5726615500,0.4327935500,0.1398680000,0.4327935500,0.1398680000
+quality_focused,C1,rho,0.1000000000,0.5366716375,0.3331973125,0.2034743250,0.4089402625,0.1277313750
+detailed_answer,C1,rho,0.1000000000,0.5692390875,0.3329666250,0.2362724625,0.4339831250,0.1352559625
+helpfulness_focused,C1,rho,0.1000000000,0.6550807750,0.6147609750,0.0403198000,0.4969176500,0.1581631250
