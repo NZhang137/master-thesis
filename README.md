@@ -192,6 +192,10 @@ each setting's gap to the best tested fixed-sweep coefficient vector
 \(\lambda_{\mathrm{best}}\). The proxy scores are infrastructure placeholders,
 not reward-model scores or human HelpSteer2 labels.
 
+The current HelpSteer2 matrices, coefficient behavior, fixed-sweep results,
+artifact status, limitations, and next steps are summarized in
+[`results/helpsteer2_prototype_results.md`](results/helpsteer2_prototype_results.md).
+
 ## Prototype Adapter Merging
 
 After training and checking both local adapters, run:
