@@ -134,6 +134,25 @@ compute a HelpSteer2 relationship matrix \(\mathbf{R}\), does not yet apply M1
 to the five-objective setup, and does not replace the existing HH-RLHF
 prototype.
 
+### HelpSteer2 Relationship Matrix
+
+After all five local HelpSteer2 adapters have been trained and checked, run:
+
+```bash
+python scripts/compute_helpsteer2_relationship_matrix.py
+```
+
+The script expects the five objective-specific adapters under `adapters/` and
+writes:
+
+- `results/helpsteer2_relationship_matrix.csv`
+- `results/helpsteer2_relationship_matrix_metadata.json`
+
+Generated adapter and model files remain ignored by git. The matrix uses cosine
+similarity between flattened LoRA adapter parameters as a prototype proxy for
+task-vector relationships. This step computes \(\mathbf{R}\) only. It does not
+implement M1 and does not use coefficient-space gradients.
+
 ## Prototype Adapter Merging
 
 After training and checking both local adapters, run:
