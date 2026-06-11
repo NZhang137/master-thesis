@@ -1,4 +1,4 @@
-"""Minimal prompt-only training utilities for the infrastructure prototype."""
+"""Minimal supervised training utilities for the infrastructure prototypes."""
 
 from collections.abc import Sequence
 
@@ -15,11 +15,11 @@ def train_lora_on_texts(
     max_length: int = 512,
     batch_size: int = 1,
 ) -> list[float]:
-    """Train LoRA on chosen HH-RLHF texts with causal language modeling.
+    """Train LoRA on prototype texts with causal language modeling.
 
     This is only a lightweight supervised prototype. It is not full RLHF, not
     PPO, not RLAIF, and not a final preference-training method. In particular,
-    it does not compare chosen and rejected responses.
+    it does not compare preference pairs or train a reward model.
 
     Returns:
         The average language-modeling loss for each epoch.

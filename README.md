@@ -32,7 +32,10 @@ The current prototype is a small-scale Google Colab setup using:
 
 ## Planned Extensions
 
-After the initial GPT-2 prototype, the project may move to a more realistic small LLM setup using TinyLlama and multi-objective alignment datasets such as UltraFeedback or HelpSteer.
+After the GPT-2 infrastructure prototype, the project may move to a more
+realistic small LLM setup using TinyLlama and additional multi-objective
+alignment datasets such as UltraFeedback. A parallel HelpSteer2 prototype path
+is documented below.
 
 ## Prototype Adapter Training
 
@@ -79,6 +82,37 @@ These generated adapters are ignored by git. Training uses only the `chosen`
 responses as lightweight supervised language-modeling text. It is not full
 RLHF or PPO, and it does not yet implement the final
 $\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ method.
+
+## HelpSteer2 Prototype
+
+HelpSteer2 is the next explicitly multi-objective dataset path after the
+HH-RLHF helpful/harmless prototype. The parallel training script supports the
+`helpfulness`, `correctness`, `coherence`, `complexity`, and `verbosity`
+ratings from `nvidia/HelpSteer2`.
+
+Run the default Colab-friendly prototype:
+
+```bash
+python scripts/train_helpsteer2_adapters.py --split "train[:100]" --num_epochs 1
+python scripts/check_helpsteer2_adapters.py
+```
+
+For each attribute, the script selects examples rated at least 3 out of 4,
+sorts them by that attribute score, and uses their prompt/response text for
+supervised causal language modeling. Every adapter starts from a fresh GPT-2
+base model with a new LoRA adapter. The default output folders are:
+
+- `adapters/helpsteer2-gpt2-helpfulness-adapter`
+- `adapters/helpsteer2-gpt2-correctness-adapter`
+- `adapters/helpsteer2-gpt2-coherence-adapter`
+- `adapters/helpsteer2-gpt2-complexity-adapter`
+- `adapters/helpsteer2-gpt2-verbosity-adapter`
+
+Generated adapters remain ignored by git. This is supervised prototype
+training based on attribute-rated examples, not full RLHF or PPO and not
+reward-model training. It adds a richer specialist-training path but does not
+replace the thesis coefficient mapping
+$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
 
 ## Prototype Adapter Merging
 
