@@ -3,6 +3,13 @@
 import torch
 
 
+PROTOTYPE_TEST_PROMPTS = (
+    "Human: What is a good way to stay motivated?\n\nAssistant:",
+    "Human: How can I become more confident?\n\nAssistant:",
+    "Human: How should I handle a disagreement with a friend?\n\nAssistant:",
+)
+
+
 def generate_response(
     model,
     tokenizer,

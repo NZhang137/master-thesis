@@ -6,9 +6,68 @@ model-merging family. It does not use coefficient-space optimization.
 
 from __future__ import annotations
 
+import csv
 from collections.abc import Sequence
+from pathlib import Path
 
 import numpy as np
+
+
+def load_labeled_relationship_matrix(
+    matrix_path: str | Path,
+    objective_names: Sequence[str],
+    index_column: str = "adapter",
+) -> np.ndarray:
+    """Load a finite symmetric relationship matrix from a labeled CSV."""
+    path = Path(matrix_path)
+    names = list(objective_names)
+    if not path.is_file():
+        raise FileNotFoundError(f"Relationship matrix not found: {path}")
+    if not names or len(set(names)) != len(names):
+        raise ValueError("objective_names must contain unique names.")
+
+    with path.open("r", encoding="utf-8", newline="") as input_file:
+        reader = csv.DictReader(input_file)
+        fieldnames = reader.fieldnames or []
+        if not fieldnames or fieldnames[0] != index_column:
+            raise ValueError(
+                f"Relationship CSV must begin with an '{index_column}' column."
+            )
+
+        missing_columns = set(names).difference(fieldnames)
+        if missing_columns:
+            raise ValueError(
+                "Relationship CSV is missing columns: "
+                + ", ".join(sorted(missing_columns))
+            )
+        rows = {row[index_column]: row for row in reader}
+
+    missing_rows = set(names).difference(rows)
+    if missing_rows:
+        raise ValueError(
+            "Relationship CSV is missing rows: "
+            + ", ".join(sorted(missing_rows))
+        )
+
+    try:
+        matrix = np.array(
+            [
+                [float(rows[row_name][column_name]) for column_name in names]
+                for row_name in names
+            ],
+            dtype=np.float64,
+        )
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            "Relationship CSV must contain numeric matrix values."
+        ) from error
+
+    if not np.all(np.isfinite(matrix)):
+        raise ValueError("Relationship matrix must contain only finite values.")
+    if not np.allclose(matrix, matrix.T, atol=1e-6):
+        raise ValueError("Relationship matrix must be symmetric.")
+
+    return matrix
 
 
 def normalize_simplex(

@@ -17,6 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.coefficient_utils import (
     l1_distance,
     l2_distance,
+    load_labeled_relationship_matrix,
     normalize_simplex,
     relationship_softmax_mapping,
 )
@@ -35,54 +36,6 @@ def resolve_project_path(path_value: str) -> Path:
     """Resolve a command-line path relative to the repository root."""
     path = Path(path_value)
     return path if path.is_absolute() else PROJECT_ROOT / path
-
-
-def load_relationship_matrix(matrix_path: Path) -> np.ndarray:
-    """Load and validate the labeled helpful/harmless relationship matrix."""
-    if not matrix_path.is_file():
-        raise FileNotFoundError(
-            f"Relationship matrix not found: {matrix_path}. "
-            "Run scripts/compute_relationship_matrix.py first."
-        )
-
-    with matrix_path.open("r", encoding="utf-8", newline="") as input_file:
-        reader = csv.DictReader(input_file)
-        fieldnames = reader.fieldnames or []
-        if not fieldnames or fieldnames[0] != "adapter":
-            raise ValueError("Relationship CSV must begin with an 'adapter' column.")
-
-        missing_columns = set(OBJECTIVE_NAMES).difference(fieldnames)
-        if missing_columns:
-            raise ValueError(
-                "Relationship CSV is missing columns: "
-                + ", ".join(sorted(missing_columns))
-            )
-        rows = {row["adapter"]: row for row in reader}
-
-    missing_rows = set(OBJECTIVE_NAMES).difference(rows)
-    if missing_rows:
-        raise ValueError(
-            "Relationship CSV is missing rows: "
-            + ", ".join(sorted(missing_rows))
-        )
-
-    try:
-        matrix = np.array(
-            [
-                [float(rows[row_name][column_name]) for column_name in OBJECTIVE_NAMES]
-                for row_name in OBJECTIVE_NAMES
-            ],
-            dtype=np.float64,
-        )
-    except (TypeError, ValueError) as error:
-        raise ValueError("Relationship CSV must contain numeric matrix values.") from error
-
-    if not np.all(np.isfinite(matrix)):
-        raise ValueError("Relationship matrix must contain only finite values.")
-    if not np.allclose(matrix, matrix.T, atol=1e-6):
-        raise ValueError("Relationship matrix must be symmetric.")
-
-    return matrix
 
 
 def compute_rows(R: np.ndarray) -> list[dict[str, float | str]]:
@@ -182,7 +135,12 @@ def main() -> None:
     matrix_path = resolve_project_path(args.relationship_matrix_path)
     output_path = resolve_project_path(args.output_path)
 
-    R = load_relationship_matrix(matrix_path)
+    try:
+        R = load_labeled_relationship_matrix(matrix_path, OBJECTIVE_NAMES)
+    except FileNotFoundError as error:
+        raise FileNotFoundError(
+            f"{error}. Run scripts/compute_relationship_matrix.py first."
+        ) from error
     rows = compute_rows(R)
     write_rows(output_path, rows)
 

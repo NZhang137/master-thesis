@@ -161,6 +161,31 @@ Rewarded-Soups-style interpolation family. It does not compute or use
 coefficient-space gradients, and it makes no claim of global Pareto-front
 improvement.
 
+## M1 Baseline Comparison
+
+After computing the relationship matrix and training both local adapters, run:
+
+```bash
+python scripts/compare_m1_to_baselines.py
+```
+
+The script compares M1 at `tau=1.0` against uniform coefficients and direct
+preference coefficients for the three example preference vectors. If
+`results/lambda_sweep_summary.csv` exists, it also reports the best fixed-grid
+utility as a reference. A positive grid gap means that the newly evaluated
+candidate has a higher heuristic utility than that stored grid benchmark.
+
+The comparison writes:
+
+- `results/m1_baseline_generations.csv`
+- `results/m1_baseline_comparison.csv`
+
+All candidates use the same small prompt set and the same deterministic
+helpfulness and harmlessness proxy heuristics as the lambda-sweep evaluation.
+This remains a lightweight prototype comparison, not final reward-model
+evaluation. Learned reward-model evaluation is future work, and these proxy
+results do not establish global Pareto-front improvement.
+
 ## Repository Structure
 
 - `thesis/`: Proposal & LaTeX thesis draft

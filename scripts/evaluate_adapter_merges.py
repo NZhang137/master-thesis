@@ -15,7 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.evaluation_utils import generate_response
+from src.evaluation_utils import PROTOTYPE_TEST_PROMPTS, generate_response
 from src.merge_utils import load_model_with_weighted_lora_adapters
 
 
@@ -26,13 +26,6 @@ LAMBDA_GRID = (
     (0.25, 0.75),
     (0.0, 1.0),
 )
-
-TEST_PROMPTS = (
-    "Human: What is a good way to stay motivated?\n\nAssistant:",
-    "Human: How can I become more confident?\n\nAssistant:",
-    "Human: How should I handle a disagreement with a friend?\n\nAssistant:",
-)
-
 
 def resolve_project_path(path_value: str) -> Path:
     """Resolve a command-line path relative to the repository root."""
@@ -108,7 +101,7 @@ def main() -> None:
             device=device,
         )
 
-        for prompt_index, prompt in enumerate(TEST_PROMPTS):
+        for prompt_index, prompt in enumerate(PROTOTYPE_TEST_PROMPTS):
             seed = 42 + prompt_index
             torch.manual_seed(seed)
             if torch.cuda.is_available():
@@ -129,7 +122,10 @@ def main() -> None:
                     "generated_response": response,
                 }
             )
-            print(f"Generated response {prompt_index + 1}/{len(TEST_PROMPTS)}")
+            print(
+                f"Generated response "
+                f"{prompt_index + 1}/{len(PROTOTYPE_TEST_PROMPTS)}"
+            )
 
         del model, tokenizer
         gc.collect()
