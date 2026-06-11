@@ -1,0 +1,79 @@
+{
+  "objective_order": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "relationship_matrix_path": "results/helpsteer2_relationship_matrix.csv",
+  "output_csv_path": "results/helpsteer2_m1_c1_coefficients.csv",
+  "number_of_objectives": 5,
+  "number_of_rows": 28,
+  "preferences": {
+    "balanced": [
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2
+    ],
+    "quality_focused": [
+      0.3,
+      0.3,
+      0.3,
+      0.05,
+      0.05
+    ],
+    "detailed_answer": [
+      0.25,
+      0.25,
+      0.2,
+      0.15,
+      0.15
+    ],
+    "helpfulness_focused": [
+      0.6,
+      0.1,
+      0.1,
+      0.1,
+      0.1
+    ]
+  },
+  "methods": {
+    "direct_preference": {
+      "description": "Normalized baseline lambda = p."
+    },
+    "M1": {
+      "description": "Relationship-softmax one-shot mapping.",
+      "hyperparameter": "tau",
+      "values": [
+        0.5,
+        1.0,
+        2.0
+      ]
+    },
+    "C1": {
+      "description": "CAGrad-inspired one-shot simplex mapping.",
+      "hyperparameter": "rho",
+      "values": [
+        0.1,
+        1.0,
+        10.0
+      ],
+      "optimizer": "scipy.optimize.minimize with SLSQP",
+      "initialization": "normalized preference vector p",
+      "psd_strategy": "Symmetrize R and clip negative eigenvalues to zero.",
+      "fallback": "Choose the best of p, uniform, and simplex vertices under the same C1 objective."
+    }
+  },
+  "relationship_matrix_symmetrized": true,
+  "relationship_matrix_psd_eigenvalues": [
+    0.05355880041919349,
+    0.08431353064085713,
+    0.10300966025466045,
+    0.28849068304102965,
+    4.4706273256442595
+  ],
+  "note": "These methods select coefficients inside the fixed Rewarded-Soups-style interpolation family."
+}

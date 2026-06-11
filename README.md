@@ -153,6 +153,22 @@ similarity between flattened LoRA adapter parameters as a prototype proxy for
 task-vector relationships. This step computes \(\mathbf{R}\) only. It does not
 implement M1 and does not use coefficient-space gradients.
 
+### HelpSteer2 M1 and C1 Coefficients
+
+After computing `results/helpsteer2_relationship_matrix.csv`, run:
+
+```bash
+python scripts/compute_helpsteer2_m1_c1_coefficients.py
+```
+
+The script computes the direct-preference baseline, M1 relationship-softmax
+coefficients, and C1 CAGrad-inspired one-shot coefficients for four example
+preference vectors. C1 uses SciPy's SLSQP optimizer with a PSD-safe relationship
+matrix. The script writes these small result files:
+
+- `results/helpsteer2_m1_c1_coefficients.csv`
+- `results/helpsteer2_m1_c1_coefficients_metadata.json`
+
 ## Prototype Adapter Merging
 
 After training and checking both local adapters, run:
