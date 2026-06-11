@@ -19,12 +19,12 @@ The implemented prototype performs the following steps:
 
 1. Train separate helpful and harmless LoRA adapters.
 2. Merge the adapters with a fixed grid of coefficient vectors
-   \(\lambda\).
+   $\lambda$.
 3. Generate responses for a small shared prompt set.
 4. Compute heuristic helpfulness and harmlessness proxy scores.
-5. Compute a relationship matrix \(R\) from flattened LoRA adapter geometry.
+5. Compute a relationship matrix $R$ from flattened LoRA adapter geometry.
 6. Compute corrected coefficients with the M1 mapping
-   \(\lambda=f(p,R)\).
+   $\lambda=f(p,R)$.
 7. Compare M1 with uniform coefficients, direct preference coefficients, and
    the best result found in the fixed-grid sweep.
 
@@ -37,12 +37,12 @@ The implemented prototype performs the following steps:
   fields.
 - `results/lambda_sweep_summary.csv`: aggregate proxy scores and
   preference-weighted utilities for the five fixed coefficient pairs.
-- `results/relationship_matrix.csv`: the labeled \(2\times2\) cosine
+- `results/relationship_matrix.csv`: the labeled $2\times2$ cosine
   relationship matrix for the helpful and harmless adapters.
 - `results/relationship_matrix_metadata.json`: adapter paths, representation,
   vector lengths, similarity type, and caveats for the relationship matrix.
 - `results/m1_coefficients.csv`: M1 coefficients for three preference vectors
-  and four values of \(\tau\), together with relationship scores and distances
+  and four values of $\tau$, together with relationship scores and distances
   from the original preferences.
 - `results/m1_baseline_comparison.csv`: aggregate proxy scores and utilities
   for uniform, direct-preference, and M1 coefficients, with the best fixed-grid
@@ -50,7 +50,7 @@ The implemented prototype performs the following steps:
 - `results/m1_baseline_generations.csv`: response-level generations and proxy
   scores underlying the baseline comparison.
 
-## Relationship Matrix \(R\)
+## Relationship Matrix $R$
 
 The current cosine relationship matrix is:
 
@@ -82,18 +82,18 @@ $$
 {\sum_k p_k\exp(\tau\,\mathrm{scores}_k)}.
 $$
 
-Here, \(p\) is the user preference vector, \(R\) is the adapter relationship
-matrix, \(\lambda\) is the corrected merge coefficient vector, and \(\tau\)
-controls the correction strength. Setting \(\tau=0\) recovers
-\(\lambda=p\).
+Here, $p$ is the user preference vector, $R$ is the adapter relationship
+matrix, $\lambda$ is the corrected merge coefficient vector, and $\tau$
+controls the correction strength. Setting $\tau=0$ recovers
+$\lambda=p$.
 
-With the current symmetric matrix and \(\tau=1\):
+With the current symmetric matrix and $\tau=1$:
 
-| Preference \(p\) | M1 coefficient \(\lambda\) | L1 distance from \(p\) |
+| Preference $p$ | M1 coefficient $\lambda$ | L1 distance from $p$ |
 |---|---|---:|
-| \([0.5, 0.5]\) | \([0.5, 0.5]\) | 0.000000 |
-| \([0.8, 0.2]\) | \([0.806559, 0.193441]\) | 0.013118 |
-| \([0.2, 0.8]\) | \([0.193441, 0.806559]\) | 0.013118 |
+| $[0.5, 0.5]$ | $[0.5, 0.5]$ | 0.000000 |
+| $[0.8, 0.2]$ | $[0.806559, 0.193441]$ | 0.013118 |
+| $[0.2, 0.8]$ | $[0.193441, 0.806559]$ | 0.013118 |
 
 The current relationship matrix therefore leaves the balanced preference
 unchanged and slightly strengthens the larger component of each unbalanced
@@ -105,18 +105,18 @@ The comparison uses the same three prompts and heuristic proxy scoring for all
 newly generated candidates. The fixed-grid column is the best stored utility
 from the earlier five-point lambda sweep.
 
-| Preference | Uniform | Direct preference | M1 (\(\tau=1\)) | Best fixed grid |
+| Preference | Uniform | Direct preference | M1 ($\tau=1$) | Best fixed grid |
 |---|---:|---:|---:|---:|
-| \([0.5, 0.5]\) | 0.708333 | 0.708333 | 0.708333 | 0.708333 |
-| \([0.8, 0.2]\) | 0.743333 | 0.755000 | 0.755000 | 0.743333 |
-| \([0.2, 0.8]\) | 0.673333 | 0.665556 | 0.665556 | 0.673333 |
+| $[0.5, 0.5]$ | 0.708333 | 0.708333 | 0.708333 | 0.708333 |
+| $[0.8, 0.2]$ | 0.743333 | 0.755000 | 0.755000 | 0.743333 |
+| $[0.2, 0.8]$ | 0.673333 | 0.665556 | 0.665556 | 0.673333 |
 
 In this prototype run, M1 and direct preference received identical heuristic
 utilities for all three preferences, despite the small M1 coefficient changes
-for the unbalanced cases. For \(p=[0.8,0.2]\), both methods scored about
-0.0117 above the best stored fixed-grid utility. For \(p=[0.2,0.8]\), both
+for the unbalanced cases. For $p=[0.8,0.2]$, both methods scored about
+0.0117 above the best stored fixed-grid utility. For $p=[0.2,0.8]$, both
 scored about 0.0078 below the best stored fixed-grid utility. For the balanced
-preference, all methods use or effectively recover \([0.5,0.5]\) and have the
+preference, all methods use or effectively recover $[0.5,0.5]$ and have the
 same utility.
 
 Using heuristic proxy scores, this run does not show an advantage of M1 over

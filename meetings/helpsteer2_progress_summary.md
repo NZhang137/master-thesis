@@ -5,13 +5,13 @@
 The thesis studies preference-aware coefficient correction within a fixed
 Rewarded-Soups-style model-merging family:
 
-\[
+$$
 \delta_i \rightarrow R \rightarrow \lambda=f(p,R)
 \rightarrow \theta(\lambda).
-\]
+$$
 
-Here, \(p\) represents a user's objective preferences, \(R\) represents
-relationships between objective-specific specialists, and \(\lambda\)
+Here, $p$ represents a user's objective preferences, $R$ represents
+relationships between objective-specific specialists, and $\lambda$
 determines the final merge. The contribution is coefficient selection within
 the fixed interpolation family rather than expansion of the global Pareto
 front.
@@ -21,7 +21,7 @@ front.
 The current HelpSteer2 prototype implements:
 
 1. objective-specific HelpSteer2 LoRA adapters;
-2. a relationship matrix \(R\) from adapter-weight geometry;
+2. a relationship matrix $R$ from adapter-weight geometry;
 3. direct-preference, M1, and C1 coefficient mappings;
 4. PEFT-based weighted adapter merging; and
 5. response generation with preference-weighted proxy evaluation.
@@ -45,13 +45,13 @@ The current HelpSteer2 prototype implements:
 For each preference and method, the current analysis selects the
 hyperparameter setting with the highest `utility_for_preference`.
 
-- C1 with \(\rho=0.1\) has the highest heuristic proxy utility among uniform,
+- C1 with $\rho=0.1$ has the highest heuristic proxy utility among uniform,
   direct preference, M1, and C1 for all four tested preference vectors.
 - In this run, the selected C1 setting improves over direct preference for all
   four preferences.
-- M1 remains much closer to the original preference vector \(p\). Its selected
+- M1 remains much closer to the original preference vector $p$. Its selected
   L1 distances range from 0.0093 to 0.0308.
-- C1 moves substantially farther from \(p\). Its selected L1 distances range
+- C1 moves substantially farther from $p$. Its selected L1 distances range
   from 0.4089 to 1.0089.
 
 The current finding is therefore best framed as a
@@ -59,7 +59,7 @@ The current finding is therefore best framed as a
 heuristic utility in this prototype run, while M1 preserves the stated
 preference more closely. This does not establish that C1 is generally better.
 
-The best finite-sweep candidate, denoted \(\lambda_{\mathrm{best}}\), still has
+The best finite-sweep candidate, denoted $\lambda_{\mathrm{best}}$, still has
 higher proxy utility than the selected C1 setting for each tested preference.
 This is a reference to the best of nine tested candidates, not a global
 optimum.
@@ -85,7 +85,7 @@ optimum.
 3. Replace or supplement the heuristics with reward models or stronger
    external evaluators.
 4. Compare mappings against a more systematic finite
-   \(\lambda_{\mathrm{best}}\) sweep.
+   $\lambda_{\mathrm{best}}$ sweep.
 5. Optionally scale the prototype to TinyLlama or another stronger small
    model.
 6. Later, optionally evaluate M2, P1, P2, C2, or IC1.
@@ -95,7 +95,7 @@ optimum.
 1. Is HelpSteer2 suitable as the main many-objective benchmark, or should it be
    complemented by another dataset?
 2. Is the C1 formulation appropriate as a main thesis method despite the
-   observed movement away from \(p\)?
+   observed movement away from $p$?
 3. Should the next priority be stronger evaluation, more repetitions, or
    scaling to a stronger base model?
 4. Are M1 and C1 sufficient for the first thesis version, or should a

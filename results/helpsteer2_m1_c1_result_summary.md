@@ -2,7 +2,7 @@
 
 ## Comparison
 
-The comparison evaluates uniform coefficients, direct preference (\(\lambda=p\)), M1 relationship-softmax correction, and the C1 CAGrad-inspired one-shot mapping. For M1 and C1, the table selects the hyperparameter setting with the highest `utility_for_preference` for each preference vector.
+The comparison evaluates uniform coefficients, direct preference ($\lambda=p$), M1 relationship-softmax correction, and the C1 CAGrad-inspired one-shot mapping. For M1 and C1, the table selects the hyperparameter setting with the highest `utility_for_preference` for each preference vector.
 
 ## Best Method by Preference
 
@@ -32,5 +32,5 @@ The selected M1 settings remain close to the original preference vectors (L1 dis
 - Generated responses do not automatically have HelpSteer2 labels.
 - The comparison uses a small prompt set and a single recorded run.
 - Hyperparameters are selected on the same proxy evaluation used for reporting.
-- Any finite-sweep reference should be described as \(\lambda_{\mathrm{best}}\), not as an oracle.
+- Any finite-sweep reference should be described as $\lambda_{\mathrm{best}}$, not as an oracle.
 - The results do not establish improvement of the global Pareto front.

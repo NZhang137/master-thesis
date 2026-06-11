@@ -130,7 +130,7 @@ prompts and writes:
 The adapters must already exist under `adapters/`. Generated adapter and model
 files remain ignored by git, while the small result CSV may be committed. This
 step only tests many-objective PEFT LoRA adapter merging. It does not yet
-compute a HelpSteer2 relationship matrix \(\mathbf{R}\), does not yet apply M1
+compute a HelpSteer2 relationship matrix $\mathbf{R}$, does not yet apply M1
 to the five-objective setup, and does not replace the existing HH-RLHF
 prototype.
 
@@ -150,7 +150,7 @@ writes:
 
 Generated adapter and model files remain ignored by git. The matrix uses cosine
 similarity between flattened LoRA adapter parameters as a prototype proxy for
-task-vector relationships. This step computes \(\mathbf{R}\) only. It does not
+task-vector relationships. This step computes $\mathbf{R}$ only. It does not
 implement M1 and does not use coefficient-space gradients.
 
 ### HelpSteer2 M1 and C1 Coefficients
@@ -189,7 +189,7 @@ HelpSteer2 proxy scores, and writes:
 
 If the fixed lambda-sweep summary is available, the comparison also reports
 each setting's gap to the best tested fixed-sweep coefficient vector
-\(\lambda_{\mathrm{best}}\). The proxy scores are infrastructure placeholders,
+$\lambda_{\mathrm{best}}$. The proxy scores are infrastructure placeholders,
 not reward-model scores or human HelpSteer2 labels.
 
 The current HelpSteer2 matrices, coefficient behavior, fixed-sweep results,
