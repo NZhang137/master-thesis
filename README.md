@@ -142,6 +142,25 @@ objective or specialist relationships. This geometry proxy must be empirically
 validated. This step computes $\mathbf{R}$ only and does not yet implement
 $\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
 
+## M1 Relationship-Softmax Coefficients
+
+After computing `results/relationship_matrix.csv`, run:
+
+```bash
+python scripts/compute_m1_coefficients.py
+```
+
+This writes `results/m1_coefficients.csv` for three example preference vectors
+and four correction-strength values. M1 is the first implemented
+$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ mapping in the prototype. It
+uses the static relationship matrix computed from LoRA adapter geometry and
+does not train or modify any model.
+
+The method performs a direct one-shot coefficient correction inside the fixed
+Rewarded-Soups-style interpolation family. It does not compute or use
+coefficient-space gradients, and it makes no claim of global Pareto-front
+improvement.
+
 ## Repository Structure
 
 - `thesis/`: Proposal & LaTeX thesis draft

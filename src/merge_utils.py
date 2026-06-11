@@ -1,8 +1,7 @@
 """Utilities for prototype Rewarded-Soups-style LoRA adapter merging.
 
 The weighted merge remains inside a fixed interpolation family. Relationship
-matrix construction and the final preference-aware mapping are not implemented
-here.
+matrix and coefficient utilities live in focused companion modules.
 """
 
 from collections.abc import Sequence
@@ -64,44 +63,13 @@ def relationship_softmax_mapping(
     R: np.ndarray,
     tau: float = 1.0,
 ) -> np.ndarray:
-    """Map preferences to simplex-valued coefficients using relationships.
+    """Compatibility wrapper for the M1 relationship-softmax mapping."""
+    try:
+        from .coefficient_utils import relationship_softmax_mapping as compute
+    except ImportError:
+        from coefficient_utils import relationship_softmax_mapping as compute
 
-    The prototype mapping is
-
-    ``lambda_i = p_i exp(tau * (R @ p)_i) / sum_k p_k exp(tau * (R @ p)_k)``.
-
-    This is an initial reusable baseline and not the final thesis method.
-    """
-    preferences = np.asarray(p, dtype=float)
-    relationships = np.asarray(R, dtype=float)
-
-    if preferences.ndim != 1 or preferences.size == 0:
-        raise ValueError("p must be a non-empty one-dimensional vector.")
-    if not np.all(np.isfinite(preferences)) or np.any(preferences < 0):
-        raise ValueError("p must contain finite, non-negative values.")
-    if not np.isfinite(tau):
-        raise ValueError("tau must be finite.")
-    if relationships.shape != (preferences.size, preferences.size):
-        raise ValueError("R must be a square matrix matching the length of p.")
-    if not np.all(np.isfinite(relationships)):
-        raise ValueError("R must contain only finite values.")
-
-    preference_sum = preferences.sum()
-    if preference_sum <= 0:
-        raise ValueError("p must contain at least one positive value.")
-    preferences = preferences / preference_sum
-
-    scores = relationships @ preferences
-    scaled_scores = tau * scores
-    scaled_scores -= np.max(scaled_scores)
-
-    unnormalized = preferences * np.exp(scaled_scores)
-    normalizer = unnormalized.sum()
-    if not np.isfinite(normalizer) or normalizer <= 0:
-        raise ValueError("Could not normalize the merge coefficients.")
-
-    lambdas = unnormalized / normalizer
-    return lambdas / lambdas.sum()
+    return compute(p, R, tau=tau)
 
 
 def load_model_with_weighted_lora_adapters(
