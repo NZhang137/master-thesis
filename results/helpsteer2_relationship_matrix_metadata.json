@@ -1,0 +1,29 @@
+{
+  "adapter_names": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "adapter_paths": [
+    "adapters/helpsteer2-gpt2-helpfulness-adapter",
+    "adapters/helpsteer2-gpt2-correctness-adapter",
+    "adapters/helpsteer2-gpt2-coherence-adapter",
+    "adapters/helpsteer2-gpt2-complexity-adapter",
+    "adapters/helpsteer2-gpt2-verbosity-adapter"
+  ],
+  "similarity_type": "cosine_similarity",
+  "number_of_adapters": 5,
+  "output_csv_path": "results/helpsteer2_relationship_matrix.csv",
+  "representation": "flattened LoRA adapter parameters",
+  "vector_lengths": [
+    811008,
+    811008,
+    811008,
+    811008,
+    811008
+  ],
+  "note": "R is computed from LoRA adapter parameter geometry and is a prototype proxy for task-vector relationships.",
+  "caveat": "This step computes R only and does not implement the M1 preference-to-coefficient mapping."
+}
