@@ -46,11 +46,17 @@ def _normalize_two_weights(weights: Sequence[float]) -> list[float]:
     return (values / total).tolist()
 
 
-def compute_relationship_matrix(adapter_paths: Sequence[str]) -> np.ndarray:
-    """Compute the adapter relationship matrix R in a future implementation."""
-    raise NotImplementedError(
-        "Adapter relationship computation is not implemented yet."
-    )
+def compute_relationship_matrix(
+    adapter_paths: Sequence[str | Path],
+    adapter_names: Sequence[str] | None = None,
+) -> torch.Tensor:
+    """Compute R from flattened LoRA parameters using cosine similarity."""
+    try:
+        from .relationship_utils import compute_relationship_matrix as compute
+    except ImportError:
+        from relationship_utils import compute_relationship_matrix as compute
+
+    return compute(adapter_paths, adapter_names=adapter_names)
 
 
 def relationship_softmax_mapping(

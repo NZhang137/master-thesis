@@ -122,6 +122,26 @@ a full RLHF evaluation. This step does not compute $\mathbf{R}$ and does not
 implement the final
 $\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ correction method.
 
+## Prototype Relationship Matrix
+
+After both local adapters have been trained, run:
+
+```bash
+python scripts/compute_relationship_matrix.py
+```
+
+The script expects the Helpful and Harmless adapters under `adapters/`, whose
+generated weights remain ignored by git. It writes:
+
+- `results/relationship_matrix.csv`
+- `results/relationship_matrix_metadata.json`
+
+The small CSV and JSON result files can be committed. The matrix uses cosine
+similarity between flattened LoRA adapter parameters as a static proxy for
+objective or specialist relationships. This geometry proxy must be empirically
+validated. This step computes $\mathbf{R}$ only and does not yet implement
+$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
+
 ## Repository Structure
 
 - `thesis/`: Proposal & LaTeX thesis draft
