@@ -114,6 +114,26 @@ reward-model training. It adds a richer specialist-training path but does not
 replace the thesis coefficient mapping
 $\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
 
+### HelpSteer2 Adapter Merging
+
+After all five local HelpSteer2 adapters have been trained and checked, run:
+
+```bash
+python scripts/evaluate_helpsteer2_adapter_merges.py
+```
+
+The script evaluates nine fixed five-objective coefficient vectors on four
+prompts and writes:
+
+- `results/helpsteer2_adapter_merge_generations.csv`
+
+The adapters must already exist under `adapters/`. Generated adapter and model
+files remain ignored by git, while the small result CSV may be committed. This
+step only tests many-objective PEFT LoRA adapter merging. It does not yet
+compute a HelpSteer2 relationship matrix \(\mathbf{R}\), does not yet apply M1
+to the five-objective setup, and does not replace the existing HH-RLHF
+prototype.
+
 ## Prototype Adapter Merging
 
 After training and checking both local adapters, run:
