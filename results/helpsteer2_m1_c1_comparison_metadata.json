@@ -1,0 +1,34 @@
+{
+  "input_coefficient_file": "results/helpsteer2_m1_c1_coefficients.csv",
+  "relationship_matrix_file": "results/helpsteer2_relationship_matrix.csv",
+  "fixed_sweep_summary_file": "results/helpsteer2_lambda_sweep_summary.csv",
+  "output_files": {
+    "generations": "results/helpsteer2_m1_c1_merge_generations.csv",
+    "scored_generations": "results/helpsteer2_m1_c1_scored_generations.csv",
+    "comparison": "results/helpsteer2_m1_c1_comparison.csv",
+    "metadata": "results/helpsteer2_m1_c1_comparison_metadata.json"
+  },
+  "objectives": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "methods_evaluated": [
+    "uniform",
+    "direct_preference",
+    "M1",
+    "C1"
+  ],
+  "prompt_count": 4,
+  "candidate_count": 32,
+  "generation_count": 128,
+  "fixed_sweep_lambda_best_comparison_available": true,
+  "generation_settings": {
+    "model_name": "gpt2",
+    "max_new_tokens": 100,
+    "seed": 42
+  },
+  "note": "Proxy scores are lightweight prototype scores, not HelpSteer2 human labels or reward-model scores."
+}
