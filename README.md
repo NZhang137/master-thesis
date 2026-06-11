@@ -169,6 +169,29 @@ matrix. The script writes these small result files:
 - `results/helpsteer2_m1_c1_coefficients.csv`
 - `results/helpsteer2_m1_c1_coefficients_metadata.json`
 
+### HelpSteer2 M1 and C1 Merge Evaluation
+
+After the five local HelpSteer2 adapters and coefficient table are available,
+run:
+
+```bash
+python scripts/evaluate_helpsteer2_m1_c1_merges.py
+```
+
+The script evaluates uniform, direct-preference, M1, and C1 adapter merges,
+generates responses for four shared prompts, applies the lightweight
+HelpSteer2 proxy scores, and writes:
+
+- `results/helpsteer2_m1_c1_merge_generations.csv`
+- `results/helpsteer2_m1_c1_scored_generations.csv`
+- `results/helpsteer2_m1_c1_comparison.csv`
+- `results/helpsteer2_m1_c1_comparison_metadata.json`
+
+If the fixed lambda-sweep summary is available, the comparison also reports
+each setting's gap to the best tested fixed-sweep coefficient vector
+\(\lambda_{\mathrm{best}}\). The proxy scores are infrastructure placeholders,
+not reward-model scores or human HelpSteer2 labels.
+
 ## Prototype Adapter Merging
 
 After training and checking both local adapters, run:
