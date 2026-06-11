@@ -69,11 +69,11 @@
   },
   "relationship_matrix_symmetrized": true,
   "relationship_matrix_psd_eigenvalues": [
-    0.05355880041919349,
-    0.08431353064085713,
-    0.10300966025466045,
-    0.28849068304102965,
-    4.4706273256442595
+    0.05355880041919385,
+    0.08431353064085706,
+    0.10300966025466025,
+    0.2884906830410294,
+    4.470627325644262
   ],
   "note": "These methods select coefficients inside the fixed Rewarded-Soups-style interpolation family."
 }
