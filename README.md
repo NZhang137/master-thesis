@@ -211,6 +211,9 @@ writes compact comparison tables, and creates three plots under
 The reported values remain lightweight heuristic proxy scores rather than
 HelpSteer2 human labels or reward-model scores.
 
+A concise supervisor-facing status note for the next meeting is available in
+[`meetings/helpsteer2_progress_summary.md`](meetings/helpsteer2_progress_summary.md).
+
 ## Prototype Adapter Merging
 
 After training and checking both local adapters, run:
