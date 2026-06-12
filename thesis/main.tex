@@ -312,21 +312,10 @@ T_p^{\mathrm{norm}}(p)-T_p^{\mathrm{norm}}(\lambda_{\mathrm{method}}).
 A positive value means a reduced worst-case preference-weighted objective shortfall relative to \(\lambda=p\).
 \end{definition}
 
-\begin{definition}[Evaluation over multiple preferences]
-Let
-\[
-\mathcal{P}:=\{p^{(1)},\dots,p^{(K)}\}\subset\Delta_m
-\]
-be a set of evaluation preferences. Metrics should be aggregated over \(\mathcal{P}\) using mean, median, and robust summary statistics.
-\end{definition}
-
-\begin{remark}[Metric scope]
-All metrics above evaluate coefficient selection \emph{inside the fixed interpolation family} \(\mathcal{M}\). They do not imply global Pareto-front improvement.
-\end{remark}
 
 \chapter{Method}
 
-This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the preference vector \(p\) and a static relationship matrix \(R\).
+This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the preference vector \(p\) and a static relationship matrix \(R\). No coefficient-space gradients are introduced.
 
 \section{General setup}
 
@@ -465,56 +454,7 @@ Then
 This is a smooth approximation of the worst-case alignment objective.
 \end{definition}
 
-\section{Mathematical properties and provable statements}
 
-\begin{proposition}[PSD of Gram-based \(R\)]
-If \(R=D^\top D\), then \(R\) is positive semidefinite.
-\end{proposition}
-
-\begin{proposition}[Family preservation]
-All proposed mappings output \(\lambda\in\Delta_m\). Therefore \(\theta(\lambda)\in\mathcal{M}\).
-\end{proposition}
-
-\begin{proposition}[Convexity of the MGDA-inspired QP]
-If \(R\succeq 0\) and \(\rho>0\), then the optimization problem defining \(\lambda_{\mathrm{MGDA}}\) is convex.
-\end{proposition}
-
-\begin{proposition}[Convexity of the Trust-Region CAGrad-inspired problem]
-If \(R\succeq 0\), the trust-region CAGrad-inspired formulation with auxiliary variable \(t\) is a convex QCQP.
-\end{proposition}
-
-\begin{proposition}[CAGrad proxy guarantee]
-Because \(\lambda=p\) is feasible for the trust-region problem, any optimal solution \(\lambda^\star\) satisfies
-\[
-\min_i(R\lambda^\star)_i\ge \min_i(Rp)_i.
-\]
-This is only a guarantee in proxy space, not a reward-space guarantee.
-\end{proposition}
-
-\begin{proposition}[Trust-region implication in parameter geometry]
-If \(R=D^\top D\) and \(\lambda^\star\) satisfies
-\[
-(\lambda^\star-p)^\top R(\lambda^\star-p)\le c^2 p^\top Rp,
-\]
-then
-\[
-\norm{D(\lambda^\star-p)}_2\le c\,\norm{Dp}_2.
-\]
-\end{proposition}
-
-\begin{proposition}[Orthogonality after a PCGrad-style projection]
-If \(\varepsilon=0\) and \(d_j\neq 0\), then the update
-\[
-d_i\leftarrow d_i-\frac{d_i^\top d_j}{\norm{d_j}_2^2}d_j
-\]
-makes the updated \(d_i\) orthogonal to \(d_j\).
-\end{proposition}
-
-\begin{remark}[Interpretation]
-These are structural guarantees about feasibility, convexity, and the proxy geometry \(R\). They do \emph{not} imply guaranteed improvement in the true utility \(U_p\) without additional assumptions linking \(R\) to reward behavior.
-\end{remark}
-
-\todo{Write out full proofs in the later thesis version.}
 
 \chapter{Practical LoRA-Based Implementation}
 
@@ -579,7 +519,6 @@ In general,
 Therefore the thesis must distinguish between linearly combining \emph{effective LoRA updates} and naively averaging \(A_i\) and \(B_i\) separately.
 \end{remark}
 
-\todo{Decide later whether the implementation forms effective updates explicitly or uses a provably equivalent adapter-merging routine.}
 
 \chapter{Experimental Setup}
 
@@ -616,11 +555,7 @@ This draft contains no experimental results.
 
 \chapter{Discussion}
 
-\todo{Discuss when task-vector geometry is likely to correlate with reward trade-offs and when it may fail.}
 
-\todo{Discuss failure modes of the MGDA-inspired, PCGrad-inspired, and CAGrad-inspired mappings, including cancellation, order sensitivity, and sensitivity to reward normalization.}
-
-\todo{State clearly that improvement over the direct preference baseline inside \(\mathcal{M}\) does not imply global Pareto-front improvement.}
 
 \chapter{Conclusion}
 
