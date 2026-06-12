@@ -90,19 +90,6 @@ optimum.
    model.
 6. Later, optionally evaluate M2, P1, P2, C2, or IC1.
 
-## 7. Questions for the Supervisor
-
-1. Is HelpSteer2 suitable as the main many-objective benchmark, or should it be
-   complemented by another dataset?
-2. Is the C1 formulation appropriate as a main thesis method despite the
-   observed movement away from $p$?
-3. Should the next priority be stronger evaluation, more repetitions, or
-   scaling to a stronger base model?
-4. Are M1 and C1 sufficient for the first thesis version, or should a
-   PCGrad-inspired variant be included as an additional comparison?
-5. How prominently should the current heuristic proxy evaluation be presented
-   in the thesis before reward-model or external-evaluator results are
-   available?
 
 ## Supporting Results
 
