@@ -57,6 +57,8 @@ The main result files are:
 | `results/helpsteer2_method_summary_table.csv` | Best tested hyperparameter for each method and preference. |
 | `results/helpsteer2_best_methods_by_preference.csv` | Highest-utility method for each tested preference. |
 | `results/helpsteer2_m1_c1_result_summary.md` | Concise companion summary of the M1/C1 comparison. |
+| `results/helpsteer2_definition_metrics.csv` | Definition-style metrics: objective rewards, average reward, utility, utility improvement, finite-sweep gap, preference distances, $R$-distance, and normalized Tchebychev scores. |
+| `results/helpsteer2_definition_metrics_summary.md` | Short summary of the definition-style metrics. |
 
 ## Relationship Matrix
 
@@ -209,6 +211,28 @@ These observations motivate evaluating coefficient mappings along both axes:
 response-level utility and distance from the stated preference. They do not
 show that C1 is generally better, and they do not establish improvement of the
 global Pareto front.
+
+## Definition-Style Evaluation Metrics
+
+The current HelpSteer2 comparison has also been reformatted using the thesis
+evaluation metrics from Definition 3.17. In this prototype, the five
+HelpSteer2 proxy scores are treated as normalized rewards $\tilde r_i$.
+
+The derived table reports:
+
+- individual objective rewards $\tilde r_i(\theta(\lambda))$;
+- average reward across the five objectives;
+- preference-weighted utility $U_p$;
+- utility improvement over direct preference interpolation;
+- finite-sweep gap to $\lambda_{\mathrm{best}}$;
+- L1 and L2 preference-faithfulness distances;
+- optional $R$-geometric distance $(\lambda-p)^TR(\lambda-p)$;
+- normalized Tchebychev-style shortfall scores.
+
+The corresponding files are
+`results/helpsteer2_definition_metrics.csv` and
+`results/helpsteer2_definition_metrics_summary.md`. These metrics reuse the
+same heuristic proxy rewards, so the limitations below still apply.
 
 ## Limitations
 

@@ -214,6 +214,27 @@ HelpSteer2 human labels or reward-model scores.
 A concise supervisor-facing status note for the next meeting is available in
 [`meetings/helpsteer2_progress_summary.md`](meetings/helpsteer2_progress_summary.md).
 
+### HelpSteer2 Definition-Style Evaluation Metrics
+
+After creating `results/helpsteer2_m1_c1_comparison.csv`, run:
+
+```bash
+python scripts/evaluate_helpsteer2_definition_metrics.py
+```
+
+This computes thesis-style evaluation metrics from the current HelpSteer2
+proxy results: individual objective rewards, average reward,
+preference-weighted utility, improvement over direct preference, finite-sweep
+gap to $\lambda_{\mathrm{best}}$, L1/L2 preference distances,
+$R$-geometric distance, and normalized Tchebychev-style scores. The script
+writes:
+
+- `results/helpsteer2_definition_metrics.csv`
+- `results/helpsteer2_definition_metrics_summary.md`
+
+The proxy scores remain lightweight heuristic scores, not HelpSteer2 human
+labels or reward-model scores.
+
 ## Prototype Adapter Merging
 
 After training and checking both local adapters, run:
