@@ -114,6 +114,48 @@ reward-model training. It adds a richer specialist-training path but does not
 replace the thesis coefficient mapping
 $\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
 
+### Long-running HelpSteer2 Adapter Training
+
+For longer Colab runs with live eval-loss monitoring, use a larger split and
+intentionally large epoch count:
+
+```bash
+python scripts/train_helpsteer2_adapters.py --split "train[:1000]" --num_epochs 100 --logging_steps 10 --eval_steps 100 --use_tensorboard
+```
+
+The script evaluates on `--eval_split`, which defaults to `train[1000:1100]`.
+It writes CSV logs to:
+
+- `results/training_logs/helpsteer2_<attribute>_training_log.csv`
+
+When `--use_tensorboard` is passed, it writes TensorBoard event logs to:
+
+- `results/tensorboard/helpsteer2/`
+
+In Colab, open the live `eval_loss` versus `global_step` graph with:
+
+```python
+%load_ext tensorboard
+%tensorboard --logdir results/tensorboard/helpsteer2
+```
+
+If TensorBoard is missing in a local environment, install it with
+`pip install tensorboard`.
+
+To stop cleanly after the current epoch, create the stop file from the
+repository root while training is running:
+
+```bash
+touch STOP_TRAINING
+```
+
+The trainer checks for this file after each epoch, then saves the current
+adapter and logs before exiting. It also tries to save the current adapter and
+logs after `KeyboardInterrupt`. Periodic adapter checkpoints are written under
+`checkpoints/helpsteer2/` and limited by `--save_total_limit` (default `2`).
+Generated adapters, checkpoints, TensorBoard event files, and model-weight
+files are ignored by git.
+
 ### HelpSteer2 Adapter Merging
 
 After all five local HelpSteer2 adapters have been trained and checked, run:

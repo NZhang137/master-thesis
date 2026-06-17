@@ -1,5 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+**/__pycache__/
 *.py[codz]
 *$py.class
 
@@ -221,6 +222,10 @@ __marimo__/
 adapters/
 checkpoints/
 wandb/
+STOP_TRAINING
 *.safetensors
 *.bin
+*.pt
+*.pth
 *.zip
+results/tensorboard/
