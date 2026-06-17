@@ -57,6 +57,14 @@ Run a longer Colab training job with live `eval_loss` monitoring:
 python scripts/train_helpsteer2_adapters.py --split "train[:1000]" --num_epochs 100 --logging_steps 10 --eval_steps 100 --use_tensorboard
 ```
 
+If Colab reports an incompatible `torchao` version, run:
+
+```bash
+pip install -U "torchao>=0.16.0"
+```
+
+Then restart the runtime before starting training.
+
 Open TensorBoard in Colab:
 
 ```python
