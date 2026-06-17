@@ -4,143 +4,65 @@
 
 ## Goal
 
-The main goal of this thesis is to study mappings of the form
+The thesis studies post-hoc coefficient selection for Rewarded-Soups-style
+model merging. The main pipeline is:
 
 $$
-\boldsymbol{\lambda} = f(\mathbf{p}, \mathbf{R})
+\delta_i \rightarrow R \rightarrow \lambda = f(p, R) \rightarrow \theta(\lambda)
 $$
 
-where $\mathbf{p}$ is a user preference vector over objectives, $\mathbf{R}$ is a relationship matrix derived from task-vector or LoRA-adapter geometry, and $\boldsymbol{\lambda}$ are corrected merge coefficients for Rewarded-Soups-style model merging.
+where \(p\) is a user preference vector over objectives, \(R\) is a
+relationship matrix derived from task-vector or LoRA-adapter geometry, and
+\(\lambda\) contains corrected merge coefficients inside a fixed interpolation
+family.
 
-The thesis investigates whether merge coefficients can be selected more effectively than by the direct baseline
+The focus is better coefficient selection inside the fixed model-merging
+family, not a claim of global Pareto-front improvement.
 
-$$
-\boldsymbol{\lambda} = \mathbf{p}.
-$$
+## Current Active Pipeline
 
-The focus is not on expanding the global Pareto front, but on improving coefficient selection within a fixed Rewarded-Soups-style interpolation family.
+The current active experiment is the GPT-2 + HelpSteer2 pipeline. The workflow
+is:
 
-## Current Prototype
+1. Train HelpSteer2 GPT-2 LoRA adapters with long-run support.
+2. Compute the relationship matrix \(R\) from adapter geometry.
+3. Compute coefficient mappings M1, M2, C1, C2, P1, and P2.
+4. Evaluate all methods on a fixed prompt set.
+5. Report proxy scores carefully.
+6. Later add stronger reward-model evaluation, for example with ArmoRM.
 
-The current prototype is a small-scale Google Colab setup using:
+The currently implemented HelpSteer2 scripts cover long-running adapter
+training, fixed adapter merging, proxy scoring, relationship-matrix
+computation, M1/C1 coefficient computation, M1/C1 merge evaluation,
+definition-style metrics, and result summaries. Additional mappings such as
+M2, C2, P1, and P2 are part of the active method family and can be added beside
+the existing M1/C1 code.
 
-- GPT-2 as a lightweight base model
-- LoRA / PEFT for efficient adapter training
-- Anthropic HH-RLHF as the first dataset
-- separate helpfulness and harmlessness adapters as the first two-objective setup
-- prototype Rewarded-Soups-style adapter merging with fixed $\boldsymbol{\lambda}$ values
+Proxy scores are lightweight deterministic evaluation aids. They are not
+HelpSteer2 human labels, not reward-model scores, and should not be interpreted
+as final thesis evidence.
 
-## Planned Extensions
+## Active HelpSteer2 Commands
 
-After the GPT-2 infrastructure prototype, the project may move to a more
-realistic small LLM setup using TinyLlama and additional multi-objective
-alignment datasets such as UltraFeedback. A parallel HelpSteer2 prototype path
-is documented below.
-
-## Prototype Adapter Training
-
-`scripts/train_hh_rlhf_adapters.py` trains separate helpfulness and
-harmlessness LoRA adapters from fresh GPT-2 base models. It uses the `chosen`
-HH-RLHF responses for lightweight supervised language modeling. The
-corresponding `rejected` responses are not used yet. This is not full RLHF or
-PPO, and it is not the final preference-aware coefficient correction method
-$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
-
-Generated adapters and checkpoints are intentionally ignored by git.
-
-The default settings are `gpt2`, `train[:100]`, 2 epochs, learning rate
-`1e-4`, maximum sequence length 512, and batch size 1. Batch size 1 is the
-default for simplicity and stability on Colab GPUs.
-
-Fast smoke test:
-
-```bash
-python scripts/train_hh_rlhf_adapters.py --split "train[:20]" --num_epochs 1
-```
-
-Small prototype run:
-
-```bash
-python scripts/train_hh_rlhf_adapters.py --split "train[:100]" --num_epochs 2
-```
-
-Verify the generated adapters:
-
-```bash
-python scripts/check_adapters.py
-```
-
-For Google Colab, clone or open the repository, enable a GPU runtime, change
-into the repository root, install `torch`, `transformers`, `datasets`, and
-`peft`, and run one of the commands above. The training script does not save
-intermediate checkpoints. It saves only:
-
-- `adapters/gpt2-helpful-adapter`
-- `adapters/gpt2-harmless-adapter`
-
-These generated adapters are ignored by git. Training uses only the `chosen`
-responses as lightweight supervised language-modeling text. It is not full
-RLHF or PPO, and it does not yet implement the final
-$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ method.
-
-## HelpSteer2 Prototype
-
-HelpSteer2 is the next explicitly multi-objective dataset path after the
-HH-RLHF helpful/harmless prototype. The parallel training script supports the
-`helpfulness`, `correctness`, `coherence`, `complexity`, and `verbosity`
-ratings from `nvidia/HelpSteer2`.
-
-Run the default Colab-friendly prototype:
+Train the five HelpSteer2 adapters:
 
 ```bash
 python scripts/train_helpsteer2_adapters.py --split "train[:100]" --num_epochs 1
 python scripts/check_helpsteer2_adapters.py
 ```
 
-For each attribute, the script selects examples rated at least 3 out of 4,
-sorts them by that attribute score, and uses their prompt/response text for
-supervised causal language modeling. Every adapter starts from a fresh GPT-2
-base model with a new LoRA adapter. The default output folders are:
-
-- `adapters/helpsteer2-gpt2-helpfulness-adapter`
-- `adapters/helpsteer2-gpt2-correctness-adapter`
-- `adapters/helpsteer2-gpt2-coherence-adapter`
-- `adapters/helpsteer2-gpt2-complexity-adapter`
-- `adapters/helpsteer2-gpt2-verbosity-adapter`
-
-Generated adapters remain ignored by git. This is supervised prototype
-training based on attribute-rated examples, not full RLHF or PPO and not
-reward-model training. It adds a richer specialist-training path but does not
-replace the thesis coefficient mapping
-$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
-
-### Long-running HelpSteer2 Adapter Training
-
-For longer Colab runs with live eval-loss monitoring, use a larger split and
-intentionally large epoch count:
+Run a longer Colab training job with live `eval_loss` monitoring:
 
 ```bash
 python scripts/train_helpsteer2_adapters.py --split "train[:1000]" --num_epochs 100 --logging_steps 10 --eval_steps 100 --use_tensorboard
 ```
 
-The script evaluates on `--eval_split`, which defaults to `train[1000:1100]`.
-It writes CSV logs to:
-
-- `results/training_logs/helpsteer2_<attribute>_training_log.csv`
-
-When `--use_tensorboard` is passed, it writes TensorBoard event logs to:
-
-- `results/tensorboard/helpsteer2/`
-
-In Colab, open the live `eval_loss` versus `global_step` graph with:
+Open TensorBoard in Colab:
 
 ```python
 %load_ext tensorboard
 %tensorboard --logdir results/tensorboard/helpsteer2
 ```
-
-If TensorBoard is missing in a local environment, install it with
-`pip install tensorboard`.
 
 To stop cleanly after the current epoch, create the stop file from the
 repository root while training is running:
@@ -149,254 +71,91 @@ repository root while training is running:
 touch STOP_TRAINING
 ```
 
-The trainer checks for this file after each epoch, then saves the current
-adapter and logs before exiting. It also tries to save the current adapter and
-logs after `KeyboardInterrupt`. Periodic adapter checkpoints are written under
-`checkpoints/helpsteer2/` and limited by `--save_total_limit` (default `2`).
-Generated adapters, checkpoints, TensorBoard event files, and model-weight
-files are ignored by git.
+The trainer writes:
 
-### HelpSteer2 Adapter Merging
+- CSV logs under `results/training_logs/`
+- TensorBoard event logs under `results/tensorboard/helpsteer2/`
+- checkpoints under `checkpoints/helpsteer2/`
+- final adapter folders under `adapters/`
 
-After all five local HelpSteer2 adapters have been trained and checked, run:
+Evaluate fixed HelpSteer2 adapter merges and proxy scores:
 
 ```bash
 python scripts/evaluate_helpsteer2_adapter_merges.py
+python scripts/evaluate_helpsteer2_lambda_sweep.py
 ```
 
-The script evaluates nine fixed five-objective coefficient vectors on four
-prompts and writes:
-
-- `results/helpsteer2_adapter_merge_generations.csv`
-
-The adapters must already exist under `adapters/`. Generated adapter and model
-files remain ignored by git, while the small result CSV may be committed. This
-step only tests many-objective PEFT LoRA adapter merging. It does not yet
-compute a HelpSteer2 relationship matrix $\mathbf{R}$, does not yet apply M1
-to the five-objective setup, and does not replace the existing HH-RLHF
-prototype.
-
-### HelpSteer2 Relationship Matrix
-
-After all five local HelpSteer2 adapters have been trained and checked, run:
+Compute the HelpSteer2 relationship matrix:
 
 ```bash
 python scripts/compute_helpsteer2_relationship_matrix.py
 ```
 
-The script expects the five objective-specific adapters under `adapters/` and
-writes:
-
-- `results/helpsteer2_relationship_matrix.csv`
-- `results/helpsteer2_relationship_matrix_metadata.json`
-
-Generated adapter and model files remain ignored by git. The matrix uses cosine
-similarity between flattened LoRA adapter parameters as a prototype proxy for
-task-vector relationships. This step computes $\mathbf{R}$ only. It does not
-implement M1 and does not use coefficient-space gradients.
-
-### HelpSteer2 M1 and C1 Coefficients
-
-After computing `results/helpsteer2_relationship_matrix.csv`, run:
+Compute and evaluate M1/C1 coefficients:
 
 ```bash
 python scripts/compute_helpsteer2_m1_c1_coefficients.py
-```
-
-The script computes the direct-preference baseline, M1 relationship-softmax
-coefficients, and C1 CAGrad-inspired one-shot coefficients for four example
-preference vectors. C1 uses SciPy's SLSQP optimizer with a PSD-safe relationship
-matrix. The script writes these small result files:
-
-- `results/helpsteer2_m1_c1_coefficients.csv`
-- `results/helpsteer2_m1_c1_coefficients_metadata.json`
-
-### HelpSteer2 M1 and C1 Merge Evaluation
-
-After the five local HelpSteer2 adapters and coefficient table are available,
-run:
-
-```bash
 python scripts/evaluate_helpsteer2_m1_c1_merges.py
 ```
 
-The script evaluates uniform, direct-preference, M1, and C1 adapter merges,
-generates responses for four shared prompts, applies the lightweight
-HelpSteer2 proxy scores, and writes:
-
-- `results/helpsteer2_m1_c1_merge_generations.csv`
-- `results/helpsteer2_m1_c1_scored_generations.csv`
-- `results/helpsteer2_m1_c1_comparison.csv`
-- `results/helpsteer2_m1_c1_comparison_metadata.json`
-
-If the fixed lambda-sweep summary is available, the comparison also reports
-each setting's gap to the best tested fixed-sweep coefficient vector
-$\lambda_{\mathrm{best}}$. The proxy scores are infrastructure placeholders,
-not reward-model scores or human HelpSteer2 labels.
-
-The current HelpSteer2 matrices, coefficient behavior, fixed-sweep results,
-artifact status, limitations, and next steps are summarized in
-[`results/helpsteer2_prototype_results.md`](results/helpsteer2_prototype_results.md).
-
-### HelpSteer2 M1 and C1 Result Summary
-
-After creating `results/helpsteer2_m1_c1_comparison.csv`, run:
+Create thesis-style summary tables, plots, and metrics:
 
 ```bash
 python scripts/summarize_helpsteer2_m1_c1_results.py
-```
-
-The script selects the best tested hyperparameter per method and preference,
-writes compact comparison tables, and creates three plots under
-`results/plots/`. A short thesis-oriented interpretation is available in
-[`results/helpsteer2_m1_c1_result_summary.md`](results/helpsteer2_m1_c1_result_summary.md).
-The reported values remain lightweight heuristic proxy scores rather than
-HelpSteer2 human labels or reward-model scores.
-
-A concise supervisor-facing status note for the next meeting is available in
-[`meetings/helpsteer2_progress_summary.md`](meetings/helpsteer2_progress_summary.md).
-
-### HelpSteer2 Definition-Style Evaluation Metrics
-
-After creating `results/helpsteer2_m1_c1_comparison.csv`, run:
-
-```bash
 python scripts/evaluate_helpsteer2_definition_metrics.py
 ```
 
-This computes thesis-style evaluation metrics from the current HelpSteer2
-proxy results: individual objective rewards, average reward,
-preference-weighted utility, improvement over direct preference, finite-sweep
-gap to $\lambda_{\mathrm{best}}$, L1/L2 preference distances,
-$R$-geometric distance, and normalized Tchebychev-style scores. The script
-writes:
+## Current Result Reports
 
-- `results/helpsteer2_definition_metrics.csv`
+The main HelpSteer2 experiment reports are:
+
+- `results/helpsteer2_prototype_results.md`
+- `results/helpsteer2_m1_c1_result_summary.md`
 - `results/helpsteer2_definition_metrics_summary.md`
+- `meetings/helpsteer2_progress_summary.md`
 
-The proxy scores remain lightweight heuristic scores, not HelpSteer2 human
-labels or reward-model scores.
+Small CSV, JSON, Markdown, and plot outputs under `results/` are intended for
+experiment documentation. Generated adapters, checkpoints, TensorBoard event
+files, zip files, and model weights stay local and are ignored by git.
 
-## Prototype Adapter Merging
+## Active Repository Structure
 
-After training and checking both local adapters, run:
+- `scripts/`: active runnable HelpSteer2 prototype scripts
+- `src/`: reusable Python utilities
+- `notebooks/`: active Colab runner notebooks
+- `results/`: current HelpSteer2 result files, tables, summaries, and plots
+- `thesis/`: LaTeX thesis material
+- `meetings/`: supervisor-facing notes and progress summaries
+- `archive/old_notebooks/`: historical notebooks
+- `archive/old_scripts/`: historical scripts
+- `archive/old_results/`: historical result files
 
-```bash
-python scripts/evaluate_adapter_merges.py
-```
+If `data/evaluation_prompts/` or `configs/` are added later, they should hold
+shared prompt sets and reusable experiment settings for the active pipeline.
 
-The script expects these directories to exist locally:
+## Archived Prototype Files
 
-- `adapters/gpt2-helpful-adapter`
-- `adapters/gpt2-harmless-adapter`
+Older HH-RLHF and early GPT-2 notebooks, scripts, and result files are kept
+under `archive/`. They are historical prototypes from the two-objective
+helpful/harmless phase and are no longer the main active workflow.
 
-It evaluates five helpful/harmless coefficient pairs and writes 15 generated
-responses to `results/adapter_merge_generations.csv`. The adapter files remain
-ignored by git, while the small CSV result is not ignored.
+The active experiment should use the HelpSteer2 scripts and notebooks in the
+main `scripts/` and `notebooks/` folders.
 
-This step only verifies fixed Rewarded-Soups-style LoRA adapter interpolation.
-It does not compute the relationship matrix $\mathbf{R}$ and does not yet
-implement the final
-$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ correction method.
+## Git Safety
 
-## Prototype Lambda-Sweep Evaluation
+Generated artifacts must not be committed:
 
-After generating `results/adapter_merge_generations.csv`, run:
+- `adapters/`
+- `checkpoints/`
+- `*.safetensors`
+- `*.bin`
+- `*.pt`
+- `*.pth`
+- `*.zip`
+- `wandb/`
+- `__pycache__/`
+- `.ipynb_checkpoints/`
 
-```bash
-python scripts/evaluate_lambda_sweep.py
-```
-
-This produces:
-
-- `results/adapter_merge_scored_generations.csv`
-- `results/lambda_sweep_summary.csv`
-
-The script applies simple deterministic helpfulness and harmlessness proxy
-heuristics, then summarizes the fixed lambda grid for three example preference
-vectors. These proxies are placeholders, not final reward-model scores and not
-a full RLHF evaluation. This step does not compute $\mathbf{R}$ and does not
-implement the final
-$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ correction method.
-
-## Prototype Relationship Matrix
-
-After both local adapters have been trained, run:
-
-```bash
-python scripts/compute_relationship_matrix.py
-```
-
-The script expects the Helpful and Harmless adapters under `adapters/`, whose
-generated weights remain ignored by git. It writes:
-
-- `results/relationship_matrix.csv`
-- `results/relationship_matrix_metadata.json`
-
-The small CSV and JSON result files can be committed. The matrix uses cosine
-similarity between flattened LoRA adapter parameters as a static proxy for
-objective or specialist relationships. This geometry proxy must be empirically
-validated. This step computes $\mathbf{R}$ only and does not yet implement
-$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$.
-
-## M1 Relationship-Softmax Coefficients
-
-After computing `results/relationship_matrix.csv`, run:
-
-```bash
-python scripts/compute_m1_coefficients.py
-```
-
-This writes `results/m1_coefficients.csv` for three example preference vectors
-and four correction-strength values. M1 is the first implemented
-$\boldsymbol{\lambda}=f(\mathbf{p},\mathbf{R})$ mapping in the prototype. It
-uses the static relationship matrix computed from LoRA adapter geometry and
-does not train or modify any model.
-
-The method performs a direct one-shot coefficient correction inside the fixed
-Rewarded-Soups-style interpolation family. It does not compute or use
-coefficient-space gradients, and it makes no claim of global Pareto-front
-improvement.
-
-## M1 Baseline Comparison
-
-After computing the relationship matrix and training both local adapters, run:
-
-```bash
-python scripts/compare_m1_to_baselines.py
-```
-
-The script compares M1 at `tau=1.0` against uniform coefficients and direct
-preference coefficients for the three example preference vectors. If
-`results/lambda_sweep_summary.csv` exists, it also reports the best fixed-grid
-utility as a reference. A positive grid gap means that the newly evaluated
-candidate has a higher heuristic utility than that stored grid benchmark.
-
-The comparison writes:
-
-- `results/m1_baseline_generations.csv`
-- `results/m1_baseline_comparison.csv`
-
-All candidates use the same small prompt set and the same deterministic
-helpfulness and harmlessness proxy heuristics as the lambda-sweep evaluation.
-This remains a lightweight prototype comparison, not final reward-model
-evaluation. Learned reward-model evaluation is future work, and these proxy
-results do not establish global Pareto-front improvement.
-
-## Current Prototype Results
-
-The current matrices, coefficient corrections, baseline comparisons,
-limitations, and next steps are summarized in
-[`results/prototype_results.md`](results/prototype_results.md). The supporting
-small CSV and JSON result files are stored under `results/`. Generated LoRA
-adapters and model-weight files remain local and are ignored by git.
-
-## Repository Structure
-
-- `thesis/`: Proposal & LaTeX thesis draft
-- `notebooks/`: Colab notebooks and experiments
-- `src/`: reusable Python code
-- `scripts/`: runnable prototype training scripts
-- `results/`: experiment outputs, tables, and plots
-- `meetings/`: meeting slides
-
+Small result files in `results/` may be committed when they document an
+experiment run.
