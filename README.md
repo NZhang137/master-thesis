@@ -142,7 +142,8 @@ The table contains M1, M2, C1, C2, P1, and P2 coefficients for the active
 HelpSteer2 preference vectors. Each coefficient vector is validated to be
 non-negative and normalized on the simplex.
 
-Create thesis-style summary tables, plots, and metrics:
+Create thesis-style summary tables, plots, and metrics after regenerating the
+current M1/C1 merge evaluation:
 
 ```bash
 python scripts/summarize_helpsteer2_m1_c1_results.py
@@ -154,9 +155,12 @@ python scripts/evaluate_helpsteer2_definition_metrics.py
 The main HelpSteer2 experiment reports are:
 
 - `results/helpsteer2_prototype_results.md`
-- `results/helpsteer2_m1_c1_result_summary.md`
-- `results/helpsteer2_definition_metrics_summary.md`
 - `meetings/helpsteer2_progress_summary.md`
+
+Earlier M1/C1 proxy comparison outputs from the relationship-softmax prototype
+are archived under:
+
+- `archive/old_results/helpsteer2_m1_c1_legacy_softmax/`
 
 Small CSV, JSON, Markdown, and plot outputs under `results/` are intended for
 experiment documentation. Generated adapters, checkpoints, TensorBoard event
