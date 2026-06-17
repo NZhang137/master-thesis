@@ -120,13 +120,6 @@ Compute the HelpSteer2 relationship matrix:
 python scripts/compute_helpsteer2_relationship_matrix.py
 ```
 
-Compute and evaluate the narrowed thesis M1/C1 coefficient comparison:
-
-```bash
-python scripts/compute_helpsteer2_m1_c1_coefficients.py
-python scripts/evaluate_helpsteer2_m1_c1_merges.py
-```
-
 Compute the current all-method coefficient table:
 
 ```bash

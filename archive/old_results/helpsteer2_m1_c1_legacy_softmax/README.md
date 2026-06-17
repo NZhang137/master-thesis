@@ -8,10 +8,14 @@ current thesis-aligned M1/C1 results. The active thesis M1 definition is the
 MGDA-inspired one-shot mapping, and the active C1 definition is the
 trust-region CAGrad-inspired mapping.
 
+The archived folder also contains the earlier narrowed M1/C1 coefficient
+files:
+
+- `helpsteer2_m1_c1_coefficients.csv`
+- `helpsteer2_m1_c1_coefficients_metadata.json`
+
 Current coefficient files remain under `results/`:
 
-- `results/helpsteer2_m1_c1_coefficients.csv`
-- `results/helpsteer2_m1_c1_coefficients_metadata.json`
 - `results/helpsteer2_all_method_coefficients.csv`
 - `results/helpsteer2_all_method_coefficients_metadata.json`
 
