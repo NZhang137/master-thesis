@@ -1,0 +1,99 @@
+{
+  "relationship_matrix_path": "results/helpsteer2_relationship_matrix.csv",
+  "output_csv_path": "results/helpsteer2_all_method_coefficients.csv",
+  "objective_order": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "preferences": {
+    "balanced": [
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2
+    ],
+    "quality_focused": [
+      0.15,
+      0.35,
+      0.25,
+      0.1,
+      0.15
+    ],
+    "detailed_answer": [
+      0.15,
+      0.15,
+      0.2,
+      0.25,
+      0.25
+    ],
+    "helpfulness_focused": [
+      0.5,
+      0.15,
+      0.15,
+      0.1,
+      0.1
+    ]
+  },
+  "methods": {
+    "M1": {
+      "definition": "argmin over simplex lambda^T R lambda + rho ||lambda - p||_2^2",
+      "hyperparameters": {
+        "rho": 1.0
+      }
+    },
+    "M2": {
+      "definition": "alpha-MGDA with G_p=Diag(p) R Diag(p), then lambda=(alpha*p)/sum(alpha*p)",
+      "hyperparameters": {
+        "rho": 1.0
+      }
+    },
+    "P1": {
+      "definition": "R-metric PCGrad projection with strongest negative conflict ordering and simplex reconstruction",
+      "hyperparameters": {
+        "rho": 1.0,
+        "eps": 1e-08
+      }
+    },
+    "P2": {
+      "definition": "Same R-metric PCGrad equations as P1 with reverse deterministic conflict ordering",
+      "hyperparameters": {
+        "rho": 1.0,
+        "eps": 1e-08
+      }
+    },
+    "C1": {
+      "definition": "trust-region CAGrad: maximize min_i (R lambda)_i subject to simplex and R-trust-region constraint",
+      "hyperparameters": {
+        "c": 0.5,
+        "eps": 1e-08
+      }
+    },
+    "C2": {
+      "definition": "soft-min CAGrad: maximize softmin_tau(R lambda) - rho (lambda-p)^T R (lambda-p)",
+      "hyperparameters": {
+        "tau": 0.1,
+        "rho": 1.0
+      }
+    }
+  },
+  "row_count": 24,
+  "relationship_matrix_eigenvalues": [
+    0.10217982920647446,
+    0.1627123763499488,
+    0.27058084652611936,
+    0.4791466183408605,
+    3.985380329576598
+  ],
+  "validation": {
+    "lambda_dimension_checked": true,
+    "lambda_non_negative_checked": true,
+    "lambda_sum_checked": true,
+    "method_preference_coverage_checked": true,
+    "tolerance": 1e-07
+  },
+  "note": "The coefficients are one-shot mappings from p and R inside the fixed Rewarded-Soups-style interpolation family."
+}

@@ -73,7 +73,7 @@ def relationship_softmax_mapping(
     R: np.ndarray,
     tau: float = 1.0,
 ) -> np.ndarray:
-    """Compatibility wrapper for the M1 relationship-softmax mapping."""
+    """Compatibility wrapper for the legacy relationship-softmax mapping."""
     try:
         from .coefficient_utils import relationship_softmax_mapping as compute
     except ImportError:

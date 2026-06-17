@@ -16,12 +16,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.coefficient_methods import (
-    c1_cagrad_inspired_mapping,
+    c1_trust_region_cagrad_mapping,
     direct_preference_mapping,
     l1_distance,
     l2_distance,
-    make_psd_matrix,
-    relationship_softmax_mapping,
+    m1_mgda_inspired_mapping,
     validate_preference_vector,
     validate_relationship_matrix,
 )
@@ -37,13 +36,13 @@ OBJECTIVE_NAMES = (
 
 PREFERENCES = {
     "balanced": (0.2, 0.2, 0.2, 0.2, 0.2),
-    "quality_focused": (0.3, 0.3, 0.3, 0.05, 0.05),
-    "detailed_answer": (0.25, 0.25, 0.2, 0.15, 0.15),
-    "helpfulness_focused": (0.6, 0.1, 0.1, 0.1, 0.1),
+    "quality_focused": (0.15, 0.35, 0.25, 0.10, 0.15),
+    "detailed_answer": (0.15, 0.15, 0.20, 0.25, 0.25),
+    "helpfulness_focused": (0.50, 0.15, 0.15, 0.10, 0.10),
 }
 
-M1_TAU_VALUES = (0.5, 1.0, 2.0)
-C1_RHO_VALUES = (0.1, 1.0, 10.0)
+M1_RHO_VALUES = (1.0,)
+C1_C_VALUES = (0.5,)
 
 CSV_COLUMNS = [
     "preference_name",
@@ -170,26 +169,8 @@ def compute_rows(relationships: np.ndarray) -> list[dict[str, float | str]]:
             )
         )
 
-        for tau in M1_TAU_VALUES:
-            lambdas = relationship_softmax_mapping(
-                preference,
-                relationships,
-                tau=tau,
-            )
-            rows.append(
-                build_result_row(
-                    preference_name,
-                    "M1",
-                    "tau",
-                    tau,
-                    preference,
-                    lambdas,
-                    relationships,
-                )
-            )
-
-        for rho in C1_RHO_VALUES:
-            lambdas = c1_cagrad_inspired_mapping(
+        for rho in M1_RHO_VALUES:
+            lambdas = m1_mgda_inspired_mapping(
                 preference,
                 relationships,
                 rho=rho,
@@ -197,9 +178,27 @@ def compute_rows(relationships: np.ndarray) -> list[dict[str, float | str]]:
             rows.append(
                 build_result_row(
                     preference_name,
-                    "C1",
+                    "M1",
                     "rho",
                     rho,
+                    preference,
+                    lambdas,
+                    relationships,
+                )
+            )
+
+        for c in C1_C_VALUES:
+            lambdas = c1_trust_region_cagrad_mapping(
+                preference,
+                relationships,
+                c=c,
+            )
+            rows.append(
+                build_result_row(
+                    preference_name,
+                    "C1",
+                    "c",
+                    c,
                     preference,
                     lambdas,
                     relationships,
@@ -239,7 +238,6 @@ def write_metadata(
     row_count: int,
 ) -> None:
     """Write compact method and experiment metadata as JSON."""
-    psd_matrix = make_psd_matrix(relationships)
     metadata = {
         "objective_order": list(OBJECTIVE_NAMES),
         "relationship_matrix_path": matrix_path_argument,
@@ -254,28 +252,32 @@ def write_metadata(
                 "description": "Normalized baseline lambda = p."
             },
             "M1": {
-                "description": "Relationship-softmax one-shot mapping.",
-                "hyperparameter": "tau",
-                "values": list(M1_TAU_VALUES),
+                "description": (
+                    "MGDA-inspired one-shot mapping: minimize "
+                    "lambda^T R lambda + rho ||lambda - p||_2^2."
+                ),
+                "hyperparameter": "rho",
+                "values": list(M1_RHO_VALUES),
             },
             "C1": {
-                "description": "CAGrad-inspired one-shot simplex mapping.",
-                "hyperparameter": "rho",
-                "values": list(C1_RHO_VALUES),
+                "description": (
+                    "Trust-region CAGrad-inspired mapping: maximize "
+                    "min_i (R lambda)_i under the simplex and R-trust-region "
+                    "constraint."
+                ),
+                "hyperparameter": "c",
+                "values": list(C1_C_VALUES),
                 "optimizer": "scipy.optimize.minimize with SLSQP",
                 "initialization": "normalized preference vector p",
-                "psd_strategy": (
-                    "Symmetrize R and clip negative eigenvalues to zero."
-                ),
                 "fallback": (
-                    "Choose the best of p, uniform, and simplex vertices "
-                    "under the same C1 objective."
+                    "Choose the best feasible candidate among p, uniform, "
+                    "and simplex vertices."
                 ),
             },
         },
         "relationship_matrix_symmetrized": True,
-        "relationship_matrix_psd_eigenvalues": np.linalg.eigvalsh(
-            psd_matrix
+        "relationship_matrix_eigenvalues": np.linalg.eigvalsh(
+            relationships
         ).tolist(),
         "note": (
             "These methods select coefficients inside the fixed "
@@ -313,7 +315,7 @@ def parse_args() -> argparse.Namespace:
     """Parse relationship-matrix input and result output paths."""
     parser = argparse.ArgumentParser(
         description=(
-            "Compute HelpSteer2 direct-preference, M1, and C1 coefficients."
+            "Compute HelpSteer2 direct-preference, thesis M1, and thesis C1 coefficients."
         )
     )
     parser.add_argument(

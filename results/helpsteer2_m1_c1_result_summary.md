@@ -2,7 +2,9 @@
 
 ## Comparison
 
-The comparison evaluates uniform coefficients, direct preference ($\lambda=p$), M1 relationship-softmax correction, and the C1 CAGrad-inspired one-shot mapping. For M1 and C1, the table selects the hyperparameter setting with the highest `utility_for_preference` for each preference vector.
+This file summarizes an earlier narrow M1/C1 proxy comparison. It should be regenerated before being used as current thesis evidence, because the active M1 definition is now the MGDA-inspired one-shot mapping rather than the earlier relationship-softmax prototype.
+
+The comparison evaluated uniform coefficients, direct preference ($\lambda=p$), the earlier M1 relationship-softmax prototype, and a C1 CAGrad-inspired one-shot mapping. For M1 and C1, the table selected the hyperparameter setting with the highest `utility_for_preference` for each preference vector.
 
 ## Best Method by Preference
 

@@ -22,7 +22,7 @@ The current HelpSteer2 prototype implements:
 
 1. objective-specific HelpSteer2 LoRA adapters;
 2. a relationship matrix $R$ from adapter-weight geometry;
-3. direct-preference, M1, and C1 coefficient mappings;
+3. direct-preference and the current M1, M2, C1, C2, P1, and P2 coefficient mappings;
 4. PEFT-based weighted adapter merging; and
 5. response generation with preference-weighted proxy evaluation.
 
@@ -36,33 +36,32 @@ The current HelpSteer2 prototype implements:
   model
 - **Relationship matrix:** cosine similarities between flattened LoRA adapter
   parameters
-- **M1:** relationship-softmax correction
-- **C1:** CAGrad-inspired one-shot simplex mapping with a preference-distance
-  penalty
+- **M1:** MGDA-inspired one-shot coefficient mapping
+- **M2:** preference-weighted alpha-MGDA variant
+- **P1:** PCGrad-inspired reconstruction with deterministic strongest-conflict ordering
+- **P2:** reverse-order PCGrad-inspired reconstruction variant
+- **C1:** trust-region CAGrad-inspired mapping
+- **C2:** soft-min CAGrad-inspired mapping
 
 ## 4. Main Result
 
-For each preference and method, the current analysis selects the
-hyperparameter setting with the highest `utility_for_preference`.
+The current all-method coefficient table has been computed and validated for
+all four preference vectors. Every reported coefficient vector is
+non-negative, has the correct dimension, and sums to one.
 
-- C1 with $\rho=0.1$ has the highest heuristic proxy utility among uniform,
-  direct preference, M1, and C1 for all four tested preference vectors.
-- In this run, the selected C1 setting improves over direct preference for all
-  four preferences.
-- M1 remains much closer to the original preference vector $p$. Its selected
-  L1 distances range from 0.0093 to 0.0308.
-- C1 moves substantially farther from $p$. Its selected L1 distances range
-  from 0.4089 to 1.0089.
+- M1 and M2 implement the MGDA-inspired definitions from the thesis draft.
+- P1 implements the R-metric PCGrad reconstruction with strongest negative
+  conflict ordering.
+- P2 uses the same PCGrad reconstruction equations with reverse deterministic
+  ordering; it should be treated as a named variant unless the thesis draft
+  adds a separate formal P2 definition.
+- C1 implements the trust-region CAGrad-inspired definition with radius
+  parameter $c$.
+- C2 implements the soft-min CAGrad-inspired variant.
 
-The current finding is therefore best framed as a
-**proxy-utility versus preference-faithfulness trade-off**. C1 obtains higher
-heuristic utility in this prototype run, while M1 preserves the stated
-preference more closely. This does not establish that C1 is generally better.
-
-The best finite-sweep candidate, denoted $\lambda_{\mathrm{best}}$, still has
-higher proxy utility than the selected C1 setting for each tested preference.
-This is a reference to the best of nine tested candidates, not a global
-optimum.
+The earlier M1/C1 proxy comparison should be regenerated before being used as
+current thesis evidence, because the active M1 definition is now the
+MGDA-inspired mapping rather than the earlier relationship-softmax prototype.
 
 ## 5. Limitations
 
@@ -88,10 +87,11 @@ optimum.
    $\lambda_{\mathrm{best}}$ sweep.
 5. Optionally scale the prototype to TinyLlama or another stronger small
    model.
-6. Later, optionally evaluate M2, P1, P2, C2, or IC1.
+6. Evaluate the current M1, M2, P1, P2, C1, and C2 coefficients on the fixed
+   prompt set.
 
 
 ## Supporting Results
 
 - [Full HelpSteer2 prototype report](../results/helpsteer2_prototype_results.md)
-- [Concise M1/C1 result summary](../results/helpsteer2_m1_c1_result_summary.md)
+- [Current all-method coefficients](../results/helpsteer2_all_method_coefficients.csv)

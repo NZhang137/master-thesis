@@ -1,7 +1,8 @@
-"""Preference-to-coefficient utilities for the first M1 prototype.
+"""Legacy preference-to-coefficient utilities from the first prototype.
 
-M1 applies a one-shot relationship-softmax correction inside the existing
-model-merging family. It does not use coefficient-space optimization.
+The relationship-softmax mapping in this module is retained for backward
+compatibility with early experiments. The current thesis M1 implementation
+lives in ``src.coefficient_methods.m1_mgda_inspired_mapping``.
 """
 
 from __future__ import annotations
@@ -100,11 +101,12 @@ def relationship_softmax_mapping(
     tau: float = 1.0,
     eps: float = 1e-12,
 ) -> np.ndarray:
-    """Compute M1 coefficients from preferences and a relationship matrix.
+    """Compute legacy relationship-softmax coefficients.
 
     The mapping is ``lambda_i proportional to p_i * exp(tau * (R @ p)_i)``.
     Zero preference entries remain zero. Setting ``tau=0`` returns the
-    normalized preference vector exactly.
+    normalized preference vector exactly. This is not the current thesis M1
+    method.
     """
     if not np.isfinite(tau) or tau < 0:
         raise ValueError("tau must be a finite, non-negative value.")

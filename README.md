@@ -33,10 +33,9 @@ is:
 
 The currently implemented HelpSteer2 scripts cover long-running adapter
 training, fixed adapter merging, proxy scoring, relationship-matrix
-computation, M1/C1 coefficient computation, M1/C1 merge evaluation,
-definition-style metrics, and result summaries. Additional mappings such as
-M2, C2, P1, and P2 are part of the active method family and can be added beside
-the existing M1/C1 code.
+computation, all-method coefficient computation for M1, M2, C1, C2, P1, and
+P2, narrowed M1/C1 merge evaluation, definition-style metrics, and result
+summaries.
 
 Proxy scores are lightweight deterministic evaluation aids. They are not
 HelpSteer2 human labels, not reward-model scores, and should not be interpreted
@@ -121,12 +120,27 @@ Compute the HelpSteer2 relationship matrix:
 python scripts/compute_helpsteer2_relationship_matrix.py
 ```
 
-Compute and evaluate M1/C1 coefficients:
+Compute and evaluate the narrowed thesis M1/C1 coefficient comparison:
 
 ```bash
 python scripts/compute_helpsteer2_m1_c1_coefficients.py
 python scripts/evaluate_helpsteer2_m1_c1_merges.py
 ```
+
+Compute the current all-method coefficient table:
+
+```bash
+python scripts/compute_helpsteer2_all_method_coefficients.py
+```
+
+This writes:
+
+- `results/helpsteer2_all_method_coefficients.csv`
+- `results/helpsteer2_all_method_coefficients_metadata.json`
+
+The table contains M1, M2, C1, C2, P1, and P2 coefficients for the active
+HelpSteer2 preference vectors. Each coefficient vector is validated to be
+non-negative and normalized on the simplex.
 
 Create thesis-style summary tables, plots, and metrics:
 

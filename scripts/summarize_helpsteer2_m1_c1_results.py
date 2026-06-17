@@ -374,8 +374,8 @@ def write_markdown_summary(
         "## Comparison",
         "",
         "The comparison evaluates uniform coefficients, direct preference "
-        "($\\lambda=p$), M1 relationship-softmax correction, and the C1 "
-        "CAGrad-inspired one-shot mapping. For M1 and C1, the table selects "
+        "($\\lambda=p$), the thesis M1 MGDA-inspired mapping, and the C1 "
+        "trust-region CAGrad-inspired mapping. For M1 and C1, the table selects "
         "the hyperparameter setting with the highest "
         "`utility_for_preference` for each preference vector.",
         "",

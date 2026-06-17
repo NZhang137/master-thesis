@@ -33,7 +33,8 @@ The implemented HelpSteer2 workflow is:
 3. Generate responses and compute lightweight heuristic proxy scores.
 4. Compute a relationship matrix $R$ from cosine similarities between
    flattened LoRA adapter parameters.
-5. Compute direct-preference, M1, and C1 coefficient vectors.
+5. Compute direct-preference and the current M1, M2, C1, C2, P1, and P2
+   coefficient vectors.
 6. Merge the adapters using those coefficients and compare their generated
    responses.
 7. Select the best tested hyperparameter for each method and preference
@@ -51,6 +52,8 @@ The main result files are:
 | `results/helpsteer2_relationship_matrix.csv` | The $5 \times 5$ cosine-similarity matrix for the five LoRA adapters. |
 | `results/helpsteer2_relationship_matrix_metadata.json` | Adapter paths, vector representation, and relationship-matrix metadata. |
 | `results/helpsteer2_m1_c1_coefficients.csv` | Direct-preference, M1, and C1 coefficients for four preference vectors. |
+| `results/helpsteer2_all_method_coefficients.csv` | Current M1, M2, C1, C2, P1, and P2 coefficients for the active preference vectors. |
+| `results/helpsteer2_all_method_coefficients_metadata.json` | Method definitions, hyperparameters, objective order, and simplex-validation metadata for the all-method coefficient table. |
 | `results/helpsteer2_m1_c1_merge_generations.csv` | Responses generated from uniform, direct-preference, M1, and C1 merges. |
 | `results/helpsteer2_m1_c1_scored_generations.csv` | Generated responses with the five heuristic attribute proxies. |
 | `results/helpsteer2_m1_c1_comparison.csv` | Aggregate method utilities, coefficient distances, and finite-sweep comparisons. |
@@ -92,35 +95,52 @@ $$
 \lambda=p.
 $$
 
-### M1: Relationship-Softmax
+### M1: MGDA-Inspired One-Shot Mapping
 
 M1 computes
 
 $$
-s=Rp,
-\qquad
-\lambda_i =
-\frac{p_i\exp(\tau s_i)}
-{\sum_k p_k\exp(\tau s_k)}.
+\lambda_{\mathrm{M1}}
+:=
+\argmin_{\lambda\in\Delta_m}
+\lambda^\top R\lambda+\rho\|\lambda-p\|_2^2.
 $$
 
-The temperature $\tau$ controls the correction strength. Larger values give
-the relationship scores more influence while retaining the multiplicative
-connection to $p$.
+The parameter $\rho$ controls how strongly the mapping stays near the original
+preference vector $p$.
 
 ### C1: CAGrad-Inspired One-Shot Mapping
 
-C1 uses a simplex-constrained one-shot optimization that balances the minimum
-relationship score against a quadratic penalty for moving away from $p$.
-The parameter $\rho$ controls preference faithfulness: larger values penalize
-coefficient displacement more strongly.
+C1 computes a trust-region CAGrad-inspired coefficient vector:
+
+$$
+\lambda_{\mathrm{C1}}
+:=
+\argmax_{\lambda\in\Delta_m}\min_i(R\lambda)_i
+$$
+
+subject to
+
+$$
+(\lambda-p)^\top R(\lambda-p)\le c^2\max(p^\top Rp,\varepsilon).
+$$
+
+The parameter $c$ controls the trust-region size around $p$.
 
 ## M1/C1 Proxy Comparison
 
-For each preference and method, the reported result uses the hyperparameter
-setting with the highest `utility_for_preference`. Under this selection rule,
-C1 with $\rho=0.1$ has the highest proxy utility among uniform,
-direct-preference, M1, and C1 for all four tested preference vectors.
+The files `results/helpsteer2_m1_c1_*` were generated during an earlier
+narrow M1/C1 comparison. They should be regenerated before being cited as
+current thesis evidence, because the active M1 definition is now the
+MGDA-inspired mapping above rather than the earlier relationship-softmax
+prototype. The all-method coefficient table is the current source for the
+thesis definitions.
+
+For the earlier recorded proxy run, each preference and method used the
+hyperparameter setting with the highest `utility_for_preference`. Under that
+selection rule, C1 with $\rho=0.1$ had the highest proxy utility among
+uniform, direct-preference, the earlier M1 prototype, and C1 for all four
+tested preference vectors.
 
 | Preference | Best method | Proxy utility | Direct utility | Improvement over direct |
 | --- | --- | ---: | ---: | ---: |
@@ -134,21 +154,24 @@ direct preference for every tested preference vector according to the
 heuristic utility. This is an empirical observation about this small proxy
 evaluation, not evidence that C1 is generally superior.
 
-The best tested M1 setting has a more mixed relationship to direct preference:
+The best tested earlier M1-prototype setting had a more mixed relationship to
+direct preference:
 
 - balanced: +0.018528 at $\tau=2$;
 - quality focused: +0.039566 at $\tau=2$;
 - detailed answer: no measured change at $\tau=0.5$;
 - helpfulness focused: -0.003049 at $\tau=0.5$.
 
-M1 therefore improves on direct preference in two of the four cases, ties in
-one case, and is slightly lower in one case under the current proxy scores.
+That earlier M1 prototype improved on direct preference in two of the four
+cases, tied in one case, and was slightly lower in one case under those proxy
+scores.
 
 ![HelpSteer2 proxy utility by method](plots/helpsteer2_utility_by_method.png)
 
 ## Proxy Utility and Preference Faithfulness
 
-The coefficient distances reveal an important trade-off. The selected M1
+The coefficient distances from that earlier run reveal an important trade-off.
+The selected earlier M1-prototype
 settings remain close to the original preference vectors:
 
 - L1 distance: 0.0093 to 0.0308;
@@ -162,8 +185,8 @@ The selected C1 settings at $\rho=0.1$ move substantially farther:
 Consequently, the current result should be described as a trade-off between
 proxy utility and preference faithfulness. C1 attains higher heuristic utility
 in this run, but does so with larger deviations from the user-specified
-preference vector. M1 makes more conservative corrections and more closely
-preserves $p$.
+preference vector. The earlier M1 prototype made more conservative corrections
+and more closely preserved $p$.
 
 ![Distance from the original preference vector](plots/helpsteer2_distance_to_preference.png)
 
@@ -202,7 +225,8 @@ The current evidence supports three limited observations:
 
 1. The C1 setting with $\rho=0.1$ has the highest heuristic utility among
    the four compared methods for all tested preferences.
-2. M1 generally changes the original preference vector much less than C1.
+2. The earlier M1 prototype changed the original preference vector much less
+   than C1 in that recorded run.
 3. Higher proxy utility and greater preference faithfulness are not aligned in
    this run: the strongest C1 proxy results require larger movement away from
    $p$.

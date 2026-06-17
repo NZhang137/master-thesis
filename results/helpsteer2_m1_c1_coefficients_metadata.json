@@ -9,7 +9,7 @@
   "relationship_matrix_path": "results/helpsteer2_relationship_matrix.csv",
   "output_csv_path": "results/helpsteer2_m1_c1_coefficients.csv",
   "number_of_objectives": 5,
-  "number_of_rows": 28,
+  "number_of_rows": 12,
   "preferences": {
     "balanced": [
       0.2,
@@ -19,23 +19,23 @@
       0.2
     ],
     "quality_focused": [
-      0.3,
-      0.3,
-      0.3,
-      0.05,
-      0.05
-    ],
-    "detailed_answer": [
-      0.25,
-      0.25,
-      0.2,
       0.15,
+      0.35,
+      0.25,
+      0.1,
       0.15
     ],
+    "detailed_answer": [
+      0.15,
+      0.15,
+      0.2,
+      0.25,
+      0.25
+    ],
     "helpfulness_focused": [
-      0.6,
-      0.1,
-      0.1,
+      0.5,
+      0.15,
+      0.15,
       0.1,
       0.1
     ]
@@ -45,35 +45,30 @@
       "description": "Normalized baseline lambda = p."
     },
     "M1": {
-      "description": "Relationship-softmax one-shot mapping.",
-      "hyperparameter": "tau",
+      "description": "MGDA-inspired one-shot mapping: minimize lambda^T R lambda + rho ||lambda - p||_2^2.",
+      "hyperparameter": "rho",
       "values": [
-        0.5,
-        1.0,
-        2.0
+        1.0
       ]
     },
     "C1": {
-      "description": "CAGrad-inspired one-shot simplex mapping.",
-      "hyperparameter": "rho",
+      "description": "Trust-region CAGrad-inspired mapping: maximize min_i (R lambda)_i under the simplex and R-trust-region constraint.",
+      "hyperparameter": "c",
       "values": [
-        0.1,
-        1.0,
-        10.0
+        0.5
       ],
       "optimizer": "scipy.optimize.minimize with SLSQP",
       "initialization": "normalized preference vector p",
-      "psd_strategy": "Symmetrize R and clip negative eigenvalues to zero.",
-      "fallback": "Choose the best of p, uniform, and simplex vertices under the same C1 objective."
+      "fallback": "Choose the best feasible candidate among p, uniform, and simplex vertices."
     }
   },
   "relationship_matrix_symmetrized": true,
-  "relationship_matrix_psd_eigenvalues": [
-    0.05355880041919385,
-    0.08431353064085706,
-    0.10300966025466025,
-    0.2884906830410294,
-    4.470627325644262
+  "relationship_matrix_eigenvalues": [
+    0.10217982920647446,
+    0.1627123763499488,
+    0.27058084652611936,
+    0.4791466183408605,
+    3.985380329576598
   ],
   "note": "These methods select coefficients inside the fixed Rewarded-Soups-style interpolation family."
 }
