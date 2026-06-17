@@ -72,12 +72,25 @@ Open TensorBoard in Colab:
 %tensorboard --logdir results/tensorboard/helpsteer2
 ```
 
-To stop cleanly after the current epoch, create the stop file from the
-repository root while training is running:
+Use control files from the repository root while training is running:
+
+Finish the current epoch, save the current adapter and logs, then continue
+with the next selected HelpSteer2 attribute:
+
+```bash
+touch STOP_CURRENT_ADAPTER
+```
+
+Finish the current epoch, save the current adapter and logs, then stop the
+whole training run:
 
 ```bash
 touch STOP_TRAINING
 ```
+
+By default, `--max_steps` also ends only the current adapter and continues with
+the next selected attribute. Add `--stop_all_on_max_steps` when `max_steps`
+should stop the entire run.
 
 The trainer writes:
 

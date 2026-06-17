@@ -224,6 +224,7 @@ adapters/
 checkpoints/
 wandb/
 STOP_TRAINING
+STOP_CURRENT_ADAPTER
 *.safetensors
 *.bin
 *.pt

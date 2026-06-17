@@ -37,6 +37,7 @@ class TrainingResult:
     global_step: int
     completed_epochs: int
     stop_requested: bool = False
+    current_adapter_stop_requested: bool = False
     max_steps_reached: bool = False
     interrupted: bool = False
 
@@ -289,6 +290,7 @@ def train_lora_with_monitoring(
     save_steps: int,
     max_steps: int,
     stop_file: Path,
+    stop_current_adapter_file: Path,
     csv_logger: CsvTrainingLogger,
     checkpoint_root: Path,
     save_total_limit: int,
@@ -464,12 +466,36 @@ def train_lora_with_monitoring(
             if stop_file.is_file():
                 print(
                     f"Stop file found after epoch {epoch_number}: "
-                    f"{stop_file}. Stopping cleanly."
+                    f"{stop_file}. Stopping the full training run cleanly."
                 )
                 return TrainingResult(
                     global_step=global_step,
                     completed_epochs=completed_epochs,
                     stop_requested=True,
+                )
+
+            if stop_current_adapter_file.is_file():
+                print(
+                    f"Current-adapter stop file found after epoch "
+                    f"{epoch_number}: {stop_current_adapter_file}. "
+                    "Saving this adapter and continuing with the next "
+                    "selected attribute."
+                )
+                try:
+                    stop_current_adapter_file.unlink()
+                    print(
+                        "Removed current-adapter stop file: "
+                        f"{stop_current_adapter_file}"
+                    )
+                except OSError as error:
+                    print(
+                        "Warning: could not remove current-adapter stop file "
+                        f"{stop_current_adapter_file}: {error}"
+                    )
+                return TrainingResult(
+                    global_step=global_step,
+                    completed_epochs=completed_epochs,
+                    current_adapter_stop_requested=True,
                 )
 
         return TrainingResult(
@@ -509,6 +535,7 @@ def train_attribute_adapter(
     save_steps: int,
     max_steps: int,
     stop_file: Path,
+    stop_current_adapter_file: Path,
     output_log_dir: Path,
     tensorboard_log_dir: Path,
     checkpoint_dir: Path,
@@ -535,7 +562,8 @@ def train_attribute_adapter(
     )
     print(f"Selected {len(eval_texts)} eval texts for {attribute}.")
     print(f"Output adapter path: {output_path}")
-    print(f"Stop file: {stop_file}")
+    print(f"Full-run stop file: {stop_file}")
+    print(f"Current-adapter stop file: {stop_current_adapter_file}")
     print(f"CSV log directory: {output_log_dir}")
     print(f"Checkpoint directory: {checkpoint_dir}")
     print(
@@ -585,6 +613,7 @@ def train_attribute_adapter(
         save_steps=save_steps,
         max_steps=max_steps,
         stop_file=stop_file,
+        stop_current_adapter_file=stop_current_adapter_file,
         csv_logger=csv_logger,
         checkpoint_root=checkpoint_root,
         save_total_limit=save_total_limit,
@@ -701,6 +730,12 @@ def parse_args() -> argparse.Namespace:
         default="STOP_TRAINING",
     )
     parser.add_argument(
+        "--stop_current_adapter_file",
+        "--stop-current-adapter-file",
+        dest="stop_current_adapter_file",
+        default="STOP_CURRENT_ADAPTER",
+    )
+    parser.add_argument(
         "--output_log_dir",
         "--output-log-dir",
         dest="output_log_dir",
@@ -730,6 +765,17 @@ def parse_args() -> argparse.Namespace:
         "--use-tensorboard",
         dest="use_tensorboard",
         action="store_true",
+    )
+    parser.add_argument(
+        "--stop_all_on_max_steps",
+        "--stop-all-on-max-steps",
+        dest="stop_all_on_max_steps",
+        action="store_true",
+        help=(
+            "Stop the whole run when max_steps is reached. By default, "
+            "max_steps ends only the current adapter and then continues with "
+            "the next selected attribute."
+        ),
     )
     return parser.parse_args()
 
@@ -769,6 +815,9 @@ def main() -> None:
     attributes = normalize_attributes(args.attributes)
     output_dir = resolve_output_dir(args.output_dir)
     stop_file = resolve_project_path(args.stop_file)
+    stop_current_adapter_file = resolve_project_path(
+        args.stop_current_adapter_file
+    )
     output_log_dir = resolve_project_path(args.output_log_dir)
     tensorboard_log_dir = resolve_project_path(args.tensorboard_log_dir)
     checkpoint_dir = resolve_project_path(args.checkpoint_dir)
@@ -801,6 +850,7 @@ def main() -> None:
             save_steps=args.save_steps,
             max_steps=args.max_steps,
             stop_file=stop_file,
+            stop_current_adapter_file=stop_current_adapter_file,
             output_log_dir=output_log_dir,
             tensorboard_log_dir=tensorboard_log_dir,
             checkpoint_dir=checkpoint_dir,
@@ -814,12 +864,25 @@ def main() -> None:
                 "current adapter. Remaining attributes will not be trained."
             )
             break
-        if result.max_steps_reached:
+        if result.current_adapter_stop_requested:
             print(
-                "\nmax_steps reached. Saved the current adapter. Remaining "
-                "attributes will not be trained."
+                "\nCurrent-adapter stop requested. Saved the current adapter "
+                "and continuing with the next selected attribute."
             )
-            break
+            continue
+        if result.max_steps_reached:
+            if args.stop_all_on_max_steps:
+                print(
+                    "\nmax_steps reached. Saved the current adapter. "
+                    "Remaining attributes will not be trained because "
+                    "--stop_all_on_max_steps was set."
+                )
+                break
+            print(
+                "\nmax_steps reached. Saved the current adapter and "
+                "continuing with the next selected attribute."
+            )
+            continue
         if result.interrupted:
             print(
                 "\nTraining interrupted. Saved the current adapter. Remaining "
