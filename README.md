@@ -57,6 +57,11 @@ Run a longer Colab training job with live `eval_loss` monitoring:
 python scripts/train_helpsteer2_adapters.py --split "train[:1000]" --num_epochs 100 --logging_steps 10 --eval_steps 100 --use_tensorboard
 ```
 
+In Colab, the long-run notebook starts this command as a background process so
+the kernel stays free for stop controls. If training is run as a normal
+foreground notebook cell, widget buttons and later cells may not execute until
+that training cell finishes.
+
 If Colab reports an incompatible `torchao` version, run:
 
 ```bash
@@ -91,6 +96,10 @@ touch STOP_TRAINING
 By default, `--max_steps` also ends only the current adapter and continues with
 the next selected attribute. Add `--stop_all_on_max_steps` when `max_steps`
 should stop the entire run.
+
+The stop files are checked after each epoch. With large splits such as
+`train[:1000]`, stopping can take time because the current epoch finishes
+before the control file is handled.
 
 The trainer writes:
 
