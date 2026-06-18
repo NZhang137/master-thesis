@@ -178,6 +178,8 @@ python scripts/evaluate_helpsteer2_definition_metrics.py
 
 The main HelpSteer2 experiment reports are:
 
+- `results/helpsteer2_experiment_result_report.md`
+- `results/helpsteer2_all_method_analysis_report.md`
 - `results/helpsteer2_prototype_results.md`
 - `meetings/helpsteer2_progress_summary.md`
 
