@@ -22,7 +22,7 @@ The current HelpSteer2 prototype implements:
 
 1. objective-specific HelpSteer2 LoRA adapters;
 2. a relationship matrix $R$ from adapter-weight geometry;
-3. direct-preference and the current M1, M2, C1, C2, P1, and P2 coefficient mappings;
+3. direct-preference and uniform baselines plus the current M1, M2, C1, C2, P1, and P2 coefficient mappings;
 4. PEFT-based weighted adapter merging; and
 5. response generation with preference-weighted proxy evaluation.
 
@@ -38,8 +38,8 @@ The current HelpSteer2 prototype implements:
   parameters
 - **M1:** MGDA-inspired one-shot coefficient mapping
 - **M2:** preference-weighted alpha-MGDA variant
-- **P1:** PCGrad-inspired reconstruction with deterministic strongest-conflict ordering
-- **P2:** reverse-order PCGrad-inspired reconstruction variant
+- **P1:** conflict-weighted closed-form shrinkage
+- **P2:** PCGrad-inspired reconstruction with deterministic strongest-conflict ordering
 - **C1:** trust-region CAGrad-inspired mapping
 - **C2:** soft-min CAGrad-inspired mapping
 
@@ -50,11 +50,10 @@ all four preference vectors. Every reported coefficient vector is
 non-negative, has the correct dimension, and sums to one.
 
 - M1 and M2 implement the MGDA-inspired definitions from the thesis draft.
-- P1 implements the R-metric PCGrad reconstruction with strongest negative
+- P1 implements the closed-form conflict shrinkage using
+  \(\kappa_i=\sum_{j\ne i}\max(0,-R_{ij})\).
+- P2 implements the R-metric PCGrad reconstruction with strongest negative
   conflict ordering.
-- P2 uses the same PCGrad reconstruction equations with reverse deterministic
-  ordering; it should be treated as a named variant unless the thesis draft
-  adds a separate formal P2 definition.
 - C1 implements the trust-region CAGrad-inspired definition with radius
   parameter $c$.
 - C2 implements the soft-min CAGrad-inspired variant.

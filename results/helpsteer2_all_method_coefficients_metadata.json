@@ -52,14 +52,13 @@
       }
     },
     "P1": {
-      "definition": "R-metric PCGrad projection with strongest negative conflict ordering and simplex reconstruction",
+      "definition": "conflict-weighted closed-form shrinkage with kappa_i=sum_{j!=i} max(0, -R_ij), s_i=1/(1+beta*kappa_i), and lambda=normalize(p*s)",
       "hyperparameters": {
-        "rho": 1.0,
-        "eps": 1e-08
+        "beta": 1.0
       }
     },
     "P2": {
-      "definition": "Same R-metric PCGrad equations as P1 with reverse deterministic conflict ordering",
+      "definition": "R-metric PCGrad projection with strongest negative conflict ordering and simplex reconstruction",
       "hyperparameters": {
         "rho": 1.0,
         "eps": 1e-08
@@ -80,7 +79,17 @@
       }
     }
   },
-  "row_count": 24,
+  "baselines": {
+    "direct_preference": {
+      "definition": "lambda = p",
+      "hyperparameters": {}
+    },
+    "uniform": {
+      "definition": "lambda_i = 1/m for all objectives",
+      "hyperparameters": {}
+    }
+  },
+  "row_count": 32,
   "relationship_matrix_eigenvalues": [
     0.10217982920647446,
     0.1627123763499488,

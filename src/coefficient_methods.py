@@ -202,19 +202,51 @@ def m2_preference_weighted_alpha_mgda_mapping(
     return normalize_simplex(multiplicative, eps=eps)
 
 
-def p1_pcgrad_reconstruction_mapping(
+def p1_conflict_weighted_shrinkage_mapping(
+    p: ArrayLike1D,
+    R: ArrayLike2D,
+    beta: float = 1.0,
+    eps: float = 1e-12,
+) -> np.ndarray:
+    """Compute P1: conflict-weighted closed-form shrinkage.
+
+    For each objective, compute
+
+    ``kappa_i = sum_{j != i} max(0, -R_ij)`` and
+    ``s_i = 1 / (1 + beta * kappa_i)``.
+
+    The returned coefficients are the simplex-normalized raw weights
+    ``p_i * s_i``.
+    """
+    if not np.isfinite(beta) or beta <= 0:
+        raise ValueError("beta must be finite and positive.")
+
+    preferences = validate_preference_vector(p, eps=eps)
+    relationships = validate_relationship_matrix(
+        R,
+        num_objectives=preferences.size,
+    )
+    negative_conflicts = np.maximum(0.0, -relationships)
+    np.fill_diagonal(negative_conflicts, 0.0)
+    conflict_loads = negative_conflicts.sum(axis=1)
+    shrinkage = 1.0 / (1.0 + beta * conflict_loads)
+    raw = preferences * shrinkage
+    return normalize_simplex(raw, eps=eps)
+
+
+def p2_pcgrad_reconstruction_mapping(
     p: ArrayLike1D,
     R: ArrayLike2D,
     rho: float = 1.0,
     eps: float = 1e-8,
     max_iterations: int = 1000,
 ) -> np.ndarray:
-    """Compute P1: R-metric PCGrad with strongest-conflict ordering.
+    """Compute P2: R-metric PCGrad with strongest-conflict ordering.
 
-    This implements the thesis PCGrad-inspired mapping using the equivalent
-    ``R``-metric representation. Conflicting ordered pairs are processed from
-    strongest to weakest negative conflict, then coefficients are reconstructed
-    by solving the simplex least-squares problem from the definition.
+    This implements the thesis P2 mapping using the equivalent ``R``-metric
+    representation. Conflicting ordered pairs are processed from strongest to
+    weakest negative conflict, then coefficients are reconstructed by solving
+    the simplex least-squares problem from the definition.
     """
     return _pcgrad_reconstruction_mapping(
         p=p,
@@ -226,6 +258,28 @@ def p1_pcgrad_reconstruction_mapping(
     )
 
 
+def p1_pcgrad_reconstruction_mapping(
+    p: ArrayLike1D,
+    R: ArrayLike2D,
+    rho: float = 1.0,
+    eps: float = 1e-8,
+    max_iterations: int = 1000,
+) -> np.ndarray:
+    """Legacy wrapper for the previous P1 implementation.
+
+    The current thesis P1 is
+    :func:`p1_conflict_weighted_shrinkage_mapping`. This wrapper is retained
+    only for older experimental scripts.
+    """
+    return p2_pcgrad_reconstruction_mapping(
+        p=p,
+        R=R,
+        rho=rho,
+        eps=eps,
+        max_iterations=max_iterations,
+    )
+
+
 def p2_pcgrad_reconstruction_reverse_mapping(
     p: ArrayLike1D,
     R: ArrayLike2D,
@@ -233,11 +287,11 @@ def p2_pcgrad_reconstruction_reverse_mapping(
     eps: float = 1e-8,
     max_iterations: int = 1000,
 ) -> np.ndarray:
-    """Compute P2: the reverse deterministic PCGrad order variant.
+    """Legacy reverse-order PCGrad reconstruction variant.
 
-    The thesis notes that the PCGrad-inspired mapping may depend on projection
-    order. P2 keeps the same R-metric projection and reconstruction equations
-    as P1, but processes the deterministic strongest-conflict list in reverse.
+    The current thesis P2 is
+    :func:`p2_pcgrad_reconstruction_mapping`. This reverse-order helper is kept
+    only for older experiments exploring projection-order sensitivity.
     """
     return _pcgrad_reconstruction_mapping(
         p=p,

@@ -23,8 +23,8 @@ from src.coefficient_methods import (
     l2_distance,
     m1_mgda_inspired_mapping,
     m2_preference_weighted_alpha_mgda_mapping,
-    p1_pcgrad_reconstruction_mapping,
-    p2_pcgrad_reconstruction_reverse_mapping,
+    p1_conflict_weighted_shrinkage_mapping,
+    p2_pcgrad_reconstruction_mapping,
     validate_preference_vector,
     validate_relationship_matrix,
 )
@@ -46,13 +46,14 @@ PREFERENCES = {
 }
 
 METHOD_NAMES = ("M1", "M2", "C1", "C2", "P1", "P2")
+BASELINE_NAMES = ("direct_preference", "uniform")
 
 METHOD_DEFAULTS = {
     "M1": {"rho": 1.0},
     "M2": {"rho": 1.0},
     "C1": {"c": 0.5, "eps": 1e-8},
     "C2": {"tau": 0.1, "rho": 1.0},
-    "P1": {"rho": 1.0, "eps": 1e-8},
+    "P1": {"beta": 1.0},
     "P2": {"rho": 1.0, "eps": 1e-8},
 }
 
@@ -146,14 +147,13 @@ def compute_method_lambda(
             rho=defaults["rho"],
         )
     elif method == "P1":
-        lambdas = p1_pcgrad_reconstruction_mapping(
+        lambdas = p1_conflict_weighted_shrinkage_mapping(
             preference,
             relationships,
-            rho=defaults["rho"],
-            eps=defaults["eps"],
+            beta=defaults["beta"],
         )
     elif method == "P2":
-        lambdas = p2_pcgrad_reconstruction_reverse_mapping(
+        lambdas = p2_pcgrad_reconstruction_mapping(
             preference,
             relationships,
             rho=defaults["rho"],
@@ -163,6 +163,18 @@ def compute_method_lambda(
         raise ValueError(f"Unknown method: {method}")
 
     return lambdas, defaults
+
+
+def compute_baseline_lambda(
+    baseline: str,
+    preference: np.ndarray,
+) -> tuple[np.ndarray, dict[str, float]]:
+    """Compute one baseline lambda vector and return empty hyperparameters."""
+    if baseline == "direct_preference":
+        return direct_preference_mapping(preference), {}
+    if baseline == "uniform":
+        return np.full(preference.size, 1.0 / preference.size), {}
+    raise ValueError(f"Unknown baseline: {baseline}")
 
 
 def validate_lambda(
@@ -237,13 +249,27 @@ def compute_rows(relationships: np.ndarray) -> list[dict[str, float | str]]:
     for preference_name, preference_values in PREFERENCES.items():
         preference = validate_preference_vector(preference_values)
 
-        direct = direct_preference_mapping(preference)
-        validate_lambda(
-            lambdas=direct,
-            preference=preference,
-            method="direct_preference",
-            preference_name=preference_name,
-        )
+        for baseline in BASELINE_NAMES:
+            lambdas, hyperparameters = compute_baseline_lambda(
+                baseline,
+                preference,
+            )
+            validate_lambda(
+                lambdas=lambdas,
+                preference=preference,
+                method=baseline,
+                preference_name=preference_name,
+            )
+            rows.append(
+                build_result_row(
+                    preference_name,
+                    baseline,
+                    hyperparameters,
+                    preference,
+                    lambdas,
+                    relationships,
+                )
+            )
 
         for method in METHOD_NAMES:
             lambdas, hyperparameters = compute_method_lambda(
@@ -277,7 +303,7 @@ def validate_coverage(rows: list[dict[str, float | str]]) -> None:
     expected = {
         (preference_name, method)
         for preference_name in PREFERENCES
-        for method in METHOD_NAMES
+        for method in (*BASELINE_NAMES, *METHOD_NAMES)
     }
     observed = {
         (str(row["preference_name"]), str(row["method"])) for row in rows
@@ -341,15 +367,16 @@ def write_metadata(
             },
             "P1": {
                 "definition": (
-                    "R-metric PCGrad projection with strongest negative "
-                    "conflict ordering and simplex reconstruction"
+                    "conflict-weighted closed-form shrinkage with "
+                    "kappa_i=sum_{j!=i} max(0, -R_ij), "
+                    "s_i=1/(1+beta*kappa_i), and lambda=normalize(p*s)"
                 ),
                 "hyperparameters": METHOD_DEFAULTS["P1"],
             },
             "P2": {
                 "definition": (
-                    "Same R-metric PCGrad equations as P1 with reverse "
-                    "deterministic conflict ordering"
+                    "R-metric PCGrad projection with strongest negative "
+                    "conflict ordering and simplex reconstruction"
                 ),
                 "hyperparameters": METHOD_DEFAULTS["P2"],
             },
@@ -366,6 +393,16 @@ def write_metadata(
                     "- rho (lambda-p)^T R (lambda-p)"
                 ),
                 "hyperparameters": METHOD_DEFAULTS["C2"],
+            },
+        },
+        "baselines": {
+            "direct_preference": {
+                "definition": "lambda = p",
+                "hyperparameters": {},
+            },
+            "uniform": {
+                "definition": "lambda_i = 1/m for all objectives",
+                "hyperparameters": {},
             },
         },
         "row_count": len(rows),
@@ -395,7 +432,7 @@ def print_summary(rows: list[dict[str, float | str]]) -> None:
     print("\nHelpSteer2 all-method coefficient summary:")
     print(
         "preference".ljust(22)
-        + "method".ljust(8)
+        + "method".ljust(20)
         + "lambda".ljust(48)
         + "min_score"
     )
@@ -406,7 +443,7 @@ def print_summary(rows: list[dict[str, float | str]]) -> None:
         lambda_text = "[" + ", ".join(f"{value:.3f}" for value in lambdas) + "]"
         print(
             str(row["preference_name"]).ljust(22)
-            + str(row["method"]).ljust(8)
+            + str(row["method"]).ljust(20)
             + lambda_text.ljust(48)
             + f"{float(row['min_relationship_score']):.4f}"
         )

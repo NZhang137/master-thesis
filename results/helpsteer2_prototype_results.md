@@ -51,7 +51,7 @@ The main result files are:
 | `results/helpsteer2_lambda_sweep_summary.csv` | Aggregate proxy scores and preference-weighted utilities for the finite sweep. |
 | `results/helpsteer2_relationship_matrix.csv` | The $5 \times 5$ cosine-similarity matrix for the five LoRA adapters. |
 | `results/helpsteer2_relationship_matrix_metadata.json` | Adapter paths, vector representation, and relationship-matrix metadata. |
-| `results/helpsteer2_all_method_coefficients.csv` | Current M1, M2, C1, C2, P1, and P2 coefficients for the active preference vectors. |
+| `results/helpsteer2_all_method_coefficients.csv` | Current direct-preference, uniform, M1, M2, C1, C2, P1, and P2 coefficients for the active preference vectors. |
 | `results/helpsteer2_all_method_coefficients_metadata.json` | Method definitions, hyperparameters, objective order, and simplex-validation metadata for the all-method coefficient table. |
 | `archive/old_results/helpsteer2_m1_c1_legacy_softmax/` | Archived earlier M1/C1 comparison outputs from the relationship-softmax prototype. |
 
@@ -127,8 +127,9 @@ relationship-softmax M1 prototype and should be treated as historical
 development output rather than current thesis evidence.
 
 The current active coefficient result is
-`results/helpsteer2_all_method_coefficients.csv`, which contains M1, M2, C1,
-C2, P1, and P2 under the thesis-aligned definitions.
+`results/helpsteer2_all_method_coefficients.csv`, which contains the
+direct-preference and uniform baselines plus M1, M2, C1, C2, P1, and P2 under
+the thesis-aligned definitions.
 
 ## Fixed Lambda Sweep
 
@@ -150,10 +151,10 @@ generation variability.
 ## Interpretation
 
 The current evidence supports a narrower observation: the coefficient
-computation pipeline now produces validated simplex coefficients for M1, M2,
-C1, C2, P1, and P2 from the HelpSteer2 relationship matrix. The next empirical
-step is to regenerate merge outputs and proxy metrics for these thesis-aligned
-definitions.
+computation pipeline now produces validated simplex coefficients for the
+direct-preference and uniform baselines plus M1, M2, C1, C2, P1, and P2 from
+the HelpSteer2 relationship matrix. The next empirical step is to regenerate
+merge outputs and proxy metrics for these thesis-aligned definitions.
 
 ## Definition-Style Evaluation Metrics
 

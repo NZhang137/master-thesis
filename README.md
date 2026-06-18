@@ -124,6 +124,7 @@ Compute the current all-method coefficient table:
 
 ```bash
 python scripts/compute_helpsteer2_all_method_coefficients.py
+python scripts/validate_coefficient_methods.py
 ```
 
 This writes:
@@ -131,9 +132,10 @@ This writes:
 - `results/helpsteer2_all_method_coefficients.csv`
 - `results/helpsteer2_all_method_coefficients_metadata.json`
 
-The table contains M1, M2, C1, C2, P1, and P2 coefficients for the active
-HelpSteer2 preference vectors. Each coefficient vector is validated to be
-non-negative and normalized on the simplex.
+The table contains direct-preference and uniform baselines plus M1, M2, C1,
+C2, P1, and P2 coefficients for the active HelpSteer2 preference vectors.
+Each coefficient vector is validated to be non-negative and normalized on the
+simplex.
 
 Create thesis-style summary tables, plots, and metrics after regenerating the
 current M1/C1 merge evaluation:
