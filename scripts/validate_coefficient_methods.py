@@ -120,19 +120,31 @@ def validate_generated_csv(csv_path: Path, metadata_path: Path) -> None:
         raise AssertionError("Coefficient CSV contains no rows.")
 
     preferences = sorted({row["preference_name"] for row in rows})
-    expected = {
+    expected_pairs = {
         (preference, method)
         for preference in preferences
         for method in (*BASELINES, *METHODS)
     }
-    observed = {(row["preference_name"], row["method"]) for row in rows}
-    if observed != expected:
+    observed_pairs = {(row["preference_name"], row["method"]) for row in rows}
+    if observed_pairs != expected_pairs:
         raise AssertionError(
-            f"Method/preference coverage mismatch. Missing={expected - observed}, "
-            f"extra={observed - expected}"
+            "Method/preference coverage mismatch. "
+            f"Missing={expected_pairs - observed_pairs}, "
+            f"extra={observed_pairs - expected_pairs}"
         )
 
+    observed_settings = set()
     for row in rows:
+        setting_key = (
+            row["preference_name"],
+            row["method"],
+            row["hyperparameter_id"],
+        )
+        if setting_key in observed_settings:
+            raise AssertionError(f"Duplicate setting row: {setting_key}")
+        observed_settings.add(setting_key)
+        if row.get("validation_passed") not in {"True", "true", "1", True}:
+            raise AssertionError(f"Row failed validation: {setting_key}")
         lambdas = np.array(
             [float(row[f"lambda_{objective}"]) for objective in OBJECTIVES],
             dtype=np.float64,

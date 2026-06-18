@@ -1,4 +1,4 @@
-"""Compute HelpSteer2 M1, M2, C1, C2, P1, and P2 coefficients."""
+"""Compute HelpSteer2 coefficient candidates and lightweight cost logs."""
 
 from __future__ import annotations
 
@@ -6,7 +6,11 @@ import argparse
 import csv
 import json
 import sys
+import time
+import tracemalloc
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -45,30 +49,76 @@ PREFERENCES = {
     "helpfulness_focused": (0.50, 0.15, 0.15, 0.10, 0.10),
 }
 
-METHOD_NAMES = ("M1", "M2", "C1", "C2", "P1", "P2")
-BASELINE_NAMES = ("direct_preference", "uniform")
+VALIDATION_TOLERANCE = 1e-7
 
-METHOD_DEFAULTS = {
-    "M1": {"rho": 1.0},
-    "M2": {"rho": 1.0},
-    "C1": {"c": 0.5, "eps": 1e-8},
-    "C2": {"tau": 0.1, "rho": 1.0},
-    "P1": {"beta": 1.0},
-    "P2": {"rho": 1.0, "eps": 1e-8},
+BASELINE_GRIDS: dict[str, list[dict[str, float]]] = {
+    "direct_preference": [{}],
+    "uniform": [{}],
 }
 
-CSV_COLUMNS = [
+METHOD_GRIDS: dict[str, list[dict[str, float]]] = {
+    "M1": [{"rho": value} for value in (0.1, 1.0, 10.0)],
+    "M2": [{"rho": value} for value in (0.1, 1.0, 10.0)],
+    "C1": [
+        {"c": value, "eps": 1e-8}
+        for value in (0.25, 0.5, 1.0)
+    ],
+    "C2": [
+        {"tau": tau, "rho": rho}
+        for tau in (0.05, 0.1, 0.2)
+        for rho in (0.1, 1.0)
+    ],
+    "P1": [{"beta": value} for value in (0.5, 1.0, 2.0)],
+    "P2": [
+        {"rho": value, "eps": 1e-8}
+        for value in (0.1, 1.0, 10.0)
+    ],
+}
+
+METHOD_FAMILIES = {
+    "direct_preference": "baseline",
+    "uniform": "baseline",
+    "M1": "MGDA-inspired",
+    "M2": "MGDA-inspired",
+    "P1": "PCGrad-inspired",
+    "P2": "PCGrad-inspired",
+    "C1": "CAGrad-inspired",
+    "C2": "CAGrad-inspired",
+}
+
+COEFFICIENT_COLUMNS = [
     "preference_name",
     "method",
-    "hyperparameters",
+    "method_family",
+    "hyperparameter_id",
+    "hyperparameters_json",
     *(f"p_{name}" for name in OBJECTIVE_NAMES),
     *(f"lambda_{name}" for name in OBJECTIVE_NAMES),
     *(f"score_{name}" for name in OBJECTIVE_NAMES),
     "min_relationship_score",
     "lambda_sum",
     "lambda_min",
+    "lambda_max",
     "l1_distance_to_p",
     "l2_distance_to_p",
+    "validation_passed",
+]
+
+COST_COLUMNS = [
+    "method",
+    "method_family",
+    "preference_name",
+    "hyperparameter_id",
+    "hyperparameters_json",
+    "runtime_seconds",
+    "peak_memory_mb",
+    "solver_iterations",
+    "solver_success",
+    "num_objectives",
+    "coefficient_dimension",
+    "output_lambda_sum",
+    "output_lambda_min",
+    "output_lambda_max",
 ]
 
 
@@ -113,200 +163,253 @@ def load_relationship_matrix(matrix_path: Path) -> np.ndarray:
     )
 
 
-def compute_method_lambda(
+def hyperparameter_id(method: str, hyperparameters: dict[str, float]) -> str:
+    """Create a compact stable identifier for one hyperparameter setting."""
+    if not hyperparameters:
+        return "default"
+    parts = []
+    for key, value in sorted(hyperparameters.items()):
+        text = f"{value:g}".replace("-", "m").replace(".", "p")
+        parts.append(f"{key}_{text}")
+    return "__".join(parts)
+
+
+def hyperparameters_json(hyperparameters: dict[str, float]) -> str:
+    """Serialize hyperparameters in a stable form for CSV and metadata."""
+    return json.dumps(hyperparameters, sort_keys=True)
+
+
+def compute_lambda(
     method: str,
     preference: np.ndarray,
     relationships: np.ndarray,
-) -> tuple[np.ndarray, dict[str, float]]:
-    """Compute one method's lambda vector and return its hyperparameters."""
-    defaults = METHOD_DEFAULTS[method]
+    hyperparameters: dict[str, float],
+) -> np.ndarray:
+    """Compute one lambda vector for a method and hyperparameter setting."""
+    if method == "direct_preference":
+        return direct_preference_mapping(preference)
+    if method == "uniform":
+        return np.full(preference.size, 1.0 / preference.size)
     if method == "M1":
-        lambdas = m1_mgda_inspired_mapping(
+        return m1_mgda_inspired_mapping(
             preference,
             relationships,
-            rho=defaults["rho"],
+            rho=hyperparameters["rho"],
         )
-    elif method == "M2":
-        lambdas = m2_preference_weighted_alpha_mgda_mapping(
+    if method == "M2":
+        return m2_preference_weighted_alpha_mgda_mapping(
             preference,
             relationships,
-            rho=defaults["rho"],
+            rho=hyperparameters["rho"],
         )
-    elif method == "C1":
-        lambdas = c1_trust_region_cagrad_mapping(
+    if method == "C1":
+        return c1_trust_region_cagrad_mapping(
             preference,
             relationships,
-            c=defaults["c"],
-            eps=defaults["eps"],
+            c=hyperparameters["c"],
+            eps=hyperparameters["eps"],
         )
-    elif method == "C2":
-        lambdas = c2_softmin_cagrad_mapping(
+    if method == "C2":
+        return c2_softmin_cagrad_mapping(
             preference,
             relationships,
-            tau=defaults["tau"],
-            rho=defaults["rho"],
+            tau=hyperparameters["tau"],
+            rho=hyperparameters["rho"],
         )
-    elif method == "P1":
-        lambdas = p1_conflict_weighted_shrinkage_mapping(
+    if method == "P1":
+        return p1_conflict_weighted_shrinkage_mapping(
             preference,
             relationships,
-            beta=defaults["beta"],
+            beta=hyperparameters["beta"],
         )
-    elif method == "P2":
-        lambdas = p2_pcgrad_reconstruction_mapping(
+    if method == "P2":
+        return p2_pcgrad_reconstruction_mapping(
             preference,
             relationships,
-            rho=defaults["rho"],
-            eps=defaults["eps"],
+            rho=hyperparameters["rho"],
+            eps=hyperparameters["eps"],
         )
-    else:
-        raise ValueError(f"Unknown method: {method}")
-
-    return lambdas, defaults
-
-
-def compute_baseline_lambda(
-    baseline: str,
-    preference: np.ndarray,
-) -> tuple[np.ndarray, dict[str, float]]:
-    """Compute one baseline lambda vector and return empty hyperparameters."""
-    if baseline == "direct_preference":
-        return direct_preference_mapping(preference), {}
-    if baseline == "uniform":
-        return np.full(preference.size, 1.0 / preference.size), {}
-    raise ValueError(f"Unknown baseline: {baseline}")
+    raise ValueError(f"Unknown method: {method}")
 
 
 def validate_lambda(
-    *,
     lambdas: np.ndarray,
     preference: np.ndarray,
-    method: str,
-    preference_name: str,
-    atol: float = 1e-7,
-) -> None:
-    """Validate that one lambda vector is on the simplex."""
+    atol: float = VALIDATION_TOLERANCE,
+) -> bool:
+    """Return whether one lambda vector is finite and on the simplex."""
     if lambdas.shape != preference.shape:
-        raise ValueError(
-            f"{method}/{preference_name} lambda shape {lambdas.shape} "
-            f"does not match preference shape {preference.shape}."
-        )
+        return False
     if not np.all(np.isfinite(lambdas)):
-        raise ValueError(f"{method}/{preference_name} lambda has non-finite values.")
+        return False
     if np.any(lambdas < -atol):
-        raise ValueError(f"{method}/{preference_name} lambda has negative values.")
-    if abs(float(lambdas.sum()) - 1.0) > atol:
+        return False
+    return abs(float(lambdas.sum()) - 1.0) <= atol
+
+
+def require_valid_lambda(
+    lambdas: np.ndarray,
+    preference: np.ndarray,
+    label: str,
+) -> None:
+    """Raise a clear error if a lambda vector fails validation."""
+    if not validate_lambda(lambdas, preference):
         raise ValueError(
-            f"{method}/{preference_name} lambda sums to "
-            f"{float(lambdas.sum()):.12f}, not 1."
+            f"{label} produced an invalid lambda: shape={lambdas.shape}, "
+            f"sum={float(np.sum(lambdas)) if lambdas.size else 'empty'}, "
+            f"min={float(np.min(lambdas)) if lambdas.size else 'empty'}."
         )
 
 
-def build_result_row(
+def method_grid_items() -> list[tuple[str, dict[str, float]]]:
+    """Return all baseline and method settings in a stable output order."""
+    items: list[tuple[str, dict[str, float]]] = []
+    for method, grid in BASELINE_GRIDS.items():
+        items.extend((method, hyperparameters) for hyperparameters in grid)
+    for method, grid in METHOD_GRIDS.items():
+        items.extend((method, hyperparameters) for hyperparameters in grid)
+    return items
+
+
+def run_one_setting(
+    *,
     preference_name: str,
+    preference: np.ndarray,
     method: str,
     hyperparameters: dict[str, float],
-    preference: np.ndarray,
-    lambdas: np.ndarray,
     relationships: np.ndarray,
-) -> dict[str, float | str]:
-    """Build one coefficient result row."""
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Compute one coefficient row and one computational-cost row."""
+    method_family = METHOD_FAMILIES[method]
+    setting_id = hyperparameter_id(method, hyperparameters)
+    hyper_json = hyperparameters_json(hyperparameters)
+
+    tracemalloc.start()
+    start_time = time.perf_counter()
+    solver_success = True
+    try:
+        lambdas = compute_lambda(
+            method=method,
+            preference=preference,
+            relationships=relationships,
+            hyperparameters=hyperparameters,
+        )
+    except Exception:
+        solver_success = False
+        raise
+    finally:
+        runtime_seconds = time.perf_counter() - start_time
+        _, peak_bytes = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+    require_valid_lambda(
+        lambdas,
+        preference,
+        f"{preference_name}/{method}/{setting_id}",
+    )
+    validation_passed = validate_lambda(lambdas, preference)
     scores = relationships @ lambdas
-    row: dict[str, float | str] = {
+    lambda_sum = float(lambdas.sum())
+    lambda_min = float(np.min(lambdas))
+    lambda_max = float(np.max(lambdas))
+
+    coefficient_row: dict[str, Any] = {
         "preference_name": preference_name,
         "method": method,
-        "hyperparameters": json.dumps(hyperparameters, sort_keys=True),
+        "method_family": method_family,
+        "hyperparameter_id": setting_id,
+        "hyperparameters_json": hyper_json,
         "min_relationship_score": float(np.min(scores)),
-        "lambda_sum": float(lambdas.sum()),
-        "lambda_min": float(np.min(lambdas)),
+        "lambda_sum": lambda_sum,
+        "lambda_min": lambda_min,
+        "lambda_max": lambda_max,
         "l1_distance_to_p": l1_distance(lambdas, preference),
         "l2_distance_to_p": l2_distance(lambdas, preference),
+        "validation_passed": validation_passed,
     }
-    row.update(
+    coefficient_row.update(
         {
             f"p_{name}": float(value)
             for name, value in zip(OBJECTIVE_NAMES, preference)
         }
     )
-    row.update(
+    coefficient_row.update(
         {
             f"lambda_{name}": float(value)
             for name, value in zip(OBJECTIVE_NAMES, lambdas)
         }
     )
-    row.update(
+    coefficient_row.update(
         {
             f"score_{name}": float(value)
             for name, value in zip(OBJECTIVE_NAMES, scores)
         }
     )
-    return row
+
+    cost_row: dict[str, Any] = {
+        "method": method,
+        "method_family": method_family,
+        "preference_name": preference_name,
+        "hyperparameter_id": setting_id,
+        "hyperparameters_json": hyper_json,
+        "runtime_seconds": runtime_seconds,
+        "peak_memory_mb": peak_bytes / (1024 * 1024),
+        "solver_iterations": "",
+        "solver_success": solver_success and validation_passed,
+        "num_objectives": len(OBJECTIVE_NAMES),
+        "coefficient_dimension": lambdas.size,
+        "output_lambda_sum": lambda_sum,
+        "output_lambda_min": lambda_min,
+        "output_lambda_max": lambda_max,
+    }
+    if method in {"direct_preference", "uniform", "P1"}:
+        cost_row["solver_iterations"] = 0
+
+    return coefficient_row, cost_row
 
 
-def compute_rows(relationships: np.ndarray) -> list[dict[str, float | str]]:
-    """Compute all requested method/preference coefficient rows."""
-    rows: list[dict[str, float | str]] = []
+def compute_rows(
+    relationships: np.ndarray,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Compute all coefficient rows and computational-cost rows."""
+    coefficient_rows: list[dict[str, Any]] = []
+    cost_rows: list[dict[str, Any]] = []
+
     for preference_name, preference_values in PREFERENCES.items():
         preference = validate_preference_vector(preference_values)
-
-        for baseline in BASELINE_NAMES:
-            lambdas, hyperparameters = compute_baseline_lambda(
-                baseline,
-                preference,
-            )
-            validate_lambda(
-                lambdas=lambdas,
-                preference=preference,
-                method=baseline,
+        for method, hyperparameters in method_grid_items():
+            coefficient_row, cost_row = run_one_setting(
                 preference_name=preference_name,
-            )
-            rows.append(
-                build_result_row(
-                    preference_name,
-                    baseline,
-                    hyperparameters,
-                    preference,
-                    lambdas,
-                    relationships,
-                )
-            )
-
-        for method in METHOD_NAMES:
-            lambdas, hyperparameters = compute_method_lambda(
-                method,
-                preference,
-                relationships,
-            )
-            validate_lambda(
-                lambdas=lambdas,
                 preference=preference,
                 method=method,
-                preference_name=preference_name,
+                hyperparameters=hyperparameters,
+                relationships=relationships,
             )
-            rows.append(
-                build_result_row(
-                    preference_name,
-                    method,
-                    hyperparameters,
-                    preference,
-                    lambdas,
-                    relationships,
-                )
-            )
+            coefficient_rows.append(coefficient_row)
+            cost_rows.append(cost_row)
 
-    validate_coverage(rows)
-    return rows
+    validate_coverage(coefficient_rows)
+    return coefficient_rows, cost_rows
 
 
-def validate_coverage(rows: list[dict[str, float | str]]) -> None:
-    """Ensure every method/preference pair is present exactly once."""
+def validate_coverage(rows: list[dict[str, Any]]) -> None:
+    """Ensure every method/preference/hyperparameter setting appears once."""
     expected = {
-        (preference_name, method)
+        (
+            preference_name,
+            method,
+            hyperparameter_id(method, hyperparameters),
+        )
         for preference_name in PREFERENCES
-        for method in (*BASELINE_NAMES, *METHOD_NAMES)
+        for method, hyperparameters in method_grid_items()
     }
     observed = {
-        (str(row["preference_name"]), str(row["method"])) for row in rows
+        (
+            str(row["preference_name"]),
+            str(row["method"]),
+            str(row["hyperparameter_id"]),
+        )
+        for row in rows
     }
     if observed != expected:
         missing = sorted(expected.difference(observed))
@@ -316,94 +419,53 @@ def validate_coverage(rows: list[dict[str, float | str]]) -> None:
         )
 
 
-def write_results(output_path: Path, rows: list[dict[str, float | str]]) -> None:
-    """Write the coefficient rows to CSV."""
+def format_csv_value(value: Any) -> str | bool:
+    """Format floats consistently while preserving strings and booleans."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value
+    if value == "":
+        return ""
+    return f"{float(value):.10f}"
+
+
+def write_csv(
+    output_path: Path,
+    rows: list[dict[str, Any]],
+    columns: list[str],
+) -> None:
+    """Write rows to a small UTF-8 CSV file."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8", newline="") as output_file:
-        writer = csv.DictWriter(output_file, fieldnames=CSV_COLUMNS)
+        writer = csv.DictWriter(output_file, fieldnames=columns)
         writer.writeheader()
         for row in rows:
-            writer.writerow(
-                {
-                    column: (
-                        value
-                        if isinstance(value, str)
-                        else f"{float(value):.10f}"
-                    )
-                    for column, value in row.items()
-                }
-            )
+            writer.writerow({column: format_csv_value(row[column]) for column in columns})
 
 
 def write_metadata(
     output_path: Path,
     relationship_matrix_path: str,
     output_csv_path: str,
+    output_costs_path: str,
     relationships: np.ndarray,
-    rows: list[dict[str, float | str]],
+    rows: list[dict[str, Any]],
 ) -> None:
     """Write compact coefficient metadata to JSON."""
     metadata = {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "relationship_matrix_path": relationship_matrix_path,
         "output_csv_path": output_csv_path,
+        "output_costs_path": output_costs_path,
         "objective_order": list(OBJECTIVE_NAMES),
         "preferences": {
             name: list(values) for name, values in PREFERENCES.items()
         },
-        "methods": {
-            "M1": {
-                "definition": (
-                    "argmin over simplex lambda^T R lambda "
-                    "+ rho ||lambda - p||_2^2"
-                ),
-                "hyperparameters": METHOD_DEFAULTS["M1"],
-            },
-            "M2": {
-                "definition": (
-                    "alpha-MGDA with G_p=Diag(p) R Diag(p), then "
-                    "lambda=(alpha*p)/sum(alpha*p)"
-                ),
-                "hyperparameters": METHOD_DEFAULTS["M2"],
-            },
-            "P1": {
-                "definition": (
-                    "conflict-weighted closed-form shrinkage with "
-                    "kappa_i=sum_{j!=i} max(0, -R_ij), "
-                    "s_i=1/(1+beta*kappa_i), and lambda=normalize(p*s)"
-                ),
-                "hyperparameters": METHOD_DEFAULTS["P1"],
-            },
-            "P2": {
-                "definition": (
-                    "R-metric PCGrad projection with strongest negative "
-                    "conflict ordering and simplex reconstruction"
-                ),
-                "hyperparameters": METHOD_DEFAULTS["P2"],
-            },
-            "C1": {
-                "definition": (
-                    "trust-region CAGrad: maximize min_i (R lambda)_i "
-                    "subject to simplex and R-trust-region constraint"
-                ),
-                "hyperparameters": METHOD_DEFAULTS["C1"],
-            },
-            "C2": {
-                "definition": (
-                    "soft-min CAGrad: maximize softmin_tau(R lambda) "
-                    "- rho (lambda-p)^T R (lambda-p)"
-                ),
-                "hyperparameters": METHOD_DEFAULTS["C2"],
-            },
-        },
-        "baselines": {
-            "direct_preference": {
-                "definition": "lambda = p",
-                "hyperparameters": {},
-            },
-            "uniform": {
-                "definition": "lambda_i = 1/m for all objectives",
-                "hyperparameters": {},
-            },
+        "method_families": METHOD_FAMILIES,
+        "hyperparameter_grids": {
+            **BASELINE_GRIDS,
+            **METHOD_GRIDS,
         },
         "row_count": len(rows),
         "relationship_matrix_eigenvalues": np.linalg.eigvalsh(
@@ -411,14 +473,16 @@ def write_metadata(
         ).tolist(),
         "validation": {
             "lambda_dimension_checked": True,
+            "lambda_finite_checked": True,
             "lambda_non_negative_checked": True,
             "lambda_sum_checked": True,
-            "method_preference_coverage_checked": True,
-            "tolerance": 1e-7,
+            "method_preference_hyperparameter_coverage_checked": True,
+            "tolerance": VALIDATION_TOLERANCE,
         },
         "note": (
             "The coefficients are one-shot mappings from p and R inside the "
-            "fixed Rewarded-Soups-style interpolation family."
+            "fixed Rewarded-Soups-style interpolation family. Cost metrics are "
+            "lightweight local runtime and tracemalloc measurements."
         ),
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -427,12 +491,13 @@ def write_metadata(
         metadata_file.write("\n")
 
 
-def print_summary(rows: list[dict[str, float | str]]) -> None:
+def print_summary(rows: list[dict[str, Any]]) -> None:
     """Print a compact summary table for the terminal."""
-    print("\nHelpSteer2 all-method coefficient summary:")
+    print("\nHelpSteer2 coefficient summary:")
     print(
         "preference".ljust(22)
         + "method".ljust(20)
+        + "setting".ljust(24)
         + "lambda".ljust(48)
         + "min_score"
     )
@@ -444,6 +509,7 @@ def print_summary(rows: list[dict[str, float | str]]) -> None:
         print(
             str(row["preference_name"]).ljust(22)
             + str(row["method"]).ljust(20)
+            + str(row["hyperparameter_id"]).ljust(24)
             + lambda_text.ljust(48)
             + f"{float(row['min_relationship_score']):.4f}"
         )
@@ -452,7 +518,9 @@ def print_summary(rows: list[dict[str, float | str]]) -> None:
 def parse_args() -> argparse.Namespace:
     """Parse input and output paths."""
     parser = argparse.ArgumentParser(
-        description="Compute HelpSteer2 M1, M2, C1, C2, P1, and P2 coefficients."
+        description=(
+            "Compute HelpSteer2 coefficient grids and lightweight cost logs."
+        )
     )
     parser.add_argument(
         "--relationship_matrix_path",
@@ -472,6 +540,12 @@ def parse_args() -> argparse.Namespace:
         dest="output_metadata",
         default="results/helpsteer2_all_method_coefficients_metadata.json",
     )
+    parser.add_argument(
+        "--output_costs",
+        "--output-costs",
+        dest="output_costs",
+        default="results/helpsteer2_method_costs.csv",
+    )
     return parser.parse_args()
 
 
@@ -481,20 +555,24 @@ def main() -> None:
     matrix_path = resolve_project_path(args.relationship_matrix_path)
     output_csv = resolve_project_path(args.output_csv)
     output_metadata = resolve_project_path(args.output_metadata)
+    output_costs = resolve_project_path(args.output_costs)
 
     relationships = load_relationship_matrix(matrix_path)
-    rows = compute_rows(relationships)
-    write_results(output_csv, rows)
+    coefficient_rows, cost_rows = compute_rows(relationships)
+    write_csv(output_csv, coefficient_rows, COEFFICIENT_COLUMNS)
+    write_csv(output_costs, cost_rows, COST_COLUMNS)
     write_metadata(
         output_metadata,
         args.relationship_matrix_path,
         args.output_csv,
+        args.output_costs,
         relationships,
-        rows,
+        coefficient_rows,
     )
     print(f"Loaded relationship matrix from {matrix_path}")
-    print_summary(rows)
-    print(f"\nSaved {len(rows)} coefficient rows to {output_csv}")
+    print_summary(coefficient_rows)
+    print(f"\nSaved {len(coefficient_rows)} coefficient rows to {output_csv}")
+    print(f"Saved {len(cost_rows)} cost rows to {output_costs}")
     print(f"Saved metadata to {output_metadata}")
 
 

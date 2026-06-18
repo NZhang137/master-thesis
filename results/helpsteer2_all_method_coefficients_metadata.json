@@ -1,6 +1,8 @@
 {
+  "timestamp_utc": "2026-06-18T10:11:36.191301+00:00",
   "relationship_matrix_path": "results/helpsteer2_relationship_matrix.csv",
   "output_csv_path": "results/helpsteer2_all_method_coefficients.csv",
+  "output_costs_path": "results/helpsteer2_method_costs.csv",
   "objective_order": [
     "helpfulness",
     "correctness",
@@ -38,58 +40,112 @@
       0.1
     ]
   },
-  "methods": {
-    "M1": {
-      "definition": "argmin over simplex lambda^T R lambda + rho ||lambda - p||_2^2",
-      "hyperparameters": {
+  "method_families": {
+    "direct_preference": "baseline",
+    "uniform": "baseline",
+    "M1": "MGDA-inspired",
+    "M2": "MGDA-inspired",
+    "P1": "PCGrad-inspired",
+    "P2": "PCGrad-inspired",
+    "C1": "CAGrad-inspired",
+    "C2": "CAGrad-inspired"
+  },
+  "hyperparameter_grids": {
+    "direct_preference": [
+      {}
+    ],
+    "uniform": [
+      {}
+    ],
+    "M1": [
+      {
+        "rho": 0.1
+      },
+      {
         "rho": 1.0
+      },
+      {
+        "rho": 10.0
       }
-    },
-    "M2": {
-      "definition": "alpha-MGDA with G_p=Diag(p) R Diag(p), then lambda=(alpha*p)/sum(alpha*p)",
-      "hyperparameters": {
+    ],
+    "M2": [
+      {
+        "rho": 0.1
+      },
+      {
         "rho": 1.0
+      },
+      {
+        "rho": 10.0
       }
-    },
-    "P1": {
-      "definition": "conflict-weighted closed-form shrinkage with kappa_i=sum_{j!=i} max(0, -R_ij), s_i=1/(1+beta*kappa_i), and lambda=normalize(p*s)",
-      "hyperparameters": {
-        "beta": 1.0
-      }
-    },
-    "P2": {
-      "definition": "R-metric PCGrad projection with strongest negative conflict ordering and simplex reconstruction",
-      "hyperparameters": {
-        "rho": 1.0,
+    ],
+    "C1": [
+      {
+        "c": 0.25,
         "eps": 1e-08
-      }
-    },
-    "C1": {
-      "definition": "trust-region CAGrad: maximize min_i (R lambda)_i subject to simplex and R-trust-region constraint",
-      "hyperparameters": {
+      },
+      {
         "c": 0.5,
         "eps": 1e-08
+      },
+      {
+        "c": 1.0,
+        "eps": 1e-08
       }
-    },
-    "C2": {
-      "definition": "soft-min CAGrad: maximize softmin_tau(R lambda) - rho (lambda-p)^T R (lambda-p)",
-      "hyperparameters": {
+    ],
+    "C2": [
+      {
+        "tau": 0.05,
+        "rho": 0.1
+      },
+      {
+        "tau": 0.05,
+        "rho": 1.0
+      },
+      {
+        "tau": 0.1,
+        "rho": 0.1
+      },
+      {
         "tau": 0.1,
         "rho": 1.0
+      },
+      {
+        "tau": 0.2,
+        "rho": 0.1
+      },
+      {
+        "tau": 0.2,
+        "rho": 1.0
       }
-    }
+    ],
+    "P1": [
+      {
+        "beta": 0.5
+      },
+      {
+        "beta": 1.0
+      },
+      {
+        "beta": 2.0
+      }
+    ],
+    "P2": [
+      {
+        "rho": 0.1,
+        "eps": 1e-08
+      },
+      {
+        "rho": 1.0,
+        "eps": 1e-08
+      },
+      {
+        "rho": 10.0,
+        "eps": 1e-08
+      }
+    ]
   },
-  "baselines": {
-    "direct_preference": {
-      "definition": "lambda = p",
-      "hyperparameters": {}
-    },
-    "uniform": {
-      "definition": "lambda_i = 1/m for all objectives",
-      "hyperparameters": {}
-    }
-  },
-  "row_count": 32,
+  "row_count": 92,
   "relationship_matrix_eigenvalues": [
     0.10217982920647446,
     0.1627123763499488,
@@ -99,10 +155,11 @@
   ],
   "validation": {
     "lambda_dimension_checked": true,
+    "lambda_finite_checked": true,
     "lambda_non_negative_checked": true,
     "lambda_sum_checked": true,
-    "method_preference_coverage_checked": true,
+    "method_preference_hyperparameter_coverage_checked": true,
     "tolerance": 1e-07
   },
-  "note": "The coefficients are one-shot mappings from p and R inside the fixed Rewarded-Soups-style interpolation family."
+  "note": "The coefficients are one-shot mappings from p and R inside the fixed Rewarded-Soups-style interpolation family. Cost metrics are lightweight local runtime and tracemalloc measurements."
 }

@@ -130,12 +130,20 @@ python scripts/validate_coefficient_methods.py
 This writes:
 
 - `results/helpsteer2_all_method_coefficients.csv`
+- `results/helpsteer2_method_costs.csv`
 - `results/helpsteer2_all_method_coefficients_metadata.json`
 
 The table contains direct-preference and uniform baselines plus M1, M2, C1,
 C2, P1, and P2 coefficients for the active HelpSteer2 preference vectors.
 Each coefficient vector is validated to be non-negative and normalized on the
 simplex.
+
+The cost table records one row per method, preference vector, and
+hyperparameter setting. `runtime_seconds` measures wall-clock coefficient
+computation time, `peak_memory_mb` is a lightweight `tracemalloc` peak-memory
+estimate, and `solver_iterations` is `0` for closed-form or direct mappings.
+For optimizer-backed mappings where the current wrapper does not expose the
+iteration count, this field is left empty.
 
 Create thesis-style summary tables, plots, and metrics after regenerating the
 current M1/C1 merge evaluation:
