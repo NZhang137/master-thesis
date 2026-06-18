@@ -1,0 +1,64 @@
+{
+  "timestamp_utc": "2026-06-18T13:29:00.736256+00:00",
+  "description": "HelpSteer2 all-method merge evaluation with lightweight proxy scores inside the fixed Rewarded-Soups-style interpolation family.",
+  "proxy_score_caveat": "Scores are deterministic proxy scores, not HelpSteer2 human labels or reward-model scores.",
+  "inputs": {
+    "coefficients_path": "results/helpsteer2_all_method_coefficients.csv",
+    "prompts_path": "data/evaluation_prompts/helpsteer2_fixed_prompts.jsonl",
+    "method_costs_path": "results/helpsteer2_method_costs.csv",
+    "adapter_dir": "adapters"
+  },
+  "generation_settings": {
+    "model_name": "gpt2",
+    "max_new_tokens": 80,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "seed": 42
+  },
+  "objectives": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "num_summary_rows": 92,
+  "best_methods_by_preference": [
+    {
+      "preference_name": "balanced",
+      "method": "C2",
+      "hyperparameter_id": "rho_1__tau_0p2",
+      "hyperparameters_json": "{\"rho\": 1.0, \"tau\": 0.2}",
+      "mean_utility": 0.203964,
+      "improvement_over_direct_preference": 0.049563,
+      "improvement_over_uniform": 0.045137
+    },
+    {
+      "preference_name": "detailed_answer",
+      "method": "C2",
+      "hyperparameter_id": "rho_0p1__tau_0p1",
+      "hyperparameters_json": "{\"rho\": 0.1, \"tau\": 0.1}",
+      "mean_utility": 0.203445,
+      "improvement_over_direct_preference": 0.045907,
+      "improvement_over_uniform": 0.06036
+    },
+    {
+      "preference_name": "helpfulness_focused",
+      "method": "M2",
+      "hyperparameter_id": "rho_0p1",
+      "hyperparameters_json": "{\"rho\": 0.1}",
+      "mean_utility": 0.361037,
+      "improvement_over_direct_preference": 0.130107,
+      "improvement_over_uniform": 0.170707
+    },
+    {
+      "preference_name": "quality_focused",
+      "method": "M2",
+      "hyperparameter_id": "rho_0p1",
+      "hyperparameters_json": "{\"rho\": 0.1}",
+      "mean_utility": 0.222406,
+      "improvement_over_direct_preference": 0.024459,
+      "improvement_over_uniform": 0.043832
+    }
+  ]
+}
