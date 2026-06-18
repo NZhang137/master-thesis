@@ -121,6 +121,20 @@ reproducible evaluation so every method, preference vector, and hyperparameter
 setting can be compared on the same prompts. Generated answers, proxy scores,
 and reward-model scores should be saved separately under `results/`.
 
+Evaluate every coefficient row from the all-method table on the fixed prompt
+set:
+
+```bash
+python scripts/evaluate_helpsteer2_all_method_merges.py
+```
+
+This writes raw generations, proxy scores, and aggregate summaries to
+`results/helpsteer2_all_method_generations.csv`,
+`results/helpsteer2_all_method_scores.csv`,
+`results/helpsteer2_all_method_result_summary.csv`,
+`results/helpsteer2_all_method_result_summary.md`, and
+`results/helpsteer2_all_method_result_summary.json`.
+
 Compute the HelpSteer2 relationship matrix:
 
 ```bash

@@ -16,6 +16,8 @@ def generate_response(
     prompt: str,
     device: torch.device | str,
     max_new_tokens: int = 50,
+    temperature: float = 0.8,
+    top_p: float = 0.95,
 ) -> str:
     """Generate one sampled response for a prompt."""
     device = torch.device(device)
@@ -31,8 +33,8 @@ def generate_response(
                 **encoded,
                 max_new_tokens=max_new_tokens,
                 do_sample=True,
-                temperature=0.8,
-                top_p=0.95,
+                temperature=temperature,
+                top_p=top_p,
                 pad_token_id=tokenizer.eos_token_id,
             )
     finally:
