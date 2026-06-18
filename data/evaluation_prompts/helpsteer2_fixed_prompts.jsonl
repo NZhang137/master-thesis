@@ -1,0 +1,32 @@
+{"prompt_id":"hs2-001","category":"helpfulness","prompt":"Human: What is a good way to stay motivated when working on a long project?\n\nAssistant:","notes":"General advice prompt for helpfulness-oriented responses."}
+{"prompt_id":"hs2-002","category":"helpfulness","prompt":"Human: I feel overwhelmed by a large task. How can I break it into manageable steps?\n\nAssistant:","notes":"Tests practical, supportive decomposition."}
+{"prompt_id":"hs2-003","category":"helpfulness","prompt":"Human: How can I make a daily study plan that I can actually follow?\n\nAssistant:","notes":"Tests useful planning advice."}
+{"prompt_id":"hs2-004","category":"helpfulness","prompt":"Human: What should I do if I keep procrastinating on an important assignment?\n\nAssistant:","notes":"Tests actionable and encouraging guidance."}
+{"prompt_id":"hs2-005","category":"correctness","prompt":"Human: Explain why water expands when it freezes.\n\nAssistant:","notes":"Tests basic scientific correctness without requiring current facts."}
+{"prompt_id":"hs2-006","category":"correctness","prompt":"Human: What is the difference between correlation and causation?\n\nAssistant:","notes":"Tests conceptual accuracy."}
+{"prompt_id":"hs2-007","category":"correctness","prompt":"Human: If a train travels 60 kilometers in 1.5 hours, what is its average speed?\n\nAssistant:","notes":"Tests simple arithmetic and explanation."}
+{"prompt_id":"hs2-008","category":"correctness","prompt":"Human: Why do seasons occur on Earth?\n\nAssistant:","notes":"Tests common science explanation accuracy."}
+{"prompt_id":"hs2-009","category":"coherence","prompt":"Human: Write a short paragraph explaining how to prepare for an exam, with a clear beginning, middle, and end.\n\nAssistant:","notes":"Tests organization and flow."}
+{"prompt_id":"hs2-010","category":"coherence","prompt":"Human: Explain the benefits of taking breaks while studying in a logically ordered way.\n\nAssistant:","notes":"Tests coherent sequencing."}
+{"prompt_id":"hs2-011","category":"coherence","prompt":"Human: Summarize how someone can improve their sleep habits in one well-structured answer.\n\nAssistant:","notes":"Tests structure and continuity."}
+{"prompt_id":"hs2-012","category":"coherence","prompt":"Human: Give a clear answer about how to handle a disagreement with a friend.\n\nAssistant:","notes":"Tests consistent social-advice structure."}
+{"prompt_id":"hs2-013","category":"complexity","prompt":"Human: Explain the trade-off between studying more topics briefly and studying fewer topics deeply.\n\nAssistant:","notes":"Tests nuanced reasoning with multiple factors."}
+{"prompt_id":"hs2-014","category":"complexity","prompt":"Human: Compare two ways to learn a new skill: practicing alone and practicing with feedback.\n\nAssistant:","notes":"Tests balanced comparison."}
+{"prompt_id":"hs2-015","category":"complexity","prompt":"Human: Why can a decision that is good in the short term be harmful in the long term?\n\nAssistant:","notes":"Tests abstract reasoning and trade-offs."}
+{"prompt_id":"hs2-016","category":"complexity","prompt":"Human: Explain why teamwork can be both helpful and difficult.\n\nAssistant:","notes":"Tests multi-sided explanation."}
+{"prompt_id":"hs2-017","category":"verbosity","prompt":"Human: Give a concise answer: how can I remember information better?\n\nAssistant:","notes":"Tests ability to answer briefly when asked."}
+{"prompt_id":"hs2-018","category":"verbosity","prompt":"Human: Give a detailed explanation of how to build a useful morning routine.\n\nAssistant:","notes":"Tests fuller answer generation when detail is requested."}
+{"prompt_id":"hs2-019","category":"verbosity","prompt":"Human: Answer in three short bullet points: how can I reduce distractions while working?\n\nAssistant:","notes":"Tests controlled length and format."}
+{"prompt_id":"hs2-020","category":"verbosity","prompt":"Human: Explain the idea of active recall in enough detail for a beginner.\n\nAssistant:","notes":"Tests appropriate elaboration."}
+{"prompt_id":"hs2-021","category":"general_reasoning","prompt":"Human: A student has two hours to study three topics. How should they decide what to study first?\n\nAssistant:","notes":"Tests prioritization reasoning."}
+{"prompt_id":"hs2-022","category":"general_reasoning","prompt":"Human: If someone receives conflicting advice from two friends, how can they decide what to do?\n\nAssistant:","notes":"Tests reasoning under conflicting inputs."}
+{"prompt_id":"hs2-023","category":"general_reasoning","prompt":"Human: What are some possible reasons a plan might fail even if the idea is good?\n\nAssistant:","notes":"Tests causal reasoning."}
+{"prompt_id":"hs2-024","category":"general_reasoning","prompt":"Human: How can I evaluate whether a habit is actually helping me?\n\nAssistant:","notes":"Tests reflective reasoning."}
+{"prompt_id":"hs2-025","category":"explanation_quality","prompt":"Human: Explain the Pomodoro technique to someone who has never heard of it.\n\nAssistant:","notes":"Tests clarity for beginners."}
+{"prompt_id":"hs2-026","category":"explanation_quality","prompt":"Human: Explain why feedback can improve learning, using a simple example.\n\nAssistant:","notes":"Tests explanatory clarity and examples."}
+{"prompt_id":"hs2-027","category":"explanation_quality","prompt":"Human: Explain what it means to set a realistic goal.\n\nAssistant:","notes":"Tests accessible definition and explanation."}
+{"prompt_id":"hs2-028","category":"explanation_quality","prompt":"Human: Explain the difference between being busy and being productive.\n\nAssistant:","notes":"Tests conceptual explanation quality."}
+{"prompt_id":"hs2-029","category":"practical_advice","prompt":"Human: I have trouble starting tasks. What is one practical first step I can take today?\n\nAssistant:","notes":"Tests actionable practical advice."}
+{"prompt_id":"hs2-030","category":"practical_advice","prompt":"Human: How can I prepare for a difficult conversation in a respectful way?\n\nAssistant:","notes":"Tests safe interpersonal advice."}
+{"prompt_id":"hs2-031","category":"practical_advice","prompt":"Human: What can I do if my workspace makes it hard to focus?\n\nAssistant:","notes":"Tests concrete environment advice."}
+{"prompt_id":"hs2-032","category":"practical_advice","prompt":"Human: How can I review my progress at the end of the week?\n\nAssistant:","notes":"Tests practical reflection guidance."}

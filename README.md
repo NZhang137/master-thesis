@@ -110,9 +110,16 @@ The trainer writes:
 Evaluate fixed HelpSteer2 adapter merges and proxy scores:
 
 ```bash
+python scripts/validate_helpsteer2_fixed_prompts.py
 python scripts/evaluate_helpsteer2_adapter_merges.py
 python scripts/evaluate_helpsteer2_lambda_sweep.py
 ```
+
+The fixed prompt set is stored at
+`data/evaluation_prompts/helpsteer2_fixed_prompts.jsonl`. It is used for
+reproducible evaluation so every method, preference vector, and hyperparameter
+setting can be compared on the same prompts. Generated answers, proxy scores,
+and reward-model scores should be saved separately under `results/`.
 
 Compute the HelpSteer2 relationship matrix:
 
@@ -174,6 +181,7 @@ files, zip files, and model weights stay local and are ignored by git.
 - `scripts/`: active runnable HelpSteer2 prototype scripts
 - `src/`: reusable Python utilities
 - `notebooks/`: active Colab runner notebooks
+- `data/evaluation_prompts/`: fixed prompt sets for reproducible evaluation
 - `results/`: current HelpSteer2 result files, tables, summaries, and plots
 - `thesis/`: LaTeX thesis material
 - `meetings/`: supervisor-facing notes and progress summaries
@@ -181,8 +189,8 @@ files, zip files, and model weights stay local and are ignored by git.
 - `archive/old_scripts/`: historical scripts
 - `archive/old_results/`: historical result files
 
-If `data/evaluation_prompts/` or `configs/` are added later, they should hold
-shared prompt sets and reusable experiment settings for the active pipeline.
+If `configs/` is added later, it should hold reusable experiment settings for
+the active pipeline.
 
 ## Archived Prototype Files
 
