@@ -1,5 +1,5 @@
 {
-  "timestamp_utc": "2026-06-18T10:11:36.191301+00:00",
+  "timestamp_utc": "2026-06-18T10:53:51.589455+00:00",
   "relationship_matrix_path": "results/helpsteer2_relationship_matrix.csv",
   "output_csv_path": "results/helpsteer2_all_method_coefficients.csv",
   "output_costs_path": "results/helpsteer2_method_costs.csv",
@@ -147,11 +147,11 @@
   },
   "row_count": 92,
   "relationship_matrix_eigenvalues": [
-    0.10217982920647446,
-    0.1627123763499488,
-    0.27058084652611936,
-    0.4791466183408605,
-    3.985380329576598
+    0.10217982920647438,
+    0.16271237634994914,
+    0.2705808465261194,
+    0.4791466183408604,
+    3.985380329576599
   ],
   "validation": {
     "lambda_dimension_checked": true,
