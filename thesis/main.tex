@@ -12,6 +12,7 @@
 @article{cui2023ultrafeedback,title={{UltraFeedback}: Boosting Language Models with Scaled AI Feedback},author={Cui, Ganqu and Yuan, Lifan and Ding, Ning and Yao, Guanming and He, Bingxiang and others},journal={arXiv preprint arXiv:2310.01377},year={2023}}
 @article{wang2023helpsteer,title={{HelpSteer}: Multi-Attribute Helpfulness Dataset for {SteerLM}},author={Wang, Zhilin and Dong, Yi and Zeng, Jiaqi and Adams, Virginia and Sreedhar, Makesh Narsimhan and others},journal={arXiv preprint arXiv:2311.09528},year={2023}}
 @article{wang2024dpa,title={Arithmetic Control of LLMs for Diverse User Preferences: Directional Preference Alignment with Multi-Objective Rewards},author={Wang, Haoxiang and Lin, Yong and Xiong, Wei and Yang, Rui and Diao, Shizhe and Qiu, Shuang and Zhao, Han and Zhang, Tong},journal={arXiv preprint arXiv:2402.18571},year={2024}}
+@book{miettinen1999nonlinear,title={Nonlinear Multiobjective Optimization},author={Miettinen, Kaisa},publisher={Kluwer Academic Publishers},address={Boston},year={1999}}
 \end{filecontents*}
 
 \documentclass[12pt,a4paper]{report}
@@ -36,6 +37,7 @@
 \DeclareMathOperator{\softmin}{softmin}
 \DeclareMathOperator{\vecop}{vec}
 \DeclareMathOperator{\concat}{concat}
+\DeclareMathOperator{\rank}{rank}
 
 \theoremstyle{definition}
 \newtheorem{definition}{Definition}[chapter]
@@ -65,7 +67,19 @@ can improve coefficient selection relative to the direct baseline \(\lambda=p\),
 
 \chapter{Background and Related Work}
 
-Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES and AdaMerging are nearby model-merging baselines \citep{yadav2023ties,yang2023adamerging}. MGDA, PCGrad, and CAGrad are gradient-based multi-objective methods that here serve only as inspiration for one-shot, \(R\)-based coefficient mappings rather than their original training-time algorithms \citep{sener2018mgda,yu2020pcgrad,liu2021cagrad}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}. 
+Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES and AdaMerging are nearby model-merging baselines \citep{yadav2023ties,yang2023adamerging}. MGDA, PCGrad, and CAGrad are gradient-based multi-objective methods that here serve only as inspiration for one-shot, \(R\)-based coefficient mappings rather than their original training-time algorithms \citep{sener2018mgda,yu2020pcgrad,liu2021cagrad}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}.
+
+\section{Multi-objective methods that inspire the coefficient mappings}
+
+For context, we briefly summarize the three multi-objective optimization methods that inspire the coefficient mappings defined in Chapter~\ref{chap:method}. In all three cases only the underlying geometric principle is reused; it is applied to the static relationship matrix \(R\) rather than to live per-step gradients, and no coefficient-space gradient descent is performed.
+
+\emph{MGDA (Multiple Gradient Descent Algorithm)} casts multi-task learning as multi-objective optimization \citep{sener2018mgda}. Given a set of per-task gradients, it selects the convex combination of minimum aggregated norm; the resulting update direction lies in the common descent cone, so no individual task loss increases to first order. Strongly conflicting tasks pull the combination weights toward a balancing point.
+
+\emph{PCGrad (Gradient Surgery)} resolves conflicts locally and pairwise \citep{yu2020pcgrad}. Whenever two task gradients have a negative inner product (an interference), one gradient is projected onto the orthogonal complement of the other, removing only the conflicting component while leaving complementary directions intact. This contrasts with MGDA, which computes a single global balance.
+
+\emph{CAGrad (Conflict-Averse Gradient Descent)} optimizes the average objective while constraining the update to a trust region around the average gradient \citep{liu2021cagrad}. The constraint bounds the worst-case per-task decrease, trading off average progress against worst-case protection.
+
+In this thesis these ideas are transferred to one-shot coefficient selection: the gradient Gram matrix is replaced by the static relationship matrix \(R\), conflict projections and trust regions are expressed in the \(R\)-induced geometry, and the output is a single coefficient vector \(\lambda\in\Delta_m\) rather than an iterative descent trajectory.
 
 \todo{Expand this chapter into a proper related-work review.}
 
@@ -240,82 +254,129 @@ This is a finite-search reference, not a true oracle over all of \(\Delta_m\).
 \end{definition}
 
 \begin{definition}[Evaluation metrics]
-Let \(\tilde r_i(\theta(\lambda))\) denote normalized rewards, with \(\tilde r_i=r_i\) if no normalization is needed.
+All evaluation metrics are defined for coefficient vectors \(\lambda\in\Delta_m\) and therefore evaluate only models inside the fixed family
+\[
+\mathcal{M}=\{\theta(\lambda):\lambda\in\Delta_m\}.
+\]
+They are not global Pareto-front metrics.
 
-The individual objective scores are
+Let \(\tilde r_i(\theta(\lambda))\) denote the evaluation reward for objective \(i\). If objective scales are already comparable, we set \(\tilde r_i=r_i\). Otherwise, the normalization rule is fixed before comparing methods. A typical min--max normalization uses constants \(a_i<b_i\), obtained from known reward ranges or from a separate calibration set, and defines
+\[
+\tilde r_i(\theta):=\frac{r_i(\theta)-a_i}{b_i-a_i}.
+\]
+If the normalization constants are instead estimated from the finite evaluated set \(\mathcal{B}\), this choice must be reported explicitly because the same set is also used to define the best-found reference.
+
+For a fixed preference vector \(p\in\Delta_m\), the individual objective scores are
 \[
 \tilde r_i(\theta(\lambda)),\qquad i=1,\dots,m.
 \]
-
-The average reward is
+The average reward is the unweighted diagnostic
 \[
-\operatorname{AvgReward}(\lambda):=\frac{1}{m}\sum_{i=1}^m \tilde r_i(\theta(\lambda)).
+\operatorname{AvgReward}(\lambda):=\frac{1}{m}\sum_{i=1}^m \tilde r_i(\theta(\lambda)),
 \]
-
-The preference-weighted utility is
+where larger values are better. The preference-weighted utility is
 \[
-U_p(\theta(\lambda)):=\sum_{i=1}^m p_i\,\tilde r_i(\theta(\lambda)).
+U_p(\theta(\lambda)):=\sum_{i=1}^m p_i\,\tilde r_i(\theta(\lambda)),
 \]
+where larger values are better for the fixed preference \(p\).
 
-The improvement over direct preference interpolation is
+The direct preference baseline is \(\lambda=p\). To avoid confusing the preference vector with a model parameter, we write the baseline model explicitly as \(\theta(\lambda=p)\). The utility improvement over direct preference interpolation is
 \[
 \Delta U_p(\lambda_{\mathrm{method}}):=
-U_p(\theta(\lambda_{\mathrm{method}}))-U_p(\theta(p)).
+U_p(\theta(\lambda_{\mathrm{method}}))-U_p(\theta(\lambda=p)).
 \]
+Thus \(\Delta U_p>0\) means that the method improves over the direct baseline for the same preference \(p\).
 
-The within-family utility gap to the best-found reference is
+The best-found reference is computed separately for each preference:
 \[
-\operatorname{Gap}_p(\lambda_{\mathrm{method}}):=
-U_p(\theta(\lambda_{\mathrm{best}}(p)))-U_p(\theta(\lambda_{\mathrm{method}})).
+\lambda_{\mathrm{best}}^{\mathcal{B}}(p):=
+\argmax_{\lambda\in\mathcal{B}}U_p(\theta(\lambda)).
 \]
+The superscript \(\mathcal{B}\) emphasizes that this is only the best point found in the finite evaluated set. The within-family utility gap is
+\[
+\operatorname{Gap}_p^{\mathcal{B}}(\lambda_{\mathrm{method}}):=
+U_p\bigl(\theta(\lambda_{\mathrm{best}}^{\mathcal{B}}(p))\bigr)
+-U_p(\theta(\lambda_{\mathrm{method}})).
+\]
+A smaller gap is better. If \(\lambda_{\mathrm{method}}\in\mathcal{B}\), then \(\operatorname{Gap}_p^{\mathcal{B}}(\lambda_{\mathrm{method}})\ge 0\).
 
-Preference faithfulness can be measured by
+Preference faithfulness is reported as a diagnostic trade-off, not as a reward metric. It can be measured by
 \[
 \norm{\lambda_{\mathrm{method}}-p}_1
 \qquad \text{or}\qquad
 \norm{\lambda_{\mathrm{method}}-p}_2.
 \]
-
-Optionally define the \(R\)-geometric preference distance
+An optional geometry-aware diagnostic is
 \[
-D_R(\lambda_{\mathrm{method}},p):=
-(\lambda_{\mathrm{method}}-p)^\top R(\lambda_{\mathrm{method}}-p).
+D_{\bar R}(\lambda_{\mathrm{method}},p):=
+(\lambda_{\mathrm{method}}-p)^\top \bar R(\lambda_{\mathrm{method}}-p),
 \]
-If \(R=D^\top D\), then
+where \(\bar R\succeq 0\) is the matrix used for distance evaluation. If \(R\) is already a Gram matrix, for example \(R=D^\top D\) or \(R=\hat D^\top\hat D\), we may set \(\bar R=R\). If \(R\) is not guaranteed to be symmetric positive semidefinite, then \(\bar R\) should be obtained by symmetrizing and projecting to the positive semidefinite cone. If \(\bar R=D^\top D\), then
 \[
-D_R(\lambda_{\mathrm{method}},p)=\norm{D(\lambda_{\mathrm{method}}-p)}_2^2.
+D_{\bar R}(\lambda_{\mathrm{method}},p)=
+\norm{D(\lambda_{\mathrm{method}}-p)}_2^2.
 \]
 
-Let
+For a Tchebychev-style worst-case shortfall metric, define observed best and worst normalized rewards over the finite evaluated set
 \[
 z_i^{\mathrm{best}}:=\max_{\lambda\in\mathcal{B}}\tilde r_i(\theta(\lambda)),
 \qquad
 z_i^{\mathrm{worst}}:=\min_{\lambda\in\mathcal{B}}\tilde r_i(\theta(\lambda)).
 \]
-Then define the normalized Tchebychev-style metric
+For numerical stability, let \(\varepsilon_T>0\). Define the active objective set
+\[
+A_{\varepsilon_p}(p):=\{i\in\{1,\dots,m\}:p_i>\varepsilon_p\},
+\]
+with a small threshold \(\varepsilon_p\ge 0\). The normalized Tchebychev-style metric is
 \[
 T_p^{\mathrm{norm}}(\lambda):=
-\max_{i=1,\dots,m}
+\max_{i\in A_{\varepsilon_p}(p)}
 p_i\left[
 \frac{z_i^{\mathrm{best}}-\tilde r_i(\theta(\lambda))}
-{z_i^{\mathrm{best}}-z_i^{\mathrm{worst}}+\varepsilon}
-\right],
-\qquad \varepsilon>0.
+{z_i^{\mathrm{best}}-z_i^{\mathrm{worst}}+\varepsilon_T}
+\right].
 \]
-Smaller values are better.
+Smaller values are better. This convention multiplies the normalized shortfall by \(p_i\), so shortfalls in high-preference objectives are penalized more strongly. Objectives with zero preference do not affect this metric. Objectives with negligible observed range should be handled carefully because the denominator can amplify small absolute differences.
 
-Its improvement over direct preference interpolation is
+The Tchebychev improvement over the direct baseline is
 \[
 \Delta T_p^{\mathrm{norm}}(\lambda_{\mathrm{method}}):=
-T_p^{\mathrm{norm}}(p)-T_p^{\mathrm{norm}}(\lambda_{\mathrm{method}}).
+T_p^{\mathrm{norm}}(\lambda=p)-T_p^{\mathrm{norm}}(\lambda_{\mathrm{method}}).
 \]
-A positive value means a reduced worst-case preference-weighted objective shortfall relative to \(\lambda=p\).
+A positive value means that the method reduces the worst-case preference-weighted shortfall relative to \(\lambda=p\).
+
+Finally, evaluation is performed over a set of preference vectors
+\[
+\mathcal{P}:=\{p^{(1)},\dots,p^{(K)}\}\subset\Delta_m.
+\]
+Metrics such as \(\Delta U_p\), \(\operatorname{Gap}_p^{\mathcal{B}}\), \(T_p^{\mathrm{norm}}\), and preference-faithfulness distances are reported per preference and summarized over \(\mathcal{P}\) using mean, median, and robust statistics. Additional useful diagnostics include the win rate over the direct baseline,
+\[
+\frac{1}{K}\sum_{k=1}^K
+\mathbf{1}\!\left\{
+U_{p^{(k)}}(\theta(\lambda_{\mathrm{method}}^{(k)}))>
+U_{p^{(k)}}(\theta(\lambda=p^{(k)}))
+\right\},
+\]
+and the finite-set rank of \(\lambda_{\mathrm{method}}\) according to \(U_p\) among the evaluated coefficients in \(\mathcal{B}\).
 \end{definition}
+
+\begin{remark}[Tchebychev weighting convention]
+The metric \(T_p^{\mathrm{norm}}\) follows the standard weighted Tchebycheff scalarization \citep{miettinen1999nonlinear}, in which the weight \emph{multiplies} the deviation from the ideal reference point,
+\[
+g_{\mathrm{tch}}(\theta\mid w,z^\star)=\max_{i=1,\dots,m}\bigl\{\,w_i\,\lvert f_i(\theta)-z_i^\star\rvert\,\bigr\}.
+\]
+Choosing \(w_i=p_i\) is motivated by three considerations. First, preference consistency: a shortfall on a high-preference objective should be penalized more than one on a low-preference objective. Second, consistency with the primary metric \(U_p\), which also weights rewards by \(p_i\); both the average-case and the worst-case metric then share the same preference perspective. Third, the zero-preference case is handled cleanly, since objectives with \(p_i\le\varepsilon_p\) are excluded through \(A_{\varepsilon_p}(p)\), whereas an inverse \(1/p_i\) weighting would diverge there. The inverse convention \(w_i\propto 1/p_i\) arises only when scalarization is used to \emph{place} a solution along a target direction \(p\) on the Pareto front, as in MORL/MOEA/D decomposition; this is a solution-selection technique rather than an evaluation principle, and is not used here.
+\end{remark}
+
+\begin{remark}[Evaluation scope]
+All quantities above compare only coefficient choices inside the fixed family \(\mathcal{M}\) or the finite evaluated set \(\mathcal{B}\). The notation \(\lambda_{\mathrm{best}}^{\mathcal{B}}(p)\) should not be interpreted as a global optimum, and improvements in \(\Delta U_p\) or \(\Delta T_p^{\mathrm{norm}}\) do not imply global Pareto-front improvement.
+\end{remark}
 
 
 \chapter{Method}
+\label{chap:method}
 
-This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the preference vector \(p\) and a static relationship matrix \(R\). No coefficient-space gradients are introduced.
+This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the preference vector \(p\) and a static relationship matrix \(R\). No coefficient-space gradients are introduced. We define six mappings, grouped by the multi-objective method that inspires them: \emph{M1} and \emph{M2} (MGDA-inspired), \emph{P1} and \emph{P2} (PCGrad / conflict-inspired), and \emph{C1} and \emph{C2} (CAGrad-inspired).
 
 \section{General setup}
 
@@ -323,10 +384,10 @@ For optimization-based methods below, assume \(R\) is symmetric and positive sem
 
 \section{MGDA-inspired coefficient mapping}
 
-\begin{definition}[MGDA-inspired one-shot mapping]
+\begin{definition}[M1: MGDA-inspired one-shot mapping]
 Given \(p\in\Delta_m\), \(R\in\R^{m\times m}\), and \(\rho>0\), define
 \[
-\lambda_{\mathrm{MGDA}}
+\lambda_{\mathrm{M1}}
 :=
 \argmin_{\lambda\in\Delta_m}
 \lambda^\top R\lambda+\rho\norm{\lambda-p}_2^2.
@@ -338,7 +399,7 @@ This is inspired by min-norm balancing, but adapted to coefficient selection rat
 Depending on how informative \(R\) is, this objective may encourage cancellation or move too strongly toward low-norm combinations.
 \end{remark}
 
-\begin{definition}[Preference-weighted \(\alpha\)-MGDA variant]
+\begin{definition}[M2: Preference-weighted \(\alpha\)-MGDA variant]
 Let
 \[
 G_p:=\Diag(p)\,R\,\Diag(p),\qquad u:=\frac{1}{m}\1.
@@ -352,15 +413,37 @@ Define
 \]
 and then
 \[
-\lambda^\star:=
+\lambda_{\mathrm{M2}}:=
 \frac{\alpha^\star\odot p}{\1^\top(\alpha^\star\odot p)}.
 \]
-This variant corrects \(p\) multiplicatively instead of replacing it outright.
+This variant corrects \(p\) multiplicatively instead of replacing it outright. It is well defined for any \(p\neq 0\); objectives with \(p_i=0\) receive coefficient zero.
 \end{definition}
 
 \section{PCGrad-inspired coefficient mapping}
 
-\begin{definition}[Task-vector PCGrad with simplex reconstruction]
+We consider two conflict-based mappings: a closed-form shrinkage (P1) that requires no solver, and a projection-based reconstruction (P2) that more directly mirrors PCGrad's gradient surgery.
+
+\begin{definition}[P1: Conflict-weighted closed-form shrinkage]
+Given \(p\in\Delta_m\), \(R\in\R^{m\times m}\), and \(\beta>0\), define the per-objective conflict load
+\[
+\kappa_i:=\sum_{j\neq i}\max(0,\,-R_{ij}),
+\]
+the shrinkage factors
+\[
+s_i:=\frac{1}{1+\beta\,\kappa_i},
+\]
+and the raw weights \(\tilde\lambda_i:=p_i\,s_i\). The coefficient vector is the simplex normalization
+\[
+\lambda_{\mathrm{P1}}:=\frac{\tilde\lambda}{\1^\top\tilde\lambda}.
+\]
+This is a closed-form mapping: objectives that conflict strongly with others (large \(\kappa_i\)) are down-weighted relative to their preference \(p_i\), while objectives that are aligned or complementary keep \(s_i\approx 1\).
+\end{definition}
+
+\begin{remark}[Scale of \(\beta\) and \(R\)]
+The conflict load \(\kappa_i\) inherits the scale of \(R\). With a cosine-normalized \(R=\hat D^\top\hat D\), the off-diagonal entries lie in \([-1,1]\) and \(\kappa_i\in[0,m-1]\), so \(\beta\) has a stable, dimensionless interpretation. With \(R=D^\top D\), the magnitudes depend on the task-vector norms, and \(\beta\) must be tuned accordingly or \(R\) rescaled. Since \(s_i>0\) always and \(p\) has at least one positive entry on \(\Delta_m\), the vector \(\tilde\lambda\) has positive sum and the normalization is always well defined.
+\end{remark}
+
+\begin{definition}[P2: Task-vector PCGrad with simplex reconstruction]
 Initialize preference-weighted task directions by
 \[
 d_i:=p_i\delta_i,\qquad i=1,\dots,m.
@@ -379,7 +462,7 @@ d_{\mathrm{PC}}:=\sum_{i=1}^m d_i.
 \]
 Since \(d_{\mathrm{PC}}\) need not correspond to a valid convex merge coefficient, reconstruct coefficients by solving
 \[
-\lambda_{\mathrm{PC}}
+\lambda_{\mathrm{P2}}
 :=
 \argmin_{\lambda\in\Delta_m}
 \norm{D\lambda-d_{\mathrm{PC}}}_2^2+\rho\norm{\lambda-p}_2^2.
@@ -407,10 +490,10 @@ This PCGrad-inspired mapping is heuristic and may depend on projection order. A 
 
 \section{CAGrad-inspired coefficient mapping}
 
-\begin{definition}[Trust-Region CAGrad-inspired method]
+\begin{definition}[C1: Trust-Region CAGrad-inspired method]
 Let \(p\in\Delta_m\), let \(R\succeq 0\), let \(c\ge 0\), and let \(\varepsilon>0\). Define
 \[
-\lambda_{\mathrm{CAGrad}}
+\lambda_{\mathrm{C1}}
 :=
 \argmax_{\lambda\in\Delta_m}\min_{i=1,\dots,m}(R\lambda)_i
 \]
@@ -439,19 +522,19 @@ If \(R=D^\top D\), then
 Thus the objective protects against worst-case negative alignment in the proxy geometry while the trust region keeps \(\lambda\) close to \(p\). This is a one-shot coefficient mapping inspired by conflict-averse aggregation, not the original CAGrad training algorithm.
 \end{remark}
 
-\begin{definition}[Soft-min CAGrad-inspired variant]
+\begin{definition}[C2: Soft-min CAGrad-inspired variant]
 For \(\tau>0\), define
 \[
 \softmin_\tau(z):=-\tau\log\sum_{i=1}^m \exp(-z_i/\tau).
 \]
 Then
 \[
-\lambda_{\mathrm{soft}}
+\lambda_{\mathrm{C2}}
 :=
 \argmax_{\lambda\in\Delta_m}
 \softmin_\tau(R\lambda)-\rho(\lambda-p)^\top R(\lambda-p).
 \]
-This is a smooth approximation of the worst-case alignment objective.
+This is a smooth approximation of the worst-case alignment objective; as \(\tau\to 0^+\), \(\softmin_\tau\) converges to the minimum, recovering the C1 objective.
 \end{definition}
 
 
