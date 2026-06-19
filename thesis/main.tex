@@ -22,6 +22,8 @@
 \usepackage[english]{babel}
 \usepackage[a4paper,margin=3cm]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs}
+\usepackage{enumitem}
 \usepackage{natbib}
 \usepackage{hyperref}
 
@@ -65,6 +67,17 @@ This thesis studies preference-aware coefficient correction for model merging un
 \]
 can improve coefficient selection relative to the direct baseline \(\lambda=p\), while staying in the same Rewarded-Soups-style family.
 
+This thesis is organized around three research questions; \textbf{RQ2} is the pivotal one, since it governs whether the others can be answered affirmatively.
+
+\begin{description}[leftmargin=2.2em,style=nextline]
+\item[\textbf{RQ1 (Does geometry-aware correction help?)}]
+Within the fixed Rewarded-Soups interpolation family \(\mathcal{M}=\{\theta(\lambda):\lambda\in\Delta_m\}\), can a conflict-aware mapping \(\lambda=f(p,R)\) achieve higher preference-weighted utility \(U_p\) than the direct baseline \(\lambda=p\), and than search-based selection at a matched compute budget?
+\item[\textbf{RQ2 (Is \(R\) a valid proxy, and when does it help?)}]
+To what extent does the parameter-geometric relationship matrix \(R\) predict reward-space behaviour? Because \(R\) never observes the rewards directly, quantifying the strength of this proxy --- and the regimes in which it holds --- is what determines when \(f(p,R)\) can be expected to help, and whether reward-informed correction is needed to close any remaining gap.
+\item[\textbf{RQ3 (How does the benefit scale with \(m\)?)}]
+Dense search over the simplex \(\Delta_m\) becomes expensive as the number of objectives \(m\) grows. How does the advantage of a one-shot mapping \(f(p,R)\) over budgeted search scale with \(m\)?
+\end{description}
+
 \chapter{Background and Related Work}
 
 Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES and AdaMerging are nearby model-merging baselines \citep{yadav2023ties,yang2023adamerging}. MGDA, PCGrad, and CAGrad are gradient-based multi-objective methods that here serve only as inspiration for one-shot, \(R\)-based coefficient mappings rather than their original training-time algorithms \citep{sener2018mgda,yu2020pcgrad,liu2021cagrad}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}.
@@ -85,7 +98,53 @@ In this thesis these ideas are transferred to one-shot coefficient selection: th
 
 \chapter{Problem Formulation}
 
-In this chapter, \(m\ge 2\) denotes the number of objectives and \(d\) the flattened parameter dimension.
+In this chapter, \(m\ge 2\) denotes the number of objectives and \(d\) the flattened parameter dimension. Table~\ref{tab:notation} summarizes the notation used throughout.
+
+\begin{table}[htbp]
+\centering\small
+\caption{Notation used throughout the thesis.}\label{tab:notation}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Symbol & Meaning & Type / dim. \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Models and task-vector geometry}}\\
+\(\theta_0\) & base model & \(\R^d\) \\
+\(\theta_i\) & specialist fine-tuned for objective \(i\) & \(\R^d\) \\
+\(\delta_i=\theta_i-\theta_0\) & task vector / LoRA-adapter update & \(\R^d\) \\
+\(D=[\delta_1,\dots,\delta_m]\) & stacked task vectors & \(\R^{d\times m}\) \\
+\(\theta(\lambda)=\theta_0+D\lambda\) & merged model & \(\R^d\) \\
+\(\mathcal{M}=\{\theta(\lambda):\lambda\in\Delta_m\}\) & interpolation family & --- \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Preferences and coefficients}}\\
+\(m\) & number of objectives & \(\mathbb{N}\) \\
+\(d\) & parameter dimension (\(\sim\!10^6\)) & \(\mathbb{N}\) \\
+\(p\) & user preference vector & \(\Delta_m\) \\
+\(\lambda=f(p,R)\) & corrected merge coefficients & \(\Delta_m\) \\
+\(\Delta_m=\{x\ge0:\1^\top x=1\}\) & probability simplex & --- \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Relationship matrix}}\\
+\(R=D^\top D\) & Gram relationship matrix & \(\R^{m\times m}\), PSD \\
+\(R=\hat D^\top\hat D\) & cosine relationship matrix & \(\R^{m\times m}\), PSD \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Rewards and evaluation metrics}}\\
+\(r_i,\ \tilde r_i\) & reward \(i\), normalized reward & scalar \\
+\(U_p(\theta(\lambda))=\sum_i p_i\tilde r_i(\theta(\lambda))\) & preference-weighted utility & scalar \\
+\(\Delta U_p\) & gain over the direct baseline & scalar \\
+\(T_p^{\mathrm{norm}}\) & weighted Tchebycheff (worst-case) metric & scalar \\
+\(\norm{\lambda-p}\) & preference faithfulness & scalar \\
+\(\mathcal{B}\subset\Delta_m\) & finite search / candidate set & --- \\
+\(\lambda_{\mathrm{best}}^{\mathcal{B}}\) & best coefficient found in \(\mathcal{B}\) & \(\Delta_m\) \\
+\(\operatorname{Gap}_p^{\mathcal{B}}\) & within-family regret vs.\ \(\mathcal{B}\) & scalar \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Hyperparameters}}\\
+\(\rho\) & faithfulness penalty (M1, M2, C2) & \(>0\) \\
+\(c\) & trust-region radius (C1) & \(\ge0\) \\
+\(\beta\) & conflict-shrinkage strength (P1) & \(\ge0\) \\
+\(\tau\) & soft-min temperature (C2) & \(>0\) \\
+\(\varepsilon\) & trust-region floor / numerical guard & \(>0\) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Objectives and rewards}
 
@@ -230,6 +289,10 @@ can improve coefficient selection relative to \(\lambda=p\), while keeping \(\th
 \]
 \end{definition}
 
+\begin{remark}[Selection cost is independent of the parameter dimension]
+Every coefficient mapping \(f(p,R)\) operates only on the relationship matrix \(R\in\R^{m\times m}\) and the coefficient vector \(\lambda\in\R^m\). The high-dimensional parameter space enters exactly once, when \(R=D^\top D\) is formed from the task vectors at cost \(O(m^2 d)\); this is computed a single time and reused for every preference. Thereafter, solving for \(\lambda=f(p,R)\) --- and re-solving for any new preference \(p\) --- costs \(\mathrm{poly}(m)\) and is \emph{independent of} \(d\). The parameter dimension \(d\) (millions, for LoRA adapters) is touched again only to realize the final merge \(\theta(\lambda)=\theta_0+D\lambda\) for a chosen \(\lambda\). By contrast, search over \(\mathcal{B}\) requires \(\lvert\mathcal{B}\rvert\) separate merges and reward evaluations, each touching \(d\). This is the precise sense in which the proposed mappings are one-shot and cheap: the selection problem is solved entirely in the \(m\)-dimensional space.
+\end{remark}
+
 \section{Baselines and evaluation}
 
 \begin{definition}[Baselines]
@@ -370,6 +433,10 @@ Choosing \(w_i=p_i\) is motivated by three considerations. First, preference con
 
 \begin{remark}[Evaluation scope]
 All quantities above compare only coefficient choices inside the fixed family \(\mathcal{M}\) or the finite evaluated set \(\mathcal{B}\). The notation \(\lambda_{\mathrm{best}}^{\mathcal{B}}(p)\) should not be interpreted as a global optimum, and improvements in \(\Delta U_p\) or \(\Delta T_p^{\mathrm{norm}}\) do not imply global Pareto-front improvement.
+\end{remark}
+
+\begin{remark}[A negative \(\operatorname{Gap}_p^{\mathcal{B}}\) is a success, not an anomaly]
+The reference \(\lambda_{\mathrm{best}}^{\mathcal{B}}(p)\) is the best coefficient within a \emph{finite} search set \(\mathcal{B}\) of budget \(\lvert\mathcal{B}\rvert\), not a ground-truth optimum over \(\Delta_m\). Consequently \(\operatorname{Gap}_p^{\mathcal{B}}\) can be negative: this happens exactly when a method finds a coefficient that no point in \(\mathcal{B}\) matches, i.e.\ when \(f(p,R)\) outperforms budgeted search. A negative \(\operatorname{Gap}_p^{\mathcal{B}}\) should therefore be read as evidence for the efficiency claim of RQ3, and \(\operatorname{Gap}_p^{\mathcal{B}}\) should always be reported together with the budget \(\lvert\mathcal{B}\rvert\) that defines the reference.
 \end{remark}
 
 
