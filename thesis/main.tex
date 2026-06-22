@@ -333,11 +333,12 @@ For a fixed preference vector \(p\in\Delta_m\), the individual objective scores 
 \[
 \tilde r_i(\theta(\lambda)),\qquad i=1,\dots,m.
 \]
-The average reward is the unweighted diagnostic
-\[
-\operatorname{AvgReward}(\lambda):=\frac{1}{m}\sum_{i=1}^m \tilde r_i(\theta(\lambda)),
-\]
-where larger values are better. The preference-weighted utility is
+%The average reward is the unweighted diagnostic
+%\[
+%\operatorname{AvgReward}(\lambda):=\frac{1}{m}\sum_{i=1}^m %\tilde r_i(\theta(\lambda)),
+%\]
+%where larger values are better. 
+The preference-weighted utility is
 \[
 U_p(\theta(\lambda)):=\sum_{i=1}^m p_i\,\tilde r_i(\theta(\lambda)),
 \]
@@ -412,15 +413,16 @@ Finally, evaluation is performed over a set of preference vectors
 \[
 \mathcal{P}:=\{p^{(1)},\dots,p^{(K)}\}\subset\Delta_m.
 \]
-Metrics such as \(\Delta U_p\), \(\operatorname{Gap}_p^{\mathcal{B}}\), \(T_p^{\mathrm{norm}}\), and preference-faithfulness distances are reported per preference and summarized over \(\mathcal{P}\) using mean, median, and robust statistics. Additional useful diagnostics include the win rate over the direct baseline,
-\[
-\frac{1}{K}\sum_{k=1}^K
-\mathbf{1}\!\left\{
-U_{p^{(k)}}(\theta(\lambda_{\mathrm{method}}^{(k)}))>
-U_{p^{(k)}}(\theta(\lambda=p^{(k)}))
-\right\},
-\]
-and the finite-set rank of \(\lambda_{\mathrm{method}}\) according to \(U_p\) among the evaluated coefficients in \(\mathcal{B}\).
+Metrics such as \(\Delta U_p\), \(\operatorname{Gap}_p^{\mathcal{B}}\), \(T_p^{\mathrm{norm}}\), and preference-faithfulness distances are reported per preference and summarized over \(\mathcal{P}\) using mean, median, and robust statistics. 
+%Additional useful diagnostics include the win rate over the direct baseline,
+%\[
+%\frac{1}{K}\sum_{k=1}^K
+%\mathbf{1}\!\left\{
+%U_{p^{(k)}}(\theta(\lambda_{\mathrm{method}}^{(k)}))>
+%U_{p^{(k)}}(\theta(\lambda=p^{(k)}))
+%\right\},
+%\]
+%and the finite-set rank of \(\lambda_{\mathrm{method}}\) according to \(U_p\) among the evaluated coefficients in \(\mathcal{B}\).
 \end{definition}
 
 \begin{remark}[Tchebychev weighting convention]
