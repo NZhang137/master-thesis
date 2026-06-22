@@ -19,6 +19,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.experiment_config import (
+    get_attribute_min_ratings,
+    get_attribute_order,
+    load_experiment_config,
+    validate_preference_vectors,
+)
 from src.helpsteer2_utils import HELPSTEER2_ATTRIBUTES, make_attribute_training_texts
 from src.tinyllama_training_utils import (
     CsvTrainingLogger,
@@ -32,6 +38,7 @@ from src.tinyllama_training_utils import (
 
 DEFAULT_MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 DEFAULT_ARMORM_MODEL = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
+DEFAULT_CONFIG_PATH = "configs/tinyllama_helpsteer2_armorm.yaml"
 
 
 def adapter_directory_name(attribute: str) -> str:
@@ -68,6 +75,7 @@ def train_attribute_adapter(
     model_name: str,
     split: str,
     eval_split: str,
+    min_rating: int,
     num_epochs: int,
     learning_rate: float,
     max_length: int,
@@ -95,11 +103,20 @@ def train_attribute_adapter(
 ) -> TrainingResult:
     """Load a fresh base model, train one specialist, and save its adapter."""
     print(f"\n=== TinyLlama HelpSteer2 {attribute} adapter ===")
+    print(f"Attribute selection threshold: rating >= {min_rating}")
     print(f"Loading training split {split!r}")
-    training_texts = make_attribute_training_texts(attribute, split)
+    training_texts = make_attribute_training_texts(
+        attribute,
+        split,
+        min_rating=min_rating,
+    )
     print(f"Selected {len(training_texts)} high-{attribute} training texts.")
     print(f"Loading evaluation split {eval_split!r}")
-    eval_texts = make_attribute_training_texts(attribute, eval_split)
+    eval_texts = make_attribute_training_texts(
+        attribute,
+        eval_split,
+        min_rating=min_rating,
+    )
     print(f"Selected {len(eval_texts)} evaluation texts.")
     print(f"Output adapter path: {output_path}")
     print(f"4-bit QLoRA enabled: {use_4bit}")
@@ -177,6 +194,12 @@ def parse_args() -> argparse.Namespace:
     """Parse TinyLlama HelpSteer2 training settings."""
     parser = argparse.ArgumentParser(
         description="Train independent TinyLlama HelpSteer2 LoRA/QLoRA adapters."
+    )
+    parser.add_argument(
+        "--config_path",
+        "--config-path",
+        dest="config_path",
+        default=DEFAULT_CONFIG_PATH,
     )
     parser.add_argument(
         "--model_name",
@@ -321,8 +344,15 @@ def parse_args() -> argparse.Namespace:
 
 def validate_args(args: argparse.Namespace) -> None:
     """Validate scalar settings before downloading data or model weights."""
-    if not args.model_name.strip() or not args.split.strip() or not args.eval_split.strip():
-        raise ValueError("model_name, split, and eval_split must be non-empty.")
+    if (
+        not args.config_path.strip()
+        or not args.model_name.strip()
+        or not args.split.strip()
+        or not args.eval_split.strip()
+    ):
+        raise ValueError(
+            "config_path, model_name, split, and eval_split must be non-empty."
+        )
     if args.num_epochs < 1:
         raise ValueError("num_epochs must be at least 1.")
     if args.learning_rate <= 0:
@@ -346,6 +376,15 @@ def main() -> None:
     """Train each selected specialist from an independent TinyLlama base load."""
     args = parse_args()
     validate_args(args)
+    config = load_experiment_config(resolve_project_path(args.config_path))
+    configured_attributes = get_attribute_order(config)
+    if configured_attributes != HELPSTEER2_ATTRIBUTES:
+        raise ValueError(
+            "Configured attributes must exactly match the fixed HelpSteer2 "
+            "order: " + ", ".join(HELPSTEER2_ATTRIBUTES)
+        )
+    min_ratings = get_attribute_min_ratings(config)
+    validate_preference_vectors(config)
     attributes = normalize_attributes(args.attributes)
     output_dir = resolve_project_path(args.output_dir)
     stop_file = resolve_project_path(args.stop_file)
@@ -360,6 +399,12 @@ def main() -> None:
 
     print(f"Selected attributes: {', '.join(attributes)}")
     print(
+        "Selection thresholds: "
+        + ", ".join(
+            f"{attribute}>={min_ratings[attribute]}" for attribute in attributes
+        )
+    )
+    print(
         "Training uses attribute-selected supervised HelpSteer2 texts. "
         "External reward monitoring, when enabled, is evaluation only."
     )
@@ -370,6 +415,7 @@ def main() -> None:
             model_name=args.model_name,
             split=args.split,
             eval_split=args.eval_split,
+            min_rating=min_ratings[attribute],
             num_epochs=args.num_epochs,
             learning_rate=args.learning_rate,
             max_length=args.max_length,

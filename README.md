@@ -50,6 +50,23 @@ Validate the central configuration with:
 python scripts/validate_tinyllama_helpsteer2_config.py
 ```
 
+## Inspecting HelpSteer2
+
+Inspect the configured attributes, rating distributions, and deterministic
+high-rated training-text selections before adapter training:
+
+```bash
+python scripts/inspect_helpsteer2_dataset.py --split "train[:1000]"
+```
+
+The command writes a compact, reproducible summary to
+`results/helpsteer2_dataset_summary.json`.
+
+The configured training threshold is rating `>= 3` for helpfulness,
+correctness, coherence, and complexity. Verbosity uses rating `>= 2` because
+ratings of 3 and 4 are less frequent for that attribute. An explicit
+`min_rating` passed to the data utility still overrides the configured value.
+
 ## Active Commands
 
 Run a one-attribute 4-bit smoke test:

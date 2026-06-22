@@ -98,6 +98,46 @@ def get_preference_vectors(
     return vectors
 
 
+def get_attribute_min_ratings(
+    config: Mapping[str, Any],
+) -> dict[str, int]:
+    """Return validated minimum ratings in the configured attribute order."""
+    attributes = get_attribute_order(config)
+    configured_ratings = config.get("attribute_min_ratings")
+    if not isinstance(configured_ratings, Mapping):
+        raise ValueError("config['attribute_min_ratings'] must be a mapping.")
+
+    configured_names = set(configured_ratings)
+    expected_names = set(attributes)
+    if configured_names != expected_names:
+        missing = sorted(expected_names.difference(configured_names))
+        extra = sorted(configured_names.difference(expected_names))
+        details = []
+        if missing:
+            details.append("missing: " + ", ".join(missing))
+        if extra:
+            details.append("unexpected: " + ", ".join(extra))
+        raise ValueError(
+            "attribute_min_ratings must match attributes exactly ("
+            + "; ".join(details)
+            + ")."
+        )
+
+    thresholds: dict[str, int] = {}
+    for attribute in attributes:
+        value = configured_ratings[attribute]
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(
+                f"Minimum rating for {attribute!r} must be an integer."
+            )
+        if value < 0 or value > 4:
+            raise ValueError(
+                f"Minimum rating for {attribute!r} must be in [0, 4]."
+            )
+        thresholds[attribute] = value
+    return thresholds
+
+
 def validate_preference_vectors(
     config: Mapping[str, Any],
     tolerance: float = DEFAULT_SIMPLEX_TOLERANCE,

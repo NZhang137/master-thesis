@@ -12,6 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.experiment_config import (
+    get_attribute_min_ratings,
     get_attribute_order,
     load_experiment_config,
     validate_preference_vectors,
@@ -55,6 +56,7 @@ def main() -> None:
     config_path = resolve_project_path(args.config_path)
     config = load_experiment_config(config_path)
     attributes = get_attribute_order(config)
+    min_ratings = get_attribute_min_ratings(config)
     preferences = validate_preference_vectors(config)
 
     print("TinyLlama + HelpSteer2 + ArmoRM configuration is valid.\n")
@@ -63,6 +65,9 @@ def main() -> None:
     print(f"Dataset:      {required_text(config, 'dataset_name')}")
     print(f"Reward model: {required_text(config, 'reward_model_name')}")
     print(f"Attributes:   {', '.join(attributes)}")
+    print("Attribute minimum ratings:")
+    for attribute, threshold in min_ratings.items():
+        print(f"  - {attribute}: >= {threshold}")
     print("Preference vectors:")
     for name, vector in preferences.items():
         values = ", ".join(f"{value:.2f}" for value in vector)

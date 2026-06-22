@@ -10,6 +10,13 @@ attributes:
   - complexity
   - verbosity
 
+attribute_min_ratings:
+  helpfulness: 3
+  correctness: 3
+  coherence: 3
+  complexity: 3
+  verbosity: 2
+
 preference_vectors:
   balanced: [0.2, 0.2, 0.2, 0.2, 0.2]
   quality_focused: [0.15, 0.35, 0.25, 0.10, 0.15]

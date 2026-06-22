@@ -1,0 +1,158 @@
+{
+  "generated_at": "2026-06-22T12:20:34.658789+00:00",
+  "config_path": "configs/tinyllama_helpsteer2_armorm.yaml",
+  "experiment_name": "tinyllama_helpsteer2_armorm",
+  "dataset_name": "nvidia/HelpSteer2",
+  "split": "train[:1000]",
+  "row_count": 1000,
+  "columns": [
+    "prompt",
+    "response",
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "attributes": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "preference_vectors": {
+    "balanced": [
+      0.2,
+      0.2,
+      0.2,
+      0.2,
+      0.2
+    ],
+    "quality_focused": [
+      0.15,
+      0.35,
+      0.25,
+      0.1,
+      0.15
+    ],
+    "detailed_answer": [
+      0.15,
+      0.15,
+      0.2,
+      0.25,
+      0.25
+    ],
+    "helpfulness_focused": [
+      0.5,
+      0.15,
+      0.15,
+      0.1,
+      0.1
+    ]
+  },
+  "selection": {
+    "attribute_min_ratings": {
+      "helpfulness": 3,
+      "correctness": 3,
+      "coherence": 3,
+      "complexity": 3,
+      "verbosity": 2
+    },
+    "small_split_fallback": "highest observed rating",
+    "max_examples": null,
+    "ordering": "descending rating, then original row index"
+  },
+  "attribute_summaries": {
+    "helpfulness": {
+      "rating_counts": {
+        "0": 87,
+        "1": 75,
+        "2": 129,
+        "3": 303,
+        "4": 406
+      },
+      "min_rating": 3,
+      "available_at_threshold": 709,
+      "selected_example_count": 709,
+      "max_examples": null,
+      "example_training_texts": [
+        "Human: c#\n\nAssistant: C# (pronounced \"C sharp\") is a modern, object-oriented programming language developed by Microsoft. It is widely used for building various types of applications, including web applications, desktop applications, mobile applications, and games. C# is similar to other programming languages such as Java and C++, and it is known for its simplicity and ease of use. C# is a powerful language that provides a rich set of libraries and frameworks that make it easy to build robust...",
+        "Human: bacillus subtilus\n\nAssistant: Bacillus subtilis is a Gram-positive, rod-shaped bacterium commonly found in soil and water. It is a facultative anaerobe that can grow in the presence or absence of oxygen. B. subtilis is a model organism for studying bacterial cell biology, genetics, and physiology, and has many industrial and medical applications.\n\nB. subtilis is a versatile organism with many interesting properties. It can form spores that allow it to survive harsh environmental condit...",
+        "Human: Please, use the Bloom Taxonomy to develop a professional development plan for learner assessment and evaluation\n\nAssistant: Sure, I can help you develop a professional development plan for learner assessment and evaluation using the Bloom Taxonomy. The Bloom Taxonomy is a framework for categorizing learning objectives and skills, and it can be used to design effective assessments and provide feedback to learners.\n\nHere's a suggested professional development plan for learner assessment ..."
+      ]
+    },
+    "correctness": {
+      "rating_counts": {
+        "0": 81,
+        "1": 76,
+        "2": 103,
+        "3": 246,
+        "4": 494
+      },
+      "min_rating": 3,
+      "available_at_threshold": 740,
+      "selected_example_count": 740,
+      "max_examples": null,
+      "example_training_texts": [
+        "Human: c#\n\nAssistant: C# is a high-level, object-oriented programming language developed by Microsoft as part of its .NET initiative. It was created as a modern alternative to Java and supports a variety of programming paradigms, including imperative, functional, and event-driven. C# is primarily used for Windows application development, but it can also be used for web, mobile, and game development. The language is designed to be safe, secure, and efficient, and it provides developers with a ...",
+        "Human: c#\n\nAssistant: C# (pronounced \"C sharp\") is a modern, object-oriented programming language developed by Microsoft. It is widely used for building various types of applications, including web applications, desktop applications, mobile applications, and games. C# is similar to other programming languages such as Java and C++, and it is known for its simplicity and ease of use. C# is a powerful language that provides a rich set of libraries and frameworks that make it easy to build robust...",
+        "Human: bacillus subtilus\n\nAssistant: Bacillus subtilis is a Gram-positive, rod-shaped bacterium commonly found in soil and water. It is a facultative anaerobe that can grow in the presence or absence of oxygen. B. subtilis is a model organism for studying bacterial cell biology, genetics, and physiology, and has many industrial and medical applications.\n\nB. subtilis is a versatile organism with many interesting properties. It can form spores that allow it to survive harsh environmental condit..."
+      ]
+    },
+    "coherence": {
+      "rating_counts": {
+        "0": 1,
+        "1": 18,
+        "2": 56,
+        "3": 242,
+        "4": 683
+      },
+      "min_rating": 3,
+      "available_at_threshold": 925,
+      "selected_example_count": 925,
+      "max_examples": null,
+      "example_training_texts": [
+        "Human: c#\n\nAssistant: C# is a high-level, object-oriented programming language developed by Microsoft as part of its .NET initiative. It was created as a modern alternative to Java and supports a variety of programming paradigms, including imperative, functional, and event-driven. C# is primarily used for Windows application development, but it can also be used for web, mobile, and game development. The language is designed to be safe, secure, and efficient, and it provides developers with a ...",
+        "Human: c#\n\nAssistant: C# (pronounced \"C sharp\") is a modern, object-oriented programming language developed by Microsoft. It is widely used for building various types of applications, including web applications, desktop applications, mobile applications, and games. C# is similar to other programming languages such as Java and C++, and it is known for its simplicity and ease of use. C# is a powerful language that provides a rich set of libraries and frameworks that make it easy to build robust...",
+        "Human: bacillus subtilus\n\nAssistant: Bacillus subtilis is a Gram-positive, rod-shaped bacterium commonly found in soil and water. It is a facultative anaerobe that can grow in the presence or absence of oxygen. B. subtilis is a model organism for studying bacterial cell biology, genetics, and physiology, and has many industrial and medical applications.\n\nB. subtilis is a versatile organism with many interesting properties. It can form spores that allow it to survive harsh environmental condit..."
+      ]
+    },
+    "complexity": {
+      "rating_counts": {
+        "0": 15,
+        "1": 282,
+        "2": 568,
+        "3": 130,
+        "4": 5
+      },
+      "min_rating": 3,
+      "available_at_threshold": 135,
+      "selected_example_count": 135,
+      "max_examples": null,
+      "example_training_texts": [
+        "Human: I have a csv file with NBA scoring data.\n\nCan you please write 50 example prompts using only information I have from my data points in my csv to fine tune chatgpt with.\n\nHere are the column names:\n\nGP  Games played\tGS  Games started\tMPG  Minutes Per Game\tOREB  Offensive Rebounds\tDREB  Defensive Rebounds\tREB  Total Rebounds\tRPG  Rebounds Per Game\tAST  Total Assists\tAPG  Assists Per Game\tTO  Turnovers\tTOPG  Turnovers Per Game\tA/TO  Assists Per Turnover\tPlayer\tPosition\tTeam\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t...",
+        "Human: How to write cross-platform GUI app in Python for Android, Windows, Linux, iOS\n\nAssistant: To create a cross-platform GUI application in Python that can run on Android, Windows, Linux, and iOS, you can use the following libraries:\n\n1. Tkinter: Tkinter is a built-in library in Python for creating GUI applications. It is simple to use and lightweight, making it suitable for small to medium-sized projects. However, it is not supported on Android.\n\n2. PyQt: PyQt is a popular library for cr...",
+        "Human: How to write cross-platform GUI app in Python for Android, Windows, Linux, iOS\n\nAssistant: To write a cross-platform GUI app in Python for Android, Windows, Linux, and iOS, you can use a framework that provides a consistent interface across all these platforms. Here are some popular options:\n\n1. Tkinter: This is the standard library for building GUI applications in Python. It provides a simple and easy-to-use interface, but it may not be the best choice for cross-platform development a..."
+      ]
+    },
+    "verbosity": {
+      "rating_counts": {
+        "0": 22,
+        "1": 113,
+        "2": 655,
+        "3": 183,
+        "4": 27
+      },
+      "min_rating": 2,
+      "available_at_threshold": 865,
+      "selected_example_count": 865,
+      "max_examples": null,
+      "example_training_texts": [
+        "Human: Please make a list of independent Fertility coaching and consulting services in USA\n\nAssistant: Sure, here are some independent Fertility coaching and consulting services in the USA:\n\n1. Fertility Authority\n2. Fertility Solutions\n3. Fertility Success Coaching\n4. Fertility Consulting Services\n5. Fertility Coaching and Consulting\n6. Fertility Coaching and Consulting Services\n7. Fertility Coaching and Consulting Services\n8. Fertility Coaching and Consulting Services\n9. Fertility Coaching ...",
+        "Human: What are the benefits of merging 6 discords into one server\n\nAssistant: Merging multiple Discord servers into one can offer several benefits, including:\n\nImproved organization: With multiple servers, it can be difficult to keep track of different channels and conversations. Merging servers can help to streamline the organization and make it easier for members to find the information they need.\n\nIncreased member engagement: With more members in one server, there are more opportunities f...",
+        "Human: How do I do a cost benefit analysis to compare an in-house warehouse solution to a 3PL?\n\nAssistant: Here are the steps to perform a cost benefit analysis to compare an in-house warehouse solution to a 3PL:\n\n1. Identify the costs associated with each option:\n\n    - In-house warehouse:\n        - Infrastructure costs, such as building and equipment.\n        - Operating costs, including labor, utilities, and maintenance.\n        - Management and administration costs.\n\n    - 3PL (third-part..."
+      ]
+    }
+  }
+}
