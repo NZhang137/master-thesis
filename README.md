@@ -98,6 +98,19 @@ Validate the fixed prompt set:
 python scripts/validate_helpsteer2_fixed_prompts.py
 ```
 
+## Exporting Training Curves
+
+Export TensorBoard-style loss and learning-rate curves directly from the CSV
+training logs without starting a TensorBoard server:
+
+```bash
+python scripts/export_tinyllama_training_curves.py
+```
+
+PNG figures and corresponding curve CSV files are written to
+`results/plots/tensorboard/`. Generated PNG files should only be committed when
+they are intentionally selected for a thesis chapter, report, or meeting.
+
 Create `STOP_CURRENT_ADAPTER` to finish the current epoch, save the current
 specialist, and continue with the next attribute. Create `STOP_TRAINING` to
 finish the current epoch, save the specialist, and stop the complete run.
