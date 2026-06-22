@@ -1,0 +1,24 @@
+experiment_name: tinyllama_helpsteer2_armorm
+base_model_name: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+dataset_name: nvidia/HelpSteer2
+reward_model_name: RLHFlow/ArmoRM-Llama3-8B-v0.1
+
+attributes:
+  - helpfulness
+  - correctness
+  - coherence
+  - complexity
+  - verbosity
+
+preference_vectors:
+  balanced: [0.2, 0.2, 0.2, 0.2, 0.2]
+  quality_focused: [0.15, 0.35, 0.25, 0.10, 0.15]
+  detailed_answer: [0.15, 0.15, 0.20, 0.25, 0.25]
+  helpfulness_focused: [0.50, 0.15, 0.15, 0.10, 0.10]
+
+adapter_dir: adapters
+output_prefix: tinyllama_helpsteer2
+prompt_path: data/evaluation_prompts/helpsteer2_fixed_prompts.jsonl
+results_dir: results
+checkpoint_dir: checkpoints/tinyllama_helpsteer2
+tensorboard_log_dir: results/tensorboard/tinyllama_helpsteer2

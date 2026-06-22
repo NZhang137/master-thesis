@@ -35,6 +35,21 @@ The final experiment direction is **TinyLlama + HelpSteer2 + ArmoRM**:
 ArmoRM monitoring in the training script is evaluation only. Its scores are
 not used as an optimization signal.
 
+## Current Final Experiment
+
+TinyLlama + HelpSteer2 + ArmoRM is the current final experiment direction.
+The earlier GPT-2 outputs are prototype results retained in the archive. New
+scripts should use
+`configs/tinyllama_helpsteer2_armorm.yaml` as their central source for model
+names, attribute order, preference vectors, and experiment paths wherever
+practical.
+
+Validate the central configuration with:
+
+```bash
+python scripts/validate_tinyllama_helpsteer2_config.py
+```
+
 ## Active Commands
 
 Run a one-attribute 4-bit smoke test:
