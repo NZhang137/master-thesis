@@ -1,8 +1,7 @@
 """Compute a cosine relationship matrix for TinyLlama HelpSteer2 adapters.
 
-This script computes only the static relationship matrix R from flattened
-saved LoRA parameters. The resulting geometry is a prototype proxy for
-task-vector relationships, not a learned objective relationship model.
+The matrix uses effective PEFT-scaled LoRA updates rather than raw A/B
+factors. It remains a prototype proxy for task relationships.
 """
 
 from __future__ import annotations
@@ -20,8 +19,11 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.relationship_utils import (
     compute_relationship_matrix,
-    flatten_adapter_state_dict,
-    load_adapter_state_dict,
+)
+from src.effective_lora_geometry import (
+    effective_lora_update_norm,
+    effective_lora_update_numel,
+    load_effective_lora_geometry,
 )
 
 
@@ -99,18 +101,18 @@ def main() -> None:
 
     print(
         "Computing TinyLlama HelpSteer2 cosine relationships from "
-        "LoRA parameters..."
+        "effective LoRA updates..."
     )
     for adapter_name, adapter_path in zip(ADAPTER_NAMES, adapter_paths):
         print(f"  {adapter_name}: {adapter_path}")
 
-    state_dicts = [
-        load_adapter_state_dict(adapter_path)
-        for adapter_path in adapter_paths
+    geometries = [load_effective_lora_geometry(path) for path in adapter_paths]
+    layer_counts = [len(geometry) for geometry in geometries]
+    effective_update_dimensions = [
+        effective_lora_update_numel(geometry) for geometry in geometries
     ]
-    vector_lengths = [
-        flatten_adapter_state_dict(state_dict).numel()
-        for state_dict in state_dicts
+    effective_update_norms = [
+        effective_lora_update_norm(geometry) for geometry in geometries
     ]
 
     matrix = compute_relationship_matrix(
@@ -123,18 +125,23 @@ def main() -> None:
     metadata = {
         "adapter_names": list(ADAPTER_NAMES),
         "adapter_paths": configured_paths,
-        "similarity_type": "cosine_similarity",
+        "similarity_type": "cosine_similarity_effective_lora_update",
         "number_of_adapters": len(ADAPTER_NAMES),
         "output_csv_path": args.output_csv,
-        "representation": "flattened LoRA adapter parameters",
-        "vector_lengths": vector_lengths,
+        "representation": "effective LoRA updates: delta_W = scaling * (B @ A)",
+        "inner_product_computation": (
+            "layer-wise low-rank Frobenius identity without materializing delta_W"
+        ),
+        "layer_counts": layer_counts,
+        "effective_update_dimensions": effective_update_dimensions,
+        "effective_update_frobenius_norms": effective_update_norms,
         "note": (
-            "R is computed from LoRA adapter parameter geometry and is a "
-            "prototype proxy for task-vector relationships."
+            "R uses the effective updates combined by weighted LoRA merging "
+            "and is invariant to factor reparameterizations preserving B @ A."
         ),
         "caveat": (
-            "This step computes R only and does not implement the M1 "
-            "preference-to-coefficient mapping."
+            "Effective-update cosine remains a prototype proxy for functional "
+            "objective relationships and requires empirical validation."
         ),
     }
     output_metadata.parent.mkdir(parents=True, exist_ok=True)

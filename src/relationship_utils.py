@@ -1,8 +1,7 @@
-"""Compute static relationship matrices from LoRA adapter geometry.
+"""Compute static relationship matrices from effective LoRA geometry.
 
-The current prototype represents each specialist by its flattened saved LoRA
-parameters and uses cosine similarity as a geometry proxy. It does not compute
-coefficient corrections or the final lambda = f(p, R) mapping.
+The relationship matrix uses the PEFT-scaled effective updates ``B @ A``.
+Raw flattened A/B factors remain available only as a diagnostic helper.
 """
 
 from __future__ import annotations
@@ -12,6 +11,13 @@ from pathlib import Path
 
 import torch
 from safetensors.torch import load_file
+
+from src.effective_lora_geometry import (
+    effective_lora_inner_product,
+    effective_lora_update_norm,
+    load_effective_lora_geometry,
+    validate_compatible_geometries,
+)
 
 
 LORA_WEIGHT_FILENAMES = ("adapter_model.safetensors", "adapter_model.bin")
@@ -68,7 +74,11 @@ def load_adapter_state_dict(
 def flatten_adapter_state_dict(
     state_dict: Mapping[str, torch.Tensor],
 ) -> torch.Tensor:
-    """Flatten sorted floating-point LoRA tensors into one CPU vector."""
+    """Flatten raw LoRA factors for diagnostics only.
+
+    This representation is not invariant to LoRA factor reparameterization
+    and is therefore not used by ``compute_relationship_matrix``.
+    """
     tensors = []
     for name in sorted(state_dict):
         tensor = state_dict[name]
@@ -143,10 +153,18 @@ def _validate_compatible_states(
 def compute_relationship_matrix(
     adapter_paths: Sequence[str | Path],
     adapter_names: Sequence[str] | None = None,
+    eps: float = 1e-12,
 ) -> torch.Tensor:
-    """Compute the cosine relationship matrix for compatible LoRA adapters."""
+    """Compute cosine similarities between effective LoRA updates.
+
+    The same layer-wise updates combined during weighted LoRA merging are used:
+    ``delta_W = scaling * (B @ A)``. Frobenius inner products are evaluated
+    from low-rank factors without materializing full update matrices.
+    """
     if not adapter_paths:
         raise ValueError("At least one adapter path is required.")
+    if eps <= 0:
+        raise ValueError("eps must be positive.")
 
     names = list(
         adapter_names
@@ -158,15 +176,22 @@ def compute_relationship_matrix(
     if len(set(names)) != len(names):
         raise ValueError("adapter_names must be unique.")
 
-    state_dicts = [load_adapter_state_dict(path) for path in adapter_paths]
-    _validate_compatible_states(state_dicts, names)
-    vectors = [flatten_adapter_state_dict(state) for state in state_dicts]
+    geometries = [load_effective_lora_geometry(path) for path in adapter_paths]
+    validate_compatible_geometries(geometries, names)
+    norms = [
+        effective_lora_update_norm(geometry, eps=eps)
+        for geometry in geometries
+    ]
 
-    size = len(vectors)
-    matrix = torch.empty((size, size), dtype=torch.float32)
+    size = len(geometries)
+    matrix = torch.eye(size, dtype=torch.float64)
     for row in range(size):
-        for column in range(row, size):
-            similarity = cosine_similarity(vectors[row], vectors[column])
+        for column in range(row + 1, size):
+            inner_product = effective_lora_inner_product(
+                geometries[row], geometries[column]
+            )
+            similarity = inner_product / (norms[row] * norms[column])
+            similarity = max(-1.0, min(1.0, similarity))
             matrix[row, column] = similarity
             matrix[column, row] = similarity
 

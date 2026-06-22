@@ -651,6 +651,28 @@ R_{ij}=
 {\norm{\delta_i^{\mathrm{LoRA}}}_2\norm{\delta_j^{\mathrm{LoRA}}}_2}.
 \]
 
+The effective updates need not be materialized as dense matrices. For two
+adapters (i) and (j), their Frobenius inner product can be accumulated
+layerwise as
+\[
+\left\langle \Delta W_{i,\ell},\Delta W_{j,\ell}\right\rangle_F
+=
+s_{i,\ell}s_{j,\ell}
+\operatorname{tr}\!\left(
+(B_{i,\ell}A_{i,\ell})^\top B_{j,\ell}A_{j,\ell}
+\right),
+\qquad
+s_{i,\ell}:=\frac{\alpha_{i,\ell}}{r_{i,\ell}}.
+\]
+Equivalently, this quantity can be evaluated from the small factors as
+\(s_{i,\ell}s_{j,\ell}\langle B_{i,\ell}^\top B_{j,\ell},
+A_{i,\ell}A_{j,\ell}^\top\rangle_F\). Consequently,
+the relationship matrix is invariant under any invertible factor
+reparameterization (B_{i,\ell}\mapsto B_{i,\ell}G) and
+(A_{i,\ell}\mapsto G^{-1}A_{i,\ell}) that leaves the effective update
+unchanged. Raw concatenations of the (A)- and (B)-factors are therefore
+not used to construct (R).
+
 For \(\lambda\in\Delta_m\), define the merged effective LoRA update layerwise by
 \[
 \Delta W^{\mathrm{LoRA}}_{\mathrm{merged},\ell}

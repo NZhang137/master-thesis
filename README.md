@@ -92,6 +92,17 @@ python scripts/compute_helpsteer2_all_method_coefficients.py
 python scripts/validate_coefficient_methods.py
 ```
 
+The relationship matrix uses cosine similarity between effective, PEFT-scaled
+LoRA updates, `delta_W = scaling * (B @ A)`. Frobenius inner products are
+computed layer by layer from the low-rank factors, so full update matrices do
+not need to be materialized. Raw concatenated A/B factors are not used for R.
+
+The effective-update geometry can be checked with:
+
+```bash
+python -m unittest tests.test_relationship_utils -v
+```
+
 Validate the fixed prompt set:
 
 ```bash
