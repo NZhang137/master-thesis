@@ -80,7 +80,7 @@ python scripts/check_tinyllama_helpsteer2_adapters.py --attributes helpfulness
 Train all five specialists:
 
 ```bash
-python scripts/train_tinyllama_helpsteer2_adapters.py --split "train[:1000]" --num_epochs 100 --learning_rate 1e-4 --max_length 512 --batch_size 1 --logging_steps 10 --eval_steps 100 --save_steps 500 --use_4bit --use_tensorboard
+python scripts/train_tinyllama_helpsteer2_adapters.py --split "train[:10000]" --eval_split "train[10000:11000]" --num_epochs 100 --learning_rate 1e-4 --max_length 512 --batch_size 1 --logging_steps 10 --eval_steps 100 --save_steps 500 --use_4bit --use_tensorboard
 ```
 
 Compute the relationship matrix and coefficient grids after training:
