@@ -14,7 +14,7 @@ attribute_min_ratings:
   helpfulness: 3
   correctness: 3
   coherence: 3
-  complexity: 3
+  complexity: 2
   verbosity: 2
 
 preference_vectors:

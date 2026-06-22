@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-22T12:20:34.658789+00:00",
+  "generated_at": "2026-06-22T12:52:04.930823+00:00",
   "config_path": "configs/tinyllama_helpsteer2_armorm.yaml",
   "experiment_name": "tinyllama_helpsteer2_armorm",
   "dataset_name": "nvidia/HelpSteer2",
@@ -56,7 +56,7 @@
       "helpfulness": 3,
       "correctness": 3,
       "coherence": 3,
-      "complexity": 3,
+      "complexity": 2,
       "verbosity": 2
     },
     "small_split_fallback": "highest observed rating",
@@ -126,9 +126,9 @@
         "3": 130,
         "4": 5
       },
-      "min_rating": 3,
-      "available_at_threshold": 135,
-      "selected_example_count": 135,
+      "min_rating": 2,
+      "available_at_threshold": 703,
+      "selected_example_count": 703,
       "max_examples": null,
       "example_training_texts": [
         "Human: I have a csv file with NBA scoring data.\n\nCan you please write 50 example prompts using only information I have from my data points in my csv to fine tune chatgpt with.\n\nHere are the column names:\n\nGP  Games played\tGS  Games started\tMPG  Minutes Per Game\tOREB  Offensive Rebounds\tDREB  Defensive Rebounds\tREB  Total Rebounds\tRPG  Rebounds Per Game\tAST  Total Assists\tAPG  Assists Per Game\tTO  Turnovers\tTOPG  Turnovers Per Game\tA/TO  Assists Per Turnover\tPlayer\tPosition\tTeam\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t...",

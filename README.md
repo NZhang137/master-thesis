@@ -63,9 +63,10 @@ The command writes a compact, reproducible summary to
 `results/helpsteer2_dataset_summary.json`.
 
 The configured training threshold is rating `>= 3` for helpfulness,
-correctness, coherence, and complexity. Verbosity uses rating `>= 2` because
-ratings of 3 and 4 are less frequent for that attribute. An explicit
-`min_rating` passed to the data utility still overrides the configured value.
+correctness, and coherence. Complexity and verbosity use rating `>= 2`
+because ratings of 3 and 4 are less frequent for those attributes. An
+explicit `min_rating` passed to the data utility still overrides the
+configured value.
 
 ## Active Commands
 

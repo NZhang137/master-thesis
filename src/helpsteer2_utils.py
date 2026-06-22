@@ -29,7 +29,7 @@ DEFAULT_ATTRIBUTE_MIN_RATINGS = {
     "helpfulness": 3,
     "correctness": 3,
     "coherence": 3,
-    "complexity": 3,
+    "complexity": 2,
     "verbosity": 2,
 }
 
@@ -170,10 +170,11 @@ def make_attribute_training_texts(
     """Create deterministic supervised texts for one objective specialist.
 
     An explicit ``min_rating`` overrides ``attribute_min_ratings`` and the
-    built-in defaults. The built-in threshold is 2 for verbosity and 3 for all
-    other attributes. If a small split has no row at the resolved threshold,
-    rows with its highest observed rating are selected instead. Results are
-    sorted by descending rating and then original dataset index.
+    built-in defaults. The built-in threshold is 2 for complexity and
+    verbosity and 3 for the other attributes. If a small split has no row at
+    the resolved threshold, rows with its highest observed rating are selected
+    instead. Results are sorted by descending rating and then original dataset
+    index.
     """
     normalized_attribute = _normalize_attribute(attribute)
     threshold, limit = _resolve_selection_options(
