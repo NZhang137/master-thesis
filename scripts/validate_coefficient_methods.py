@@ -158,8 +158,10 @@ def main() -> None:
     validate_p2_no_conflict_identity()
     validate_all_methods_return_simplex()
     validate_generated_csv(
-        PROJECT_ROOT / "results/helpsteer2_all_method_coefficients.csv",
-        PROJECT_ROOT / "results/helpsteer2_all_method_coefficients_metadata.json",
+        PROJECT_ROOT
+        / "results/tinyllama_helpsteer2_all_method_coefficients.csv",
+        PROJECT_ROOT
+        / "results/tinyllama_helpsteer2_all_method_coefficients_metadata.json",
     )
     print("Coefficient method validation passed.")
 

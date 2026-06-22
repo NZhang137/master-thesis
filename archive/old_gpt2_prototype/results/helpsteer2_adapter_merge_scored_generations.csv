@@ -1,4 +1,4 @@
-merge_name,lambda_helpfulness,lambda_correctness,lambda_coherence,lambda_complexity,lambda_verbosity,prompt,generated_response
+merge_name,lambda_helpfulness,lambda_correctness,lambda_coherence,lambda_complexity,lambda_verbosity,prompt,generated_response,helpfulness_proxy,correctness_proxy,coherence_proxy,complexity_proxy,verbosity_proxy,response_length,empty_response
 uniform,0.2,0.2,0.2,0.2,0.2,"Human: What is a good way to stay motivated?
 
 Assistant:","1
@@ -79,7 +79,7 @@ Assistant:","1
 
 
 
-,"
+,",0.3125,0.375,0.0,0.15,0.041667,5,False
 uniform,0.2,0.2,0.2,0.2,0.2,"Human: How can I improve my study habits?
 
 Assistant:","""
@@ -120,7 +120,7 @@ Assistant:","""
 
 
 
-1,2,3,4, and,-1,2,--based,-based,-based,-based,-based,-based,-based,-"
+1,2,3,4, and,-1,2,--based,-based,-based,-based,-based,-based,-based,-",0.515,0.42,0.02,0.216667,0.116667,14,False
 uniform,0.2,0.2,0.2,0.2,0.2,"Human: Explain why sleep is important.
 
 Assistant:","Sleep is important for people and businesses to improve their productivity and productivity over time, and it, and its role in productivity and productivity growth, and its role in productivity and productivity growth, and its impact on productivity and efficiency and efficiency, and its impact on economic and social well-being.
@@ -128,15 +128,15 @@ Assistant:","Sleep is important for people and businesses to improve their produ
 
 
 
-The LITA, a sleep-based sleep-based sleep-based system, and its role in productivity and productivity, and its impact on productivity and efficiency, and its impact on"
+The LITA, a sleep-based sleep-based sleep-based system, and its role in productivity and productivity, and its impact on productivity and efficiency, and its impact on",0.766667,0.45,0.452703,0.885667,0.625,75,False
 uniform,0.2,0.2,0.2,0.2,0.2,"Human: How should I handle a disagreement with a friend?
 
-Assistant:",The understanding and understanding of the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship
+Assistant:",The understanding and understanding of the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship between the relationship,0.65,0.45,0.4,1.0,0.808333,97,False
 one_hot_helpfulness,1.0,0.0,0.0,0.0,0.0,"Human: What is a good way to stay motivated?
 
 Assistant:","It's a simple question that can help you to stay motivated in your field of work. It's a question that you'll be asked throughout your career, as you continue to learn and improve your skills.
 
-It's important to recognize that motivation is a natural process that results in results that you want. So when you're making a decision, you should consider your goals and objectives, make sure you're working toward your goals, and make sure you're striving for the highest possible level of effort"
+It's important to recognize that motivation is a natural process that results in results that you want. So when you're making a decision, you should consider your goals and objectives, make sure you're working toward your goals, and make sure you're striving for the highest possible level of effort",1.0,0.516667,0.7,0.669048,0.7,84,False
 one_hot_helpfulness,1.0,0.0,0.0,0.0,0.0,"Human: How can I improve my study habits?
 
 Assistant:","First of all, to improve your study habits, you need to identify how you're doing each day. You can use a variety of tools to help you do this.
@@ -161,40 +161,40 @@ Assistant:","First of all, to improve your study habits, you need to identify ho
 
 10. Feeling happy
 
-11. Learning how to think"
+11. Learning how to think",0.883333,0.516667,0.8,0.411158,0.491667,59,False
 one_hot_helpfulness,1.0,0.0,0.0,0.0,0.0,"Human: Explain why sleep is important.
 
 Assistant:","Sleep is important for people who are working hard and healthy, and it can be a powerful tool to help them recover from a difficult or stressful day. For many people, sleep is important to their health and well-being. In addition, sleep can help them focus on their goals and interests, and it can help them understand important social interactions and relationships.
 
-Sleep is important for people who are working hard and healthy, and it can be a powerful tool to help them recover from a difficult or"
+Sleep is important for people who are working hard and healthy, and it can be a powerful tool to help them recover from a difficult or",0.883333,0.516667,0.7,0.68024,0.733333,88,False
 one_hot_helpfulness,1.0,0.0,0.0,0.0,0.0,"Human: How should I handle a disagreement with a friend?
 
 Assistant:","When a disagreement between two people is being discussed in a professional setting, it's important to have a clear understanding of the issue, both sides have the right to express their views and disagreements, and there is a fair amount of interaction between them. To make things easier, there are some common guidelines for handling disagreements:
 
 1. Don't make a statement that you don't agree with everything about the person you disagree with.
 
-2. Don't make a statement that you don't agree"
+2. Don't make a statement that you don't agree",0.766667,0.45,0.7,0.646443,0.683333,82,False
 one_hot_correctness,0.0,1.0,0.0,0.0,0.0,"Human: What is a good way to stay motivated?
 
 Assistant:","It's a simple question that can help you to stay motivated in your field of work. It's a question that you'll be asked throughout your career, as you continue to learn and improve your skills.
 
 It's important to recognize that motivation is a natural process that leads to success and success in your career. In a competitive environment, it's important to be motivated and maintain a high level of motivation.
 
-What's important to note is that motivation can vary depending on the skills and"
+What's important to note is that motivation can vary depending on the skills and",0.883333,0.516667,0.7,0.666468,0.7,84,False
 one_hot_correctness,0.0,1.0,0.0,0.0,0.0,"Human: How can I improve my study habits?
 
 Assistant:","First of all, to improve your study habits, you need to identify how you're doing each day. You can use a variety of tools to help you do this. Here are some tips to help you:
 
 1. Start by getting a daily diary (or ""work diary"") of what you're doing, with some notes, and a short diary that you can follow.
 
-2. Focus on what you're doing and what you're doing well (in this case, your motivation"
+2. Focus on what you're doing and what you're doing well (in this case, your motivation",0.883333,0.516667,0.8,0.307229,0.641667,77,False
 one_hot_correctness,0.0,1.0,0.0,0.0,0.0,"Human: Explain why sleep is important.
 
 Assistant:","Sleep is important because it provides us with the motivation to take on more important tasks. It helps us focus, motivate ourselves, and create new opportunities for creativity and self-improvement. Sleep also helps us recognize patterns in our surroundings and make decisions based on those patterns.
 
 Sleep is also a way to relax and recharge, and it helps us learn and adapt to new situations. It also helps us learn how to manage stress and manage our stress-free lives.
 
-Sleep is also a"
+Sleep is also a",0.766667,0.566667,0.9,0.638032,0.691667,83,False
 one_hot_correctness,0.0,1.0,0.0,0.0,0.0,"Human: How should I handle a disagreement with a friend?
 
 Assistant:","When a disagreement between two people can occur, it is important to discuss them thoroughly. The following steps are designed to help resolve such disagreements quickly.
@@ -211,14 +211,14 @@ Assistant:","When a disagreement between two people can occur, it is important t
 
 6. Identify and resolve the disagreement
 
-7. Identify and resolve the disagreement"
+7. Identify and resolve the disagreement",0.883333,0.516667,0.7,0.699728,0.566667,68,False
 one_hot_coherence,0.0,0.0,1.0,0.0,0.0,"Human: What is a good way to stay motivated?
 
 Assistant:","To stay motivated, you need to be motivated to succeed in life, and you need to be willing to learn new things and be productive. You can be motivated by a variety of reasons:
 
 1. Passion and passion are essential to success in life, and they help you to be successful in life. They are a powerful tool to help you focus on your goals, and they allow you to plan your life.
 
-2. Intention is key to success in life, and it helps"
+2. Intention is key to success in life, and it helps",0.883333,0.516667,0.7,0.405675,0.7,84,False
 one_hot_coherence,0.0,0.0,1.0,0.0,0.0,"Human: How can I improve my study habits?
 
 Assistant:","To improve your study habits, you can:
@@ -229,19 +229,19 @@ Assistant:","To improve your study habits, you can:
 
 3. Take a break from your studies, and take a break from your activities during the day, when you're not doing anything important.
 
-4. Try to work on your concentration, which helps"
+4. Try to work on your concentration, which helps",1.0,0.516667,0.675,0.433937,0.591667,71,False
 one_hot_coherence,0.0,0.0,1.0,0.0,0.0,"Human: Explain why sleep is important.
 
 Assistant:","Sleep is important for people who are working hard and have a strong focus on their work or school. It may be related to your ability to maintain a healthy weight or to build mental and emotional connections with others. Sleep can help you focus on your goals and projects and help you achieve your goals without having to work too hard.
 
-Sleep helps you learn and improve your abilities to make decisions and improve your social skills. Sleep can help you develop self-awareness and self-confidence, which are key"
+Sleep helps you learn and improve your abilities to make decisions and improve your social skills. Sleep can help you develop self-awareness and self-confidence, which are key",0.883333,0.583333,0.7,0.548993,0.741667,89,False
 one_hot_coherence,0.0,0.0,1.0,0.0,0.0,"Human: How should I handle a disagreement with a friend?
 
 Assistant:","When a disagreement between two people is resolved, it is important to discuss it thoroughly. The following steps are helpful for resolving disagreements:
 
 First, discuss the issue with a friend or colleague. This can include questions such as: ""How do you feel about this?"" or ""Why are you doing this?""
 
-Second, discuss the issue with a group of friends or colleagues. This can include questions such as: ""How are you feeling about this?"" or ""Why are you doing this?"""
+Second, discuss the issue with a group of friends or colleagues. This can include questions such as: ""How are you feeling about this?"" or ""Why are you doing this?""",0.766667,0.516667,0.9,0.494786,0.658333,79,False
 one_hot_complexity,0.0,0.0,0.0,1.0,0.0,"Human: What is a good way to stay motivated?
 
 Assistant:","It's really simple: focus on what you are doing and doing well, not what you are doing poorly. Your goal should be to keep your focus on improving your performance and improving your performance in life.
@@ -250,7 +250,7 @@ Aim for: Your goals should be to work to achieve goals that are higher than the 
 
 The goal of your goal should be to make progress in your life.
 
-The goal of your goal should be to reach your goals with a plan"
+The goal of your goal should be to reach your goals with a plan",0.65,0.45,0.7,0.436143,0.716667,86,False
 one_hot_complexity,0.0,0.0,0.0,1.0,0.0,"Human: How can I improve my study habits?
 
 Assistant:","It's easy:
@@ -263,21 +263,21 @@ Assistant:","It's easy:
 
 4. Then, follow the instructions below to make sure you're on the right track:
 
-1. Set your goals to achieve your goals"
+1. Set your goals to achieve your goals",0.65,0.45,0.750704,0.562269,0.6,72,False
 one_hot_complexity,0.0,0.0,0.0,1.0,0.0,"Human: Explain why sleep is important.
 
 Assistant:","Sleep is important for people who are working hard and have a strong focus on productivity. Sleep is often associated with reduced work time and lower productivity in other tasks.
 
 Sleep is important for people who are working hard and have a strong focus on productivity. Sleep is often associated with reduced work time and lower productivity in other tasks. Sleep is associated with reduced motivation to do something, such as go out for drinks or eat more food, and is associated with increased stress and absenteeism.
 
-Sleep"
+Sleep",0.766667,0.516667,0.7,0.603295,0.733333,88,False
 one_hot_complexity,0.0,0.0,0.0,1.0,0.0,"Human: How should I handle a disagreement with a friend?
 
 Assistant:","When you're discussing a situation, you should know when to take action and when to stop. If you are unsure whether your friend is behaving improperly or is not responding to your request, you should ask him/her to resolve the conflict with you by sending an email to his/her.
 
 Assistant: In order to understand the importance of responding to the email, it is important to understand the principles behind your response.
 
-In order to understand the importance of responding to the email, it"
+In order to understand the importance of responding to the email, it",0.766667,0.45,0.7,0.71268,0.708333,85,False
 one_hot_verbosity,0.0,0.0,0.0,0.0,1.0,"Human: What is a good way to stay motivated?
 
 Assistant:","It's really simple: focus on what you are doing and doing well, not what you are doing poorly. Your goal should be to keep your focus on improving your performance and improving your career outcomes.
@@ -288,19 +288,19 @@ I'm using the following example to help motivate myself to stay motivated:
 
 I want to work hard. My goal is to maintain a high level of productivity, improve my personal life and improve my chances of success in the future.
 
-This"
+This",0.766667,0.45,0.7,0.467569,0.666667,80,False
 one_hot_verbosity,0.0,0.0,0.0,0.0,1.0,"Human: How can I improve my study habits?
 
 Assistant:","First of all, to improve your study habits, you need to identify how you're doing each day. You can try to identify how you're doing each day by using tools like Facebook or Google or by using the tools you use on your phone.
 
-Second of all, you need to take a look at how you're doing each day. These tools can help you reduce the time you spend studying and help you maintain motivation to take time off. You can also look at how you're practicing"
+Second of all, you need to take a look at how you're doing each day. These tools can help you reduce the time you spend studying and help you maintain motivation to take time off. You can also look at how you're practicing",1.0,0.516667,1.0,0.445522,0.725,87,False
 one_hot_verbosity,0.0,0.0,0.0,0.0,1.0,"Human: Explain why sleep is important.
 
 Assistant:","Sleep is important. The key to having a good day is to wake up early to start thinking of new ideas. Sleep can help you get in shape and stay in shape, and reduce stress levels.
 
 Sleep can help you get in shape and stay in shape, and reduce stress levels. Sleep can also help you understand and manage your emotions, learn new skills, and learn new ways to feel good.
 
-Sleep can help you get in shape and stay in shape, and reduce stress levels"
+Sleep can help you get in shape and stay in shape, and reduce stress levels",0.883333,0.516667,0.8,0.36155,0.716667,86,False
 one_hot_verbosity,0.0,0.0,0.0,0.0,1.0,"Human: How should I handle a disagreement with a friend?
 
 Assistant:","When you're arguing with a friend, be sure to discuss the disagreement thoroughly. It can be difficult to discuss disagreements in a constructive manner and can result in serious repercussions.
@@ -309,7 +309,7 @@ Assistant: There are many ways to handle disagreements, but one of the most comm
 
 1. Discuss the disagreement with friends and family. Discuss the issue in a constructive manner, and provide your own perspective.
 
-2. Discuss the dispute with a group"
+2. Discuss the dispute with a group",0.766667,0.516667,0.7,0.572663,0.675,81,False
 helpful_correct_coherent,0.4,0.3,0.2,0.05,0.05,"Human: What is a good way to stay motivated?
 
 Assistant:","-
@@ -318,7 +318,7 @@ Assistant:","-
 
 
 
--"
+-",0.0,0.35,0.0,0.0,0.0,0,True
 helpful_correct_coherent,0.4,0.3,0.2,0.05,0.05,"Human: How can I improve my study habits?
 
 Assistant:","""
@@ -357,10 +357,10 @@ Assistant:","""
 
 
 
-1,2,3, and4-b,1,2,3, and4-b,1,2,3, and4-b,1,2,3"
+1,2,3, and4-b,1,2,3, and4-b,1,2,3, and4-b,1,2,3",0.5375,0.425,0.375,0.225,0.125,15,False
 helpful_correct_coherent,0.4,0.3,0.2,0.05,0.05,"Human: Explain why sleep is important.
 
-Assistant:","Sleep and cognitive functions are important components of the brain and brain that play a role in memory and memory formation, and their role in the structure and function of the brain and brain is under-resourced and under-reactive. The sleep and cognitive functions, such as attention and memory, and their role in learning and memory, are also important components of the brain and brain-related systems. The sleep and cognitive functions, such as attention and memory, and their role in learning and memory, are"
+Assistant:","Sleep and cognitive functions are important components of the brain and brain that play a role in memory and memory formation, and their role in the structure and function of the brain and brain is under-resourced and under-reactive. The sleep and cognitive functions, such as attention and memory, and their role in learning and memory, are also important components of the brain and brain-related systems. The sleep and cognitive functions, such as attention and memory, and their role in learning and memory, are",0.766667,0.45,0.7,0.826807,0.691667,83,False
 helpful_correct_coherent,0.4,0.3,0.2,0.05,0.05,"Human: How should I handle a disagreement with a friend?
 
 Assistant:","The
@@ -387,7 +387,7 @@ Assistant:","The
 1,2,
 1,
 1,
-1,2,1,1,3,1,2,1,3,1,1,2,1,3,1,2,1,3,1,1,2,1,2,1,3,1,"
+1,2,1,1,3,1,2,1,3,1,1,2,1,3,1,2,1,3,1,1,2,1,2,1,3,1,",0.65,0.45,0.05,0.35,0.325,39,False
 concise_quality,0.3,0.3,0.3,0.05,0.05,"Human: What is a good way to stay motivated?
 
 Assistant:","-
@@ -396,7 +396,7 @@ Assistant:","-
 
 
 
--"
+-",0.0,0.35,0.0,0.0,0.0,0,True
 concise_quality,0.3,0.3,0.3,0.05,0.05,"Human: How can I improve my study habits?
 
 Assistant:","""
@@ -444,12 +444,12 @@ Assistant:","""
 1
 1
 1,
-1-1,2-1,4-b,c, and-d-2,-b,c"
+1-1,2-1,4-b,c, and-d-2,-b,c",0.425,0.4,0.0,0.183333,0.083333,10,False
 concise_quality,0.3,0.3,0.3,0.05,0.05,"Human: Explain why sleep is important.
 
 Assistant:","Sleep and cognitive functions are important components of the brain and brain that play a role in memory and memory formation, and their role in the structure and function of the brain and brain is a key component of the study of the subject's memory and memory.
 
-The sleep and cognitive functions (SBCs) and their role in the structure and function of the brain and brain-related structures, and their role in the development and maintenance of long-term memory and memory, and their impact on long"
+The sleep and cognitive functions (SBCs) and their role in the structure and function of the brain and brain-related structures, and their role in the development and maintenance of long-term memory and memory, and their impact on long",0.766667,0.45,0.5,0.755784,0.708333,85,False
 concise_quality,0.3,0.3,0.3,0.05,0.05,"Human: How should I handle a disagreement with a friend?
 
 Assistant:","The
@@ -477,7 +477,7 @@ Assistant:","The
 1,2,
 1,
 1,
-1,2,1,1,3,1,2,1,3,1,1,2,1,3,1,2,1,3,1,1,2,1,2,1,3,1,"
+1,2,1,1,3,1,2,1,3,1,1,2,1,3,1,2,1,3,1,1,2,1,2,1,3,1,",0.65,0.45,0.05,0.35,0.325,39,False
 detailed_answer,0.25,0.25,0.2,0.15,0.15,"Human: What is a good way to stay motivated?
 
 Assistant:","-
@@ -571,7 +571,7 @@ Assistant:","-
 
 
 
-,"
+,",0.0,0.35,0.0,0.0,0.0,0,True
 detailed_answer,0.25,0.25,0.2,0.15,0.15,"Human: How can I improve my study habits?
 
 Assistant:","""
@@ -611,14 +611,14 @@ Assistant:","""
 
 
 
-1,2,3, and ""-b""-b-b-b-b-b-b-b-c-b-c-c-c-d-"
+1,2,3, and ""-b""-b-b-b-b-b-b-b-c-b-c-c-c-d-",0.335,0.38,0.33,0.563889,0.05,6,False
 detailed_answer,0.25,0.25,0.2,0.15,0.15,"Human: Explain why sleep is important.
 
 Assistant:","Sleep is important for people and businesses to improve their productivity and productivity over time, and it, and its role for productivity and efficiency, and its role for productivity and efficiency, and its role for diversity and innovation in the workplace and economy.
 
 
 
-The the and and-ness of sleep, and its role for diversity and innovation, and its role for efficiency and resilience, and its role for government regulation and oversight, and its role for local and national security, and its role for resilience"
+The the and and-ness of sleep, and its role for diversity and innovation, and its role for efficiency and resilience, and its role for government regulation and oversight, and its role for local and national security, and its role for resilience",0.766667,0.45,0.478916,0.834722,0.7,84,False
 detailed_answer,0.25,0.25,0.2,0.15,0.15,"Human: How should I handle a disagreement with a friend?
 
 Assistant:","The
@@ -690,4 +690,4 @@ Assistant:","The
 
 
 
-1,-1,-2,--,--"
+1,-1,-2,--,--",0.4925,0.415,0.015,0.208333,0.108333,13,False

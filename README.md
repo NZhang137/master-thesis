@@ -21,35 +21,21 @@ family, not a claim of global Pareto-front improvement.
 
 ## Current Active Pipeline
 
-The completed prototype is the GPT-2 + HelpSteer2 pipeline. The current main
-experiment extends the same workflow to TinyLlama while retaining GPT-2 as a
-reproducible baseline. The workflow is:
+The final experiment direction is **TinyLlama + HelpSteer2 + ArmoRM**:
 
-1. Train independent HelpSteer2 LoRA/QLoRA adapters with long-run support.
-2. Compute the relationship matrix \(R\) from adapter geometry.
-3. Compute coefficient mappings M1, M2, C1, C2, P1, and P2.
-4. Evaluate all methods on a fixed prompt set.
-5. Report proxy scores carefully.
-6. Later add stronger reward-model evaluation, for example with ArmoRM.
+1. Train five independent TinyLlama HelpSteer2 LoRA/QLoRA adapters.
+2. Compute the TinyLlama adapter relationship matrix \(R\).
+3. Compute M1, M2, C1, C2, P1, and P2 coefficients
+   \(\lambda=f(p,R)\).
+4. Merge the TinyLlama adapters and generate responses on fixed prompts.
+5. Score generated responses with ArmoRM.
+6. Analyze preference-weighted utility, distance to \(p\), and computational
+   cost.
 
-The currently implemented HelpSteer2 scripts cover long-running adapter
-training, fixed adapter merging, proxy scoring, relationship-matrix
-computation, all-method coefficient computation for M1, M2, C1, C2, P1, and
-P2, narrowed M1/C1 merge evaluation, definition-style metrics, and result
-summaries.
+ArmoRM monitoring in the training script is evaluation only. Its scores are
+not used as an optimization signal.
 
-Proxy scores are lightweight deterministic evaluation aids. They are not
-HelpSteer2 human labels, not reward-model scores, and should not be interpreted
-as final thesis evidence.
-
-## Active HelpSteer2 Commands
-
-### TinyLlama HelpSteer2 training
-
-The TinyLlama pipeline is the next main-model experiment. It trains five
-independent LoRA/QLoRA specialists from fresh loads of
-`TinyLlama/TinyLlama-1.1B-Chat-v1.0` while keeping all GPT-2 artifacts and
-scripts unchanged.
+## Active Commands
 
 Run a one-attribute 4-bit smoke test:
 
@@ -58,205 +44,65 @@ python scripts/train_tinyllama_helpsteer2_adapters.py --attributes helpfulness -
 python scripts/check_tinyllama_helpsteer2_adapters.py --attributes helpfulness
 ```
 
-Run all five specialists:
+Train all five specialists:
 
 ```bash
 python scripts/train_tinyllama_helpsteer2_adapters.py --split "train[:1000]" --num_epochs 100 --learning_rate 1e-4 --max_length 512 --batch_size 1 --logging_steps 10 --eval_steps 100 --save_steps 500 --use_4bit --use_tensorboard
 ```
 
-The output folders are
-`adapters/tinyllama-helpsteer2-<attribute>-adapter/`. CSV loss logs are written
-under `results/tinyllama_helpsteer2_training_logs/`, TensorBoard events under
-`results/tensorboard/tinyllama_helpsteer2/`, and periodic checkpoints under
-`checkpoints/tinyllama_helpsteer2/`.
-
-`STOP_CURRENT_ADAPTER` finishes the current epoch, saves the current adapter,
-and continues with the next attribute. `STOP_TRAINING` finishes the current
-epoch, saves the adapter, and stops the complete run.
-
-Optional ArmoRM monitoring is disabled by default. It can be enabled with:
+Compute the relationship matrix and coefficient grids after training:
 
 ```bash
-python scripts/train_tinyllama_helpsteer2_adapters.py --attributes helpfulness --split "train[:1000]" --num_epochs 10 --use_4bit --use_tensorboard --use_armorm_monitoring --reward_eval_steps 1000
-```
-
-This monitoring generates answers on a small fixed prompt set, logs external
-reward scores, and never uses those scores for optimization. ArmoRM is much
-larger than TinyLlama and may require a high-memory GPU or model offloading.
-
-Train the five HelpSteer2 adapters:
-
-```bash
-python scripts/train_helpsteer2_adapters.py --split "train[:100]" --num_epochs 1
-python scripts/check_helpsteer2_adapters.py
-```
-
-Run a longer Colab training job with live `eval_loss` monitoring:
-
-```bash
-python scripts/train_helpsteer2_adapters.py --split "train[:1000]" --num_epochs 100 --logging_steps 10 --eval_steps 100 --use_tensorboard
-```
-
-In Colab, the long-run notebook starts this command as a background process so
-the kernel stays free for stop controls. If training is run as a normal
-foreground notebook cell, widget buttons and later cells may not execute until
-that training cell finishes.
-
-If Colab reports an incompatible `torchao` version, run:
-
-```bash
-pip install -U "torchao>=0.16.0"
-```
-
-Then restart the runtime before starting training.
-
-Open TensorBoard in Colab:
-
-```python
-%load_ext tensorboard
-%tensorboard --logdir results/tensorboard/helpsteer2
-```
-
-Use control files from the repository root while training is running:
-
-Finish the current epoch, save the current adapter and logs, then continue
-with the next selected HelpSteer2 attribute:
-
-```bash
-touch STOP_CURRENT_ADAPTER
-```
-
-Finish the current epoch, save the current adapter and logs, then stop the
-whole training run:
-
-```bash
-touch STOP_TRAINING
-```
-
-By default, `--max_steps` also ends only the current adapter and continues with
-the next selected attribute. Add `--stop_all_on_max_steps` when `max_steps`
-should stop the entire run.
-
-The stop files are checked after each epoch. With large splits such as
-`train[:1000]`, stopping can take time because the current epoch finishes
-before the control file is handled.
-
-The trainer writes:
-
-- CSV logs under `results/training_logs/`
-- TensorBoard event logs under `results/tensorboard/helpsteer2/`
-- checkpoints under `checkpoints/helpsteer2/`
-- final adapter folders under `adapters/`
-
-Evaluate fixed HelpSteer2 adapter merges and proxy scores:
-
-```bash
-python scripts/validate_helpsteer2_fixed_prompts.py
-python scripts/evaluate_helpsteer2_adapter_merges.py
-python scripts/evaluate_helpsteer2_lambda_sweep.py
-```
-
-The fixed prompt set is stored at
-`data/evaluation_prompts/helpsteer2_fixed_prompts.jsonl`. It is used for
-reproducible evaluation so every method, preference vector, and hyperparameter
-setting can be compared on the same prompts. Generated answers, proxy scores,
-and reward-model scores should be saved separately under `results/`.
-
-Evaluate every coefficient row from the all-method table on the fixed prompt
-set:
-
-```bash
-python scripts/evaluate_helpsteer2_all_method_merges.py
-```
-
-This writes raw generations, proxy scores, and aggregate summaries to
-`results/helpsteer2_all_method_generations.csv`,
-`results/helpsteer2_all_method_scores.csv`,
-`results/helpsteer2_all_method_result_summary.csv`,
-`results/helpsteer2_all_method_result_summary.md`, and
-`results/helpsteer2_all_method_result_summary.json`.
-
-Compute the HelpSteer2 relationship matrix:
-
-```bash
+python scripts/check_tinyllama_helpsteer2_adapters.py
 python scripts/compute_helpsteer2_relationship_matrix.py
-```
-
-Compute the current all-method coefficient table:
-
-```bash
 python scripts/compute_helpsteer2_all_method_coefficients.py
 python scripts/validate_coefficient_methods.py
 ```
 
-This writes:
-
-- `results/helpsteer2_all_method_coefficients.csv`
-- `results/helpsteer2_method_costs.csv`
-- `results/helpsteer2_all_method_coefficients_metadata.json`
-
-The table contains direct-preference and uniform baselines plus M1, M2, C1,
-C2, P1, and P2 coefficients for the active HelpSteer2 preference vectors.
-Each coefficient vector is validated to be non-negative and normalized on the
-simplex.
-
-The cost table records one row per method, preference vector, and
-hyperparameter setting. `runtime_seconds` measures wall-clock coefficient
-computation time, `peak_memory_mb` is a lightweight `tracemalloc` peak-memory
-estimate, and `solver_iterations` is `0` for closed-form or direct mappings.
-For optimizer-backed mappings where the current wrapper does not expose the
-iteration count, this field is left empty.
-
-Create thesis-style summary tables, plots, and metrics after regenerating the
-current M1/C1 merge evaluation:
+Validate the fixed prompt set:
 
 ```bash
-python scripts/summarize_helpsteer2_m1_c1_results.py
-python scripts/evaluate_helpsteer2_definition_metrics.py
+python scripts/validate_helpsteer2_fixed_prompts.py
 ```
 
-## Current Result Reports
+Create `STOP_CURRENT_ADAPTER` to finish the current epoch, save the current
+specialist, and continue with the next attribute. Create `STOP_TRAINING` to
+finish the current epoch, save the specialist, and stop the complete run.
 
-The main HelpSteer2 experiment reports are:
+TinyLlama training writes CSV logs to
+`results/tinyllama_helpsteer2_training_logs/`, TensorBoard events to
+`results/tensorboard/tinyllama_helpsteer2/`, and optional reward-monitoring
+CSVs to `results/tinyllama_helpsteer2_reward_monitoring/`.
 
-- `results/helpsteer2_experiment_result_report.md`
-- `results/helpsteer2_all_method_analysis_report.md`
-- `results/helpsteer2_prototype_results.md`
-- `meetings/helpsteer2_progress_summary.md`
+The dedicated TinyLlama merged-generation, ArmoRM scoring, and final analysis
+scripts are the next implementation stage. Archived GPT-2 evaluation scripts
+must not be used as if they produced TinyLlama results.
 
-Earlier M1/C1 proxy comparison outputs from the relationship-softmax prototype
-are archived under:
+## Current Outputs
 
-- `archive/old_results/helpsteer2_m1_c1_legacy_softmax/`
-
-Small CSV, JSON, Markdown, and plot outputs under `results/` are intended for
-experiment documentation. Generated adapters, checkpoints, TensorBoard event
-files, zip files, and model weights stay local and are ignored by git.
+The active `results/` folder is reserved for the final TinyLlama experiment.
+Historical GPT-2 result tables, generations, reports, and plots are under
+`archive/old_gpt2_prototype/results/`.
 
 ## Active Repository Structure
 
-- `scripts/`: active runnable HelpSteer2 prototype scripts
-- `src/`: reusable Python utilities
+- `configs/`: reusable settings for final experiments
+- `scripts/`: active TinyLlama training, geometry, coefficient, and validation scripts
+- `src/`: reusable TinyLlama, HelpSteer2, geometry, and coefficient utilities
 - `notebooks/`: active Colab runner notebooks
-- `data/evaluation_prompts/`: fixed prompt sets for reproducible evaluation
-- `results/`: current HelpSteer2 result files, tables, summaries, and plots
+- `data/evaluation_prompts/`: fixed evaluation and monitoring prompts
+- `results/`: outputs from the final TinyLlama experiment
 - `thesis/`: LaTeX thesis material
-- `meetings/`: supervisor-facing notes and progress summaries
-- `archive/old_notebooks/`: historical notebooks
-- `archive/old_scripts/`: historical scripts
-- `archive/old_results/`: historical result files
-
-If `configs/` is added later, it should hold reusable experiment settings for
-the active pipeline.
+- `meetings/`: current supervisor notes
+- `archive/`: historical GPT-2 and HH-RLHF prototypes
 
 ## Archived Prototype Files
 
-Older HH-RLHF and early GPT-2 notebooks, scripts, and result files are kept
-under `archive/`. They are historical prototypes from the two-objective
-helpful/harmless phase and are no longer the main active workflow.
-
-The active experiment should use the HelpSteer2 scripts and notebooks in the
-main `scripts/` and `notebooks/` folders.
+The completed GPT-2 + HelpSteer2 experiment is stored under
+`archive/old_gpt2_prototype/`. The earlier two-objective HH-RLHF experiment is
+stored under `archive/old_hh_rlhf_prototype/`. Both are retained for history
+and reproducibility but are not part of the active TinyLlama experiment. See
+[`archive/README.md`](archive/README.md) for the archive index.
 
 ## Git Safety
 

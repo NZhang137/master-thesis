@@ -1,4 +1,4 @@
-"""Compute HelpSteer2 coefficient candidates and lightweight cost logs."""
+"""Compute TinyLlama HelpSteer2 coefficient candidates and cost logs."""
 
 from __future__ import annotations
 
@@ -519,32 +519,35 @@ def parse_args() -> argparse.Namespace:
     """Parse input and output paths."""
     parser = argparse.ArgumentParser(
         description=(
-            "Compute HelpSteer2 coefficient grids and lightweight cost logs."
+            "Compute TinyLlama HelpSteer2 coefficient grids and lightweight "
+            "cost logs."
         )
     )
     parser.add_argument(
         "--relationship_matrix_path",
         "--relationship-matrix-path",
         dest="relationship_matrix_path",
-        default="results/helpsteer2_relationship_matrix.csv",
+        default="results/tinyllama_helpsteer2_relationship_matrix.csv",
     )
     parser.add_argument(
         "--output_csv",
         "--output-csv",
         dest="output_csv",
-        default="results/helpsteer2_all_method_coefficients.csv",
+        default="results/tinyllama_helpsteer2_all_method_coefficients.csv",
     )
     parser.add_argument(
         "--output_metadata",
         "--output-metadata",
         dest="output_metadata",
-        default="results/helpsteer2_all_method_coefficients_metadata.json",
+        default=(
+            "results/tinyllama_helpsteer2_all_method_coefficients_metadata.json"
+        ),
     )
     parser.add_argument(
         "--output_costs",
         "--output-costs",
         dest="output_costs",
-        default="results/helpsteer2_method_costs.csv",
+        default="results/tinyllama_helpsteer2_method_costs.csv",
     )
     return parser.parse_args()
 

@@ -1,4 +1,4 @@
-"""Compute a cosine relationship matrix for HelpSteer2 LoRA adapters.
+"""Compute a cosine relationship matrix for TinyLlama HelpSteer2 adapters.
 
 This script computes only the static relationship matrix R from flattened
 saved LoRA parameters. The resulting geometry is a prototype proxy for
@@ -58,7 +58,8 @@ def parse_args() -> argparse.Namespace:
     """Parse adapter and output paths."""
     parser = argparse.ArgumentParser(
         description=(
-            "Compute cosine relationships between five HelpSteer2 LoRA adapters."
+            "Compute cosine relationships between five TinyLlama HelpSteer2 "
+            "LoRA adapters."
         )
     )
     for adapter_name in ADAPTER_NAMES:
@@ -66,19 +67,19 @@ def parse_args() -> argparse.Namespace:
             f"--{adapter_name}_adapter_path",
             f"--{adapter_name}-adapter-path",
             dest=f"{adapter_name}_adapter_path",
-            default=f"adapters/helpsteer2-gpt2-{adapter_name}-adapter",
+            default=f"adapters/tinyllama-helpsteer2-{adapter_name}-adapter",
         )
     parser.add_argument(
         "--output_csv",
         "--output-csv",
         dest="output_csv",
-        default="results/helpsteer2_relationship_matrix.csv",
+        default="results/tinyllama_helpsteer2_relationship_matrix.csv",
     )
     parser.add_argument(
         "--output_metadata",
         "--output-metadata",
         dest="output_metadata",
-        default="results/helpsteer2_relationship_matrix_metadata.json",
+        default="results/tinyllama_helpsteer2_relationship_matrix_metadata.json",
     )
     return parser.parse_args()
 
@@ -96,7 +97,10 @@ def main() -> None:
     output_csv = resolve_project_path(args.output_csv)
     output_metadata = resolve_project_path(args.output_metadata)
 
-    print("Computing HelpSteer2 cosine relationships from LoRA parameters...")
+    print(
+        "Computing TinyLlama HelpSteer2 cosine relationships from "
+        "LoRA parameters..."
+    )
     for adapter_name, adapter_path in zip(ADAPTER_NAMES, adapter_paths):
         print(f"  {adapter_name}: {adapter_path}")
 
@@ -138,7 +142,7 @@ def main() -> None:
         json.dump(metadata, metadata_file, indent=2)
         metadata_file.write("\n")
 
-    print("\nHelpSteer2 relationship matrix:")
+    print("\nTinyLlama HelpSteer2 relationship matrix:")
     for adapter_name, row in zip(ADAPTER_NAMES, matrix_values):
         formatted_row = ", ".join(f"{value:.4f}" for value in row)
         print(f"  {adapter_name}: [{formatted_row}]")
