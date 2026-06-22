@@ -21,10 +21,11 @@ family, not a claim of global Pareto-front improvement.
 
 ## Current Active Pipeline
 
-The current active experiment is the GPT-2 + HelpSteer2 pipeline. The workflow
-is:
+The completed prototype is the GPT-2 + HelpSteer2 pipeline. The current main
+experiment extends the same workflow to TinyLlama while retaining GPT-2 as a
+reproducible baseline. The workflow is:
 
-1. Train HelpSteer2 GPT-2 LoRA adapters with long-run support.
+1. Train independent HelpSteer2 LoRA/QLoRA adapters with long-run support.
 2. Compute the relationship matrix \(R\) from adapter geometry.
 3. Compute coefficient mappings M1, M2, C1, C2, P1, and P2.
 4. Evaluate all methods on a fixed prompt set.
@@ -42,6 +43,46 @@ HelpSteer2 human labels, not reward-model scores, and should not be interpreted
 as final thesis evidence.
 
 ## Active HelpSteer2 Commands
+
+### TinyLlama HelpSteer2 training
+
+The TinyLlama pipeline is the next main-model experiment. It trains five
+independent LoRA/QLoRA specialists from fresh loads of
+`TinyLlama/TinyLlama-1.1B-Chat-v1.0` while keeping all GPT-2 artifacts and
+scripts unchanged.
+
+Run a one-attribute 4-bit smoke test:
+
+```bash
+python scripts/train_tinyllama_helpsteer2_adapters.py --attributes helpfulness --split "train[:20]" --num_epochs 1 --use_4bit --use_tensorboard
+python scripts/check_tinyllama_helpsteer2_adapters.py --attributes helpfulness
+```
+
+Run all five specialists:
+
+```bash
+python scripts/train_tinyllama_helpsteer2_adapters.py --split "train[:1000]" --num_epochs 100 --learning_rate 1e-4 --max_length 512 --batch_size 1 --logging_steps 10 --eval_steps 100 --save_steps 500 --use_4bit --use_tensorboard
+```
+
+The output folders are
+`adapters/tinyllama-helpsteer2-<attribute>-adapter/`. CSV loss logs are written
+under `results/tinyllama_helpsteer2_training_logs/`, TensorBoard events under
+`results/tensorboard/tinyllama_helpsteer2/`, and periodic checkpoints under
+`checkpoints/tinyllama_helpsteer2/`.
+
+`STOP_CURRENT_ADAPTER` finishes the current epoch, saves the current adapter,
+and continues with the next attribute. `STOP_TRAINING` finishes the current
+epoch, saves the adapter, and stops the complete run.
+
+Optional ArmoRM monitoring is disabled by default. It can be enabled with:
+
+```bash
+python scripts/train_tinyllama_helpsteer2_adapters.py --attributes helpfulness --split "train[:1000]" --num_epochs 10 --use_4bit --use_tensorboard --use_armorm_monitoring --reward_eval_steps 1000
+```
+
+This monitoring generates answers on a small fixed prompt set, logs external
+reward scores, and never uses those scores for optimization. ArmoRM is much
+larger than TinyLlama and may require a high-memory GPU or model offloading.
 
 Train the five HelpSteer2 adapters:
 

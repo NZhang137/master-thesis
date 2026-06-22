@@ -1,0 +1,417 @@
+"""Train independent TinyLlama LoRA/QLoRA adapters on HelpSteer2 attributes.
+
+Each specialist starts from the same freshly loaded base model. HelpSteer2
+ratings select supervised prompt/response texts; this is not RLHF/PPO. Optional
+ArmoRM scoring is observational monitoring and never affects optimization.
+"""
+
+from __future__ import annotations
+
+import argparse
+import gc
+import sys
+from pathlib import Path
+
+import torch
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.helpsteer2_utils import HELPSTEER2_ATTRIBUTES, make_attribute_training_texts
+from src.tinyllama_training_utils import (
+    CsvTrainingLogger,
+    RewardCsvLogger,
+    RewardMonitor,
+    TrainingResult,
+    load_tinyllama_with_lora,
+    train_with_monitoring,
+)
+
+
+DEFAULT_MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+DEFAULT_ARMORM_MODEL = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
+
+
+def adapter_directory_name(attribute: str) -> str:
+    """Return the stable output directory name for one TinyLlama specialist."""
+    return f"tinyllama-helpsteer2-{attribute}-adapter"
+
+
+def normalize_attributes(values: list[str]) -> list[str]:
+    """Validate attributes and remove duplicates while retaining order."""
+    attributes = []
+    for value in values:
+        attribute = value.strip().lower()
+        if attribute not in HELPSTEER2_ATTRIBUTES:
+            raise ValueError(
+                f"Unsupported attribute {value!r}. Choose from: "
+                + ", ".join(HELPSTEER2_ATTRIBUTES)
+            )
+        if attribute not in attributes:
+            attributes.append(attribute)
+    if not attributes:
+        raise ValueError("At least one HelpSteer2 attribute is required.")
+    return attributes
+
+
+def resolve_project_path(value: str) -> Path:
+    """Resolve a path relative to the repository root."""
+    path = Path(value)
+    return path if path.is_absolute() else PROJECT_ROOT / path
+
+
+def train_attribute_adapter(
+    *,
+    attribute: str,
+    model_name: str,
+    split: str,
+    eval_split: str,
+    num_epochs: int,
+    learning_rate: float,
+    max_length: int,
+    batch_size: int,
+    output_path: Path,
+    logging_steps: int,
+    eval_steps: int,
+    save_steps: int,
+    max_steps: int,
+    stop_file: Path,
+    stop_current_adapter_file: Path,
+    output_log_dir: Path,
+    tensorboard_log_dir: Path,
+    checkpoint_dir: Path,
+    save_total_limit: int,
+    use_tensorboard: bool,
+    use_4bit: bool,
+    use_armorm_monitoring: bool,
+    armorm_model_name: str,
+    reward_eval_steps: int,
+    reward_eval_prompts_path: Path,
+    reward_max_new_tokens: int,
+    reward_output_dir: Path,
+    seed: int = 42,
+) -> TrainingResult:
+    """Load a fresh base model, train one specialist, and save its adapter."""
+    print(f"\n=== TinyLlama HelpSteer2 {attribute} adapter ===")
+    print(f"Loading training split {split!r}")
+    training_texts = make_attribute_training_texts(attribute, split)
+    print(f"Selected {len(training_texts)} high-{attribute} training texts.")
+    print(f"Loading evaluation split {eval_split!r}")
+    eval_texts = make_attribute_training_texts(attribute, eval_split)
+    print(f"Selected {len(eval_texts)} evaluation texts.")
+    print(f"Output adapter path: {output_path}")
+    print(f"4-bit QLoRA enabled: {use_4bit}")
+    print(f"ArmoRM monitoring enabled: {use_armorm_monitoring}")
+
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    # A fresh load for every attribute keeps all specialists independent.
+    print(f"Loading a fresh base model: {model_name}")
+    model, tokenizer = load_tinyllama_with_lora(
+        model_name,
+        use_4bit=use_4bit,
+    )
+    model.print_trainable_parameters()
+
+    csv_logger = CsvTrainingLogger(
+        output_log_dir / f"tinyllama_helpsteer2_{attribute}_training_log.csv",
+        attribute,
+        learning_rate,
+    )
+    reward_monitor = None
+    if use_armorm_monitoring:
+        reward_logger = RewardCsvLogger(
+            reward_output_dir
+            / f"tinyllama_helpsteer2_{attribute}_reward_monitoring.csv",
+            attribute,
+        )
+        reward_monitor = RewardMonitor(
+            reward_model_name=armorm_model_name,
+            prompts_path=reward_eval_prompts_path,
+            max_new_tokens=reward_max_new_tokens,
+            csv_logger=reward_logger,
+        )
+
+    result = train_with_monitoring(
+        model=model,
+        tokenizer=tokenizer,
+        attribute=attribute,
+        training_texts=training_texts,
+        eval_texts=eval_texts,
+        num_epochs=num_epochs,
+        learning_rate=learning_rate,
+        max_length=max_length,
+        batch_size=batch_size,
+        logging_steps=logging_steps,
+        eval_steps=eval_steps,
+        save_steps=save_steps,
+        max_steps=max_steps,
+        stop_file=stop_file,
+        stop_current_adapter_file=stop_current_adapter_file,
+        csv_logger=csv_logger,
+        checkpoint_root=checkpoint_dir / adapter_directory_name(attribute),
+        save_total_limit=save_total_limit,
+        use_tensorboard=use_tensorboard,
+        tensorboard_log_dir=tensorboard_log_dir,
+        reward_monitor=reward_monitor,
+        reward_eval_steps=reward_eval_steps,
+    )
+
+    output_path.mkdir(parents=True, exist_ok=True)
+    model.save_pretrained(output_path)
+    tokenizer.save_pretrained(output_path)
+    print(f"Saved {attribute} adapter to {output_path}")
+
+    del model, tokenizer
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return result
+
+
+def parse_args() -> argparse.Namespace:
+    """Parse TinyLlama HelpSteer2 training settings."""
+    parser = argparse.ArgumentParser(
+        description="Train independent TinyLlama HelpSteer2 LoRA/QLoRA adapters."
+    )
+    parser.add_argument(
+        "--model_name",
+        "--model-name",
+        dest="model_name",
+        default=DEFAULT_MODEL_NAME,
+    )
+    parser.add_argument("--split", default="train[:100]")
+    parser.add_argument(
+        "--eval_split",
+        "--eval-split",
+        dest="eval_split",
+        default="train[1000:1100]",
+    )
+    parser.add_argument(
+        "--attributes",
+        nargs="+",
+        default=list(HELPSTEER2_ATTRIBUTES),
+    )
+    parser.add_argument(
+        "--num_epochs", "--num-epochs", dest="num_epochs", type=int, default=1
+    )
+    parser.add_argument(
+        "--learning_rate",
+        "--learning-rate",
+        dest="learning_rate",
+        type=float,
+        default=1e-4,
+    )
+    parser.add_argument(
+        "--max_length", "--max-length", dest="max_length", type=int, default=512
+    )
+    parser.add_argument(
+        "--batch_size", "--batch-size", dest="batch_size", type=int, default=1
+    )
+    parser.add_argument(
+        "--output_dir", "--output-dir", dest="output_dir", default="adapters"
+    )
+    parser.add_argument(
+        "--logging_steps",
+        "--logging-steps",
+        dest="logging_steps",
+        type=int,
+        default=10,
+    )
+    parser.add_argument(
+        "--eval_steps", "--eval-steps", dest="eval_steps", type=int, default=100
+    )
+    parser.add_argument(
+        "--save_steps", "--save-steps", dest="save_steps", type=int, default=500
+    )
+    parser.add_argument(
+        "--max_steps", "--max-steps", dest="max_steps", type=int, default=-1
+    )
+    parser.add_argument(
+        "--stop_file",
+        "--stop-file",
+        dest="stop_file",
+        default="STOP_TRAINING",
+    )
+    parser.add_argument(
+        "--stop_current_adapter_file",
+        "--stop-current-adapter-file",
+        dest="stop_current_adapter_file",
+        default="STOP_CURRENT_ADAPTER",
+    )
+    parser.add_argument(
+        "--output_log_dir",
+        "--output-log-dir",
+        dest="output_log_dir",
+        default="results/tinyllama_helpsteer2_training_logs",
+    )
+    parser.add_argument(
+        "--tensorboard_log_dir",
+        "--tensorboard-log-dir",
+        dest="tensorboard_log_dir",
+        default="results/tensorboard/tinyllama_helpsteer2",
+    )
+    parser.add_argument(
+        "--checkpoint_dir",
+        "--checkpoint-dir",
+        dest="checkpoint_dir",
+        default="checkpoints/tinyllama_helpsteer2",
+    )
+    parser.add_argument(
+        "--save_total_limit",
+        "--save-total-limit",
+        dest="save_total_limit",
+        type=int,
+        default=2,
+    )
+    parser.add_argument(
+        "--use_tensorboard",
+        "--use-tensorboard",
+        dest="use_tensorboard",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--use_4bit", "--use-4bit", dest="use_4bit", action="store_true"
+    )
+    parser.add_argument(
+        "--use_armorm_monitoring",
+        "--use-armorm-monitoring",
+        dest="use_armorm_monitoring",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--armorm_model_name",
+        "--armorm-model-name",
+        dest="armorm_model_name",
+        default=DEFAULT_ARMORM_MODEL,
+    )
+    parser.add_argument(
+        "--reward_eval_steps",
+        "--reward-eval-steps",
+        dest="reward_eval_steps",
+        type=int,
+        default=1000,
+    )
+    parser.add_argument(
+        "--reward_eval_prompts_path",
+        "--reward-eval-prompts-path",
+        dest="reward_eval_prompts_path",
+        default="data/evaluation_prompts/helpsteer2_reward_monitor_prompts.jsonl",
+    )
+    parser.add_argument(
+        "--reward_max_new_tokens",
+        "--reward-max-new-tokens",
+        dest="reward_max_new_tokens",
+        type=int,
+        default=80,
+    )
+    parser.add_argument(
+        "--stop_all_on_max_steps",
+        "--stop-all-on-max-steps",
+        dest="stop_all_on_max_steps",
+        action="store_true",
+        help="Stop the full run when max_steps is reached for one adapter.",
+    )
+    return parser.parse_args()
+
+
+def validate_args(args: argparse.Namespace) -> None:
+    """Validate scalar settings before downloading data or model weights."""
+    if not args.model_name.strip() or not args.split.strip() or not args.eval_split.strip():
+        raise ValueError("model_name, split, and eval_split must be non-empty.")
+    if args.num_epochs < 1:
+        raise ValueError("num_epochs must be at least 1.")
+    if args.learning_rate <= 0:
+        raise ValueError("learning_rate must be positive.")
+    if args.max_length < 2 or args.batch_size < 1:
+        raise ValueError("max_length must be at least 2 and batch_size at least 1.")
+    for name in ("logging_steps", "eval_steps", "save_steps", "reward_eval_steps"):
+        if getattr(args, name) < 1:
+            raise ValueError(f"{name} must be at least 1.")
+    if args.max_steps == 0 or args.max_steps < -1:
+        raise ValueError("max_steps must be -1 or a positive integer.")
+    if args.save_total_limit < 1 or args.reward_max_new_tokens < 1:
+        raise ValueError("save_total_limit and reward_max_new_tokens must be positive.")
+    if args.use_4bit and not torch.cuda.is_available():
+        raise RuntimeError("--use_4bit requires a CUDA GPU.")
+    if args.use_armorm_monitoring and not args.armorm_model_name.strip():
+        raise ValueError("armorm_model_name must be non-empty when monitoring is enabled.")
+
+
+def main() -> None:
+    """Train each selected specialist from an independent TinyLlama base load."""
+    args = parse_args()
+    validate_args(args)
+    attributes = normalize_attributes(args.attributes)
+    output_dir = resolve_project_path(args.output_dir)
+    stop_file = resolve_project_path(args.stop_file)
+    stop_current_adapter_file = resolve_project_path(args.stop_current_adapter_file)
+    output_log_dir = resolve_project_path(args.output_log_dir)
+    tensorboard_log_dir = resolve_project_path(args.tensorboard_log_dir)
+    checkpoint_dir = resolve_project_path(args.checkpoint_dir)
+    reward_prompts_path = resolve_project_path(args.reward_eval_prompts_path)
+    reward_output_dir = resolve_project_path(
+        "results/tinyllama_helpsteer2_reward_monitoring"
+    )
+
+    print(f"Selected attributes: {', '.join(attributes)}")
+    print(
+        "Training uses attribute-selected supervised HelpSteer2 texts. "
+        "External reward monitoring, when enabled, is evaluation only."
+    )
+
+    for attribute in attributes:
+        result = train_attribute_adapter(
+            attribute=attribute,
+            model_name=args.model_name,
+            split=args.split,
+            eval_split=args.eval_split,
+            num_epochs=args.num_epochs,
+            learning_rate=args.learning_rate,
+            max_length=args.max_length,
+            batch_size=args.batch_size,
+            output_path=output_dir / adapter_directory_name(attribute),
+            logging_steps=args.logging_steps,
+            eval_steps=args.eval_steps,
+            save_steps=args.save_steps,
+            max_steps=args.max_steps,
+            stop_file=stop_file,
+            stop_current_adapter_file=stop_current_adapter_file,
+            output_log_dir=output_log_dir,
+            tensorboard_log_dir=tensorboard_log_dir,
+            checkpoint_dir=checkpoint_dir,
+            save_total_limit=args.save_total_limit,
+            use_tensorboard=args.use_tensorboard,
+            use_4bit=args.use_4bit,
+            use_armorm_monitoring=args.use_armorm_monitoring,
+            armorm_model_name=args.armorm_model_name,
+            reward_eval_steps=args.reward_eval_steps,
+            reward_eval_prompts_path=reward_prompts_path,
+            reward_max_new_tokens=args.reward_max_new_tokens,
+            reward_output_dir=reward_output_dir,
+        )
+        if result.stop_requested:
+            print("Saved the current adapter; stopping the full training run.")
+            break
+        if result.current_adapter_stop_requested:
+            print("Saved the current adapter; continuing with the next attribute.")
+            continue
+        if result.max_steps_reached:
+            if args.stop_all_on_max_steps:
+                print("max_steps reached; stopping the full training run.")
+                break
+            print("max_steps reached; continuing with the next attribute.")
+            continue
+        if result.interrupted:
+            print("Saved the interrupted adapter; stopping the full training run.")
+            break
+
+    print("Finished TinyLlama HelpSteer2 adapter training.")
+
+
+if __name__ == "__main__":
+    main()
