@@ -23,7 +23,7 @@ family, not a claim of global Pareto-front improvement.
 
 The final experiment direction is **TinyLlama + HelpSteer2 + ArmoRM**:
 
-1. Train five independent TinyLlama HelpSteer2 LoRA/QLoRA adapters.
+1. Train five independent TinyLlama HelpSteer2 LoRA adapters.
 2. Compute the TinyLlama adapter relationship matrix \(R\).
 3. Compute M1, M2, C1, C2, P1, and P2 coefficients
    \(\lambda=f(p,R)\).
@@ -70,17 +70,27 @@ configured value.
 
 ## Active Commands
 
-Run a one-attribute 4-bit smoke test:
+Run a one-attribute LoRA smoke test:
 
 ```bash
-python scripts/train_tinyllama_helpsteer2_adapters.py --attributes helpfulness --split "train[:20]" --num_epochs 1 --use_4bit --use_tensorboard
+python scripts/train_tinyllama_helpsteer2_adapters.py --attributes helpfulness --split "train[:20]" --num_epochs 1 --use_tensorboard
 python scripts/check_tinyllama_helpsteer2_adapters.py --attributes helpfulness
 ```
 
 Train all five specialists:
 
 ```bash
-python scripts/train_tinyllama_helpsteer2_adapters.py --split "train[:10000]" --eval_split "train[10000:11000]" --num_epochs 100 --learning_rate 1e-4 --max_length 512 --batch_size 1 --logging_steps 10 --eval_steps 100 --save_steps 500 --use_4bit --use_tensorboard
+python scripts/train_tinyllama_helpsteer2_adapters.py \
+  --split "train[:10000]" \
+  --eval_split "train[10000:11000]" \
+  --num_epochs 50 \
+  --batch_size 8 \
+  --max_length 1024 \
+  --learning_rate 1e-4 \
+  --logging_steps 10 \
+  --eval_steps 100 \
+  --save_steps 500 \
+  --use_tensorboard
 ```
 
 Compute the relationship matrix and coefficient grids after training:

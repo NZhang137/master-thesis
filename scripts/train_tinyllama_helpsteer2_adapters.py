@@ -1,4 +1,4 @@
-"""Train independent TinyLlama LoRA/QLoRA adapters on HelpSteer2 attributes.
+"""Train independent TinyLlama LoRA adapters on HelpSteer2 attributes.
 
 Each specialist starts from the same freshly loaded base model. HelpSteer2
 ratings select supervised prompt/response texts; this is not RLHF/PPO. Optional
@@ -92,7 +92,6 @@ def train_attribute_adapter(
     checkpoint_dir: Path,
     save_total_limit: int,
     use_tensorboard: bool,
-    use_4bit: bool,
     use_armorm_monitoring: bool,
     armorm_model_name: str,
     reward_eval_steps: int,
@@ -119,7 +118,6 @@ def train_attribute_adapter(
     )
     print(f"Selected {len(eval_texts)} evaluation texts.")
     print(f"Output adapter path: {output_path}")
-    print(f"4-bit QLoRA enabled: {use_4bit}")
     print(f"ArmoRM monitoring enabled: {use_armorm_monitoring}")
 
     torch.manual_seed(seed)
@@ -128,10 +126,7 @@ def train_attribute_adapter(
 
     # A fresh load for every attribute keeps all specialists independent.
     print(f"Loading a fresh base model: {model_name}")
-    model, tokenizer = load_tinyllama_with_lora(
-        model_name,
-        use_4bit=use_4bit,
-    )
+    model, tokenizer = load_tinyllama_with_lora(model_name)
     model.print_trainable_parameters()
 
     csv_logger = CsvTrainingLogger(
@@ -193,7 +188,7 @@ def train_attribute_adapter(
 def parse_args() -> argparse.Namespace:
     """Parse TinyLlama HelpSteer2 training settings."""
     parser = argparse.ArgumentParser(
-        description="Train independent TinyLlama HelpSteer2 LoRA/QLoRA adapters."
+        description="Train independent TinyLlama HelpSteer2 LoRA adapters."
     )
     parser.add_argument(
         "--config_path",
@@ -298,9 +293,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
     )
     parser.add_argument(
-        "--use_4bit", "--use-4bit", dest="use_4bit", action="store_true"
-    )
-    parser.add_argument(
         "--use_armorm_monitoring",
         "--use-armorm-monitoring",
         dest="use_armorm_monitoring",
@@ -366,8 +358,6 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("max_steps must be -1 or a positive integer.")
     if args.save_total_limit < 1 or args.reward_max_new_tokens < 1:
         raise ValueError("save_total_limit and reward_max_new_tokens must be positive.")
-    if args.use_4bit and not torch.cuda.is_available():
-        raise RuntimeError("--use_4bit requires a CUDA GPU.")
     if args.use_armorm_monitoring and not args.armorm_model_name.strip():
         raise ValueError("armorm_model_name must be non-empty when monitoring is enabled.")
 
@@ -432,7 +422,6 @@ def main() -> None:
             checkpoint_dir=checkpoint_dir,
             save_total_limit=args.save_total_limit,
             use_tensorboard=args.use_tensorboard,
-            use_4bit=args.use_4bit,
             use_armorm_monitoring=args.use_armorm_monitoring,
             armorm_model_name=args.armorm_model_name,
             reward_eval_steps=args.reward_eval_steps,

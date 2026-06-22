@@ -1,4 +1,4 @@
-"""Training utilities for TinyLlama HelpSteer2 LoRA/QLoRA specialists.
+"""Training utilities for TinyLlama HelpSteer2 LoRA specialists.
 
 The utilities implement supervised causal-language-model training on
 attribute-selected HelpSteer2 texts. Reward-model support is monitoring only:
@@ -126,26 +126,17 @@ def model_input_device(model) -> torch.device:
 
 def load_tinyllama_with_lora(
     model_name: str,
-    *,
-    use_4bit: bool,
 ) -> tuple[Any, Any]:
-    """Load a fresh TinyLlama model and attach a new LoRA adapter.
-
-    With ``use_4bit=True``, the base model is loaded with NF4 quantization and
-    prepared for QLoRA training. Only LoRA parameters are trainable in either
-    mode.
-    """
+    """Load a fresh TinyLlama model and attach a trainable LoRA adapter."""
     try:
         from peft import (
             LoraConfig,
             TaskType,
             get_peft_model,
-            prepare_model_for_kbit_training,
         )
         from transformers import (
             AutoModelForCausalLM,
             AutoTokenizer,
-            BitsAndBytesConfig,
         )
     except ImportError as error:
         raise ImportError(
@@ -160,52 +151,19 @@ def load_tinyllama_with_lora(
     tokenizer.padding_side = "right"
 
     model_kwargs: dict[str, object] = {}
-    if use_4bit:
-        if not torch.cuda.is_available():
-            raise RuntimeError("--use_4bit requires a CUDA GPU and bitsandbytes.")
-        compute_dtype = (
-            torch.bfloat16
-            if torch.cuda.is_bf16_supported()
-            else torch.float16
-        )
-        model_kwargs.update(
-            {
-                "quantization_config": BitsAndBytesConfig(
-                    load_in_4bit=True,
-                    bnb_4bit_quant_type="nf4",
-                    bnb_4bit_compute_dtype=compute_dtype,
-                    bnb_4bit_use_double_quant=True,
-                ),
-                "device_map": "auto",
-            }
-        )
-    elif torch.cuda.is_available():
+    if torch.cuda.is_available():
         model_kwargs["torch_dtype"] = (
             torch.bfloat16
             if torch.cuda.is_bf16_supported()
             else torch.float16
         )
 
-    try:
-        model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
-    except ImportError as error:
-        if use_4bit:
-            raise ImportError(
-                "4-bit loading requires bitsandbytes. Install it with "
-                "`pip install -U bitsandbytes`."
-            ) from error
-        raise
+    model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
 
     model.config.use_cache = False
-    if use_4bit:
-        model = prepare_model_for_kbit_training(
-            model,
-            use_gradient_checkpointing=True,
-        )
-    else:
-        if torch.cuda.is_available():
-            model.gradient_checkpointing_enable()
-        model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+    if torch.cuda.is_available():
+        model.gradient_checkpointing_enable()
+    model.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
     lora_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
@@ -224,7 +182,7 @@ def load_tinyllama_with_lora(
         bias="none",
     )
     model = get_peft_model(model, lora_config)
-    if use_4bit or torch.cuda.is_available():
+    if torch.cuda.is_available():
         model.enable_input_require_grads()
     return model, tokenizer
 
