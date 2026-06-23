@@ -124,7 +124,7 @@ Symbol & Meaning & Type / dim. \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Relationship matrix}}\\
 \(R=D^\top D\) & Gram relationship matrix & \(\R^{m\times m}\), PSD \\
-\(R=\hat D^\top\hat D\) & cosine relationship matrix & \(\R^{m\times m}\), PSD \\
+\(\hat R=\hat D^\top\hat D\) & cosine relationship matrix & \(\R^{m\times m}\), PSD \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Rewards and evaluation metrics}}\\
 \(r_i,\ \tilde r_i\) & reward \(i\), normalized reward & scalar \\
@@ -232,12 +232,14 @@ Then \(\theta(\lambda)=\theta_0+D\lambda\).
 \end{definition}
 
 \begin{definition}[Relationship matrix]
-A static relationship matrix \(R\in\R^{m\times m}\) can be defined in two canonical ways:
+Two canonical relationship matrices can be defined from the task vectors. The
+unnormalized Gram relationship matrix is
 
 \[
 R:=D^\top D,\qquad R_{ij}=\delta_i^\top\delta_j,
 \]
-or, if \(\delta_i\neq 0\) for all \(i\), through normalized task vectors
+If \(\delta_i\neq 0\) for all \(i\), the cosine relationship matrix is defined
+separately through normalized task vectors
 \[
 \hat\delta_i:=\frac{\delta_i}{\norm{\delta_i}_2},\qquad \hat D:=[\hat\delta_1,\dots,\hat\delta_m],\qquad \hat R:=\hat D^\top\hat D,
 \]
@@ -257,7 +259,7 @@ This remains only a parameter-geometric proxy and must be empirically validated.
 \end{definition}
 
 \begin{remark}[PSD status]
-If \(R=D^\top D\), then \(R\) is positive semidefinite. If cosine similarity is implemented as the normalized Gram matrix \(R=\hat D^\top\hat D\), then it is also positive semidefinite. 
+If \(R=D^\top D\), then \(R\) is positive semidefinite. The cosine relationship matrix \(\hat R=\hat D^\top\hat D\) is also positive semidefinite.
 %If one uses a non-Gram similarity table, PSD is not guaranteed.
 \end{remark}
 
@@ -376,7 +378,7 @@ An optional geometry-aware diagnostic is
 D_{\bar R}(\lambda_{\mathrm{method}},p):=
 (\lambda_{\mathrm{method}}-p)^\top \bar R(\lambda_{\mathrm{method}}-p),
 \]
-where \(\bar R\succeq 0\) is the matrix used for distance evaluation. If \(R\) is already a Gram matrix, for example \(R=D^\top D\) or \(R=\hat D^\top\hat D\), we may set \(\bar R=R\). If \(R\) is not guaranteed to be symmetric positive semidefinite, then \(\bar R\) should be obtained by symmetrizing and projecting to the positive semidefinite cone. If \(\bar R=D^\top D\), then
+where \(\bar R\succeq 0\) is the matrix used for distance evaluation. If the selected relationship matrix is already a Gram matrix, one may use either \(\bar R=R=D^\top D\) or \(\bar R=\hat R=\hat D^\top\hat D\). If the selected relationship matrix is not guaranteed to be symmetric positive semidefinite, then \(\bar R\) should be obtained by symmetrizing and projecting to the positive semidefinite cone. If \(\bar R=D^\top D\), then
 \[
 D_{\bar R}(\lambda_{\mathrm{method}},p)=
 \norm{D(\lambda_{\mathrm{method}}-p)}_2^2.
@@ -450,7 +452,7 @@ This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the pref
 
 \section{General setup}
 
-For optimization-based methods below, assume \(R\) is symmetric and positive semidefinite, e.g. \(R=D^\top D\) or \(R=\hat D^\top\hat D\). \todo{Decide later whether implementation uses raw \(R\), symmetrized \(R\), or a PSD approximation.}
+For optimization-based methods below, assume that the relationship matrix supplied to the mapping is symmetric and positive semidefinite. The canonical choices are the unnormalized matrix \(R=D^\top D\) and the cosine matrix \(\hat R=\hat D^\top\hat D\). For compactness, the method definitions use \(R\) as the generic matrix argument; when cosine geometry is selected, this argument is instantiated as \(R\leftarrow\hat R\). The current implementation uses \(\hat R\).
 
 \section{MGDA-inspired coefficient mapping}
 
@@ -510,7 +512,7 @@ This is a closed-form mapping: objectives that conflict strongly with others (la
 \end{definition}
 
 \begin{remark}[Scale of \(\beta\) and \(R\)]
-The conflict load \(\kappa_i\) inherits the scale of \(R\). With a cosine-normalized \(R=\hat D^\top\hat D\), the off-diagonal entries lie in \([-1,1]\) and \(\kappa_i\in[0,m-1]\), so \(\beta\) has a stable, dimensionless interpretation. With \(R=D^\top D\), the magnitudes depend on the task-vector norms, and \(\beta\) must be tuned accordingly or \(R\) rescaled. Since \(s_i>0\) always and \(p\) has at least one positive entry on \(\Delta_m\), the vector \(\tilde\lambda\) has positive sum and the normalization is always well defined.
+The conflict load \(\kappa_i\) inherits the scale of the selected relationship matrix. With the cosine matrix \(\hat R=\hat D^\top\hat D\), the off-diagonal entries lie in \([-1,1]\) and \(\kappa_i\in[0,m-1]\), so \(\beta\) has a stable, dimensionless interpretation. With \(R=D^\top D\), the magnitudes depend on the task-vector norms, and \(\beta\) must be tuned accordingly or \(R\) rescaled. Since \(s_i>0\) always and \(p\) has at least one positive entry on \(\Delta_m\), the vector \(\tilde\lambda\) has positive sum and the normalization is always well defined.
 \end{remark}
 
 \begin{definition}[P2: Task-vector PCGrad with simplex reconstruction]
@@ -638,13 +640,13 @@ and define the flattened LoRA task vector by
 
 \section{LoRA geometry and merging}
 
-Define the LoRA relationship matrix by either
+Define the unnormalized LoRA relationship matrix by
 \[
 R_{ij}=(\delta_i^{\mathrm{LoRA}})^\top \delta_j^{\mathrm{LoRA}}
 \]
-or
+and the cosine LoRA relationship matrix by
 \[
-R_{ij}=
+\hat R_{ij}=
 \cos(\delta_i^{\mathrm{LoRA}},\delta_j^{\mathrm{LoRA}})
 =
 \frac{(\delta_i^{\mathrm{LoRA}})^\top \delta_j^{\mathrm{LoRA}}}
