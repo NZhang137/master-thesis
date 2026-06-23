@@ -177,6 +177,12 @@ def train_attribute_adapter(
     model.save_pretrained(output_path)
     tokenizer.save_pretrained(output_path)
     print(f"Saved {attribute} adapter to {output_path}")
+    if result.current_adapter_stop_requested:
+        try:
+            stop_current_adapter_file.unlink(missing_ok=True)
+            print(f"Removed {stop_current_adapter_file.name}.")
+        except OSError as error:
+            print(f"Warning: could not remove stop file: {error}")
 
     del model, tokenizer
     gc.collect()
@@ -430,11 +436,11 @@ def main() -> None:
             reward_output_dir=reward_output_dir,
         )
         if result.stop_requested:
-            print("Saved the current adapter; stopping the full training run.")
+            print("Saved the current adapter; stopping this training run.")
             break
         if result.current_adapter_stop_requested:
-            print("Saved the current adapter; continuing with the next attribute.")
-            continue
+            print("Saved the current adapter; stopping this training run.")
+            break
         if result.max_steps_reached:
             if args.stop_all_on_max_steps:
                 print("max_steps reached; stopping the full training run.")

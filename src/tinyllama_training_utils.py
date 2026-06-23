@@ -518,8 +518,27 @@ def train_with_monitoring(
     global_step = 0
     completed_epochs = 0
     recent_losses: list[float] = []
+    stop_requested = False
+    current_adapter_stop_requested = False
+
+    def detect_stop_files() -> None:
+        """Latch stop requests so training can finish at the next save step."""
+        nonlocal stop_requested, current_adapter_stop_requested
+        if not current_adapter_stop_requested and stop_current_adapter_file.is_file():
+            current_adapter_stop_requested = True
+            print(
+                f"{stop_current_adapter_file.name} detected. "
+                "Training will stop after the next save step."
+            )
+        if not stop_requested and stop_file.is_file():
+            stop_requested = True
+            print(
+                f"{stop_file.name} detected. "
+                "Training will stop after the next save step."
+            )
 
     try:
+        detect_stop_files()
         for epoch_index in range(num_epochs):
             epoch_number = epoch_index + 1
             total_loss = 0.0
@@ -551,6 +570,7 @@ def train_with_monitoring(
                 total_loss += loss_value * len(batch_texts)
                 processed += len(batch_texts)
                 epoch_progress = epoch_index + processed / len(train_texts)
+                detect_stop_files()
 
                 if global_step % logging_steps == 0:
                     train_loss = float(sum(recent_losses) / len(recent_losses))
@@ -601,6 +621,10 @@ def train_with_monitoring(
                         writer.flush()
 
                 if global_step % save_steps == 0:
+                    if stop_requested or current_adapter_stop_requested:
+                        print(
+                            "Reached save step. Saving adapter and stopping gracefully."
+                        )
                     save_periodic_checkpoint(
                         model,
                         tokenizer,
@@ -608,8 +632,21 @@ def train_with_monitoring(
                         global_step,
                         save_total_limit,
                     )
+                    if stop_requested or current_adapter_stop_requested:
+                        return TrainingResult(
+                            global_step=global_step,
+                            completed_epochs=completed_epochs,
+                            stop_requested=stop_requested,
+                            current_adapter_stop_requested=(
+                                current_adapter_stop_requested
+                            ),
+                        )
 
-                if max_steps > 0 and global_step >= max_steps:
+                if (
+                    max_steps > 0
+                    and global_step >= max_steps
+                    and not (stop_requested or current_adapter_stop_requested)
+                ):
                     print(f"Reached max_steps={max_steps} for {attribute}.")
                     return TrainingResult(
                         global_step=global_step,
@@ -641,30 +678,19 @@ def train_with_monitoring(
                 if writer is not None:
                     writer.add_scalar(f"{attribute}/eval_loss", eval_loss, global_step)
                     writer.flush()
+            detect_stop_files()
 
-            if stop_file.is_file():
-                print(f"Found {stop_file}; stopping the full run after this epoch.")
-                return TrainingResult(
-                    global_step=global_step,
-                    completed_epochs=completed_epochs,
-                    stop_requested=True,
-                )
-            if stop_current_adapter_file.is_file():
-                print(
-                    f"Found {stop_current_adapter_file}; finishing {attribute} "
-                    "and continuing with the next attribute."
-                )
-                try:
-                    stop_current_adapter_file.unlink()
-                except OSError as error:
-                    print(f"Warning: could not remove stop file: {error}")
-                return TrainingResult(
-                    global_step=global_step,
-                    completed_epochs=completed_epochs,
-                    current_adapter_stop_requested=True,
-                )
-
-        return TrainingResult(global_step=global_step, completed_epochs=completed_epochs)
+        if stop_requested or current_adapter_stop_requested:
+            print(
+                "Training completed before another save step. "
+                "Saving adapter and stopping gracefully."
+            )
+        return TrainingResult(
+            global_step=global_step,
+            completed_epochs=completed_epochs,
+            stop_requested=stop_requested,
+            current_adapter_stop_requested=current_adapter_stop_requested,
+        )
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt received; saving this adapter before stopping.")
         return TrainingResult(

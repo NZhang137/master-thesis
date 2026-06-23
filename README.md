@@ -77,10 +77,13 @@ python scripts/train_tinyllama_helpsteer2_adapters.py --attributes helpfulness -
 python scripts/check_tinyllama_helpsteer2_adapters.py --attributes helpfulness
 ```
 
-Train all five specialists:
+Train one specialist per command. Start the five attributes manually in this
+order: `helpfulness`, `correctness`, `coherence`, `complexity`, and `verbosity`.
+For example, start helpfulness with:
 
 ```bash
 python scripts/train_tinyllama_helpsteer2_adapters.py \
+  --attributes helpfulness \
   --split "train[:10000]" \
   --eval_split "train[10000:11000]" \
   --num_epochs 50 \
@@ -92,6 +95,11 @@ python scripts/train_tinyllama_helpsteer2_adapters.py \
   --save_steps 500 \
   --use_tensorboard
 ```
+
+After that command finishes, run the same command again with
+`--attributes correctness`, then `coherence`, `complexity`, and `verbosity`.
+The script still accepts multiple values after `--attributes` for compatibility,
+but one attribute per command is the recommended workflow.
 
 Compute the relationship matrix and coefficient grids after training:
 
@@ -132,9 +140,13 @@ PNG figures and corresponding curve CSV files are written to
 `results/plots/tensorboard/`. Generated PNG files should only be committed when
 they are intentionally selected for a thesis chapter, report, or meeting.
 
-Create `STOP_CURRENT_ADAPTER` to finish the current epoch, save the current
-specialist, and continue with the next attribute. Create `STOP_TRAINING` to
-finish the current epoch, save the specialist, and stop the complete run.
+Create `STOP_CURRENT_ADAPTER` to request a graceful stop. The script detects
+the file during training, continues only until the next `save_steps` boundary,
+saves the numbered checkpoint and final current adapter, removes
+`STOP_CURRENT_ADAPTER`, and stops the current script run. `STOP_TRAINING` has
+the same stop-at-the-next-save-step behavior, but is not removed automatically.
+Choose `save_steps` based on the maximum number of additional optimizer steps
+you are willing to wait before a requested stop takes effect.
 
 TinyLlama training writes CSV logs to
 `results/tinyllama_helpsteer2_training_logs/`, TensorBoard events to
