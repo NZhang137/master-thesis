@@ -171,6 +171,7 @@ def train_attribute_adapter(
         tensorboard_log_dir=tensorboard_log_dir,
         reward_monitor=reward_monitor,
         reward_eval_steps=reward_eval_steps,
+        seed=seed,
     )
 
     output_path.mkdir(parents=True, exist_ok=True)

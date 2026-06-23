@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import gc
 import json
+import random
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -497,6 +498,7 @@ def train_with_monitoring(
     tensorboard_log_dir: Path,
     reward_monitor: RewardMonitor | None = None,
     reward_eval_steps: int = 1000,
+    seed: int = 42,
 ) -> TrainingResult:
     """Train one adapter with loss, checkpoint, stop, and reward monitoring."""
     train_texts = [text.strip() for text in training_texts if text.strip()]
@@ -541,13 +543,16 @@ def train_with_monitoring(
         detect_stop_files()
         for epoch_index in range(num_epochs):
             epoch_number = epoch_index + 1
+            epoch_train_texts = list(train_texts)
+            # Use an epoch-specific deterministic shuffle for reproducibility.
+            random.Random(seed + epoch_index).shuffle(epoch_train_texts)
             total_loss = 0.0
             processed = 0
             last_eval_step: int | None = None
             print(f"\nEpoch {epoch_number}/{num_epochs} for {attribute}")
 
-            for start in range(0, len(train_texts), batch_size):
-                batch_texts = train_texts[start : start + batch_size]
+            for start in range(0, len(epoch_train_texts), batch_size):
+                batch_texts = epoch_train_texts[start : start + batch_size]
                 input_ids, attention_mask, labels = tokenize_batch(
                     tokenizer,
                     batch_texts,
