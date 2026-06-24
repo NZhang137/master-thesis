@@ -661,15 +661,17 @@ def train_with_monitoring(
         detect_stop_files()
         for epoch_index in range(num_epochs):
             epoch_number = epoch_index + 1
+            epoch_shuffle_seed = seed + epoch_index
             epoch_train_texts = list(train_texts)
             # Use an epoch-specific deterministic shuffle for reproducibility.
-            random.Random(seed + epoch_index).shuffle(epoch_train_texts)
+            random.Random(epoch_shuffle_seed).shuffle(epoch_train_texts)
             total_loss = 0.0
             processed = 0
             last_eval_step: int | None = None
             print(
                 f"\nEpoch {epoch_number}/{num_epochs} for {attribute} "
-                f"(learning_rate={current_learning_rate():.8g})"
+                f"(learning_rate={current_learning_rate():.8g}, "
+                f"shuffle_seed={epoch_shuffle_seed})"
             )
 
             for start in range(0, len(epoch_train_texts), batch_size):
