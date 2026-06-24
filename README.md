@@ -95,7 +95,7 @@ python scripts/train_tinyllama_helpsteer2_adapters.py \
   --attributes helpfulness \
   --split "train" \
   --eval_split "validation" \
-  --num_epochs 50 \
+  --num_epochs 5 \
   --batch_size 8 \
   --max_length 1024 \
   --learning_rate 1e-4 \
