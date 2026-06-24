@@ -498,6 +498,7 @@ def train_with_monitoring(
     tensorboard_log_dir: Path,
     reward_monitor: RewardMonitor | None = None,
     reward_eval_steps: int = 1000,
+    weight_decay: float = 0.01,
     seed: int = 67,
 ) -> TrainingResult:
     """Train one adapter with loss, checkpoint, stop, and reward monitoring."""
@@ -509,7 +510,11 @@ def train_with_monitoring(
     trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
     if not trainable:
         raise ValueError("The model has no trainable LoRA parameters.")
-    optimizer = torch.optim.AdamW(trainable, lr=learning_rate)
+    optimizer = torch.optim.AdamW(
+        trainable,
+        lr=learning_rate,
+        weight_decay=weight_decay,
+    )
     writer = create_tensorboard_writer(
         use_tensorboard,
         tensorboard_log_dir,

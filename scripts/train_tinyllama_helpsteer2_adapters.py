@@ -78,6 +78,7 @@ def train_attribute_adapter(
     min_rating: int,
     num_epochs: int,
     learning_rate: float,
+    weight_decay: float,
     max_length: int,
     batch_size: int,
     output_path: Path,
@@ -119,6 +120,11 @@ def train_attribute_adapter(
     print(f"Selected {len(eval_texts)} evaluation texts.")
     print(f"Output adapter path: {output_path}")
     print(f"ArmoRM monitoring enabled: {use_armorm_monitoring}")
+    print(f"Learning rate: {learning_rate}")
+    print(f"Weight decay: {weight_decay}")
+    print("LoRA rank: 8")
+    print("LoRA alpha: 16")
+    print("LoRA dropout: 0.1")
 
     torch.manual_seed(seed)
     if torch.cuda.is_available():
@@ -156,6 +162,7 @@ def train_attribute_adapter(
         eval_texts=eval_texts,
         num_epochs=num_epochs,
         learning_rate=learning_rate,
+        weight_decay=weight_decay,
         max_length=max_length,
         batch_size=batch_size,
         logging_steps=logging_steps,
@@ -230,6 +237,14 @@ def parse_args() -> argparse.Namespace:
         dest="learning_rate",
         type=float,
         default=1e-4,
+    )
+    parser.add_argument(
+        "--weight_decay",
+        "--weight-decay",
+        dest="weight_decay",
+        type=float,
+        default=0.01,
+        help="AdamW weight decay (recommended range: 0.0 to 0.01).",
     )
     parser.add_argument(
         "--max_length", "--max-length", dest="max_length", type=int, default=512
@@ -356,6 +371,10 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("num_epochs must be at least 1.")
     if args.learning_rate <= 0:
         raise ValueError("learning_rate must be positive.")
+    if args.weight_decay < 0:
+        raise ValueError("weight_decay must be non-negative.")
+    if args.weight_decay > 0.01:
+        print("Warning: recommended weight_decay values are between 0.0 and 0.01.")
     if args.max_length < 2 or args.batch_size < 1:
         raise ValueError("max_length must be at least 2 and batch_size at least 1.")
     for name in ("logging_steps", "eval_steps", "save_steps", "reward_eval_steps"):
@@ -415,6 +434,7 @@ def main() -> None:
             min_rating=min_ratings[attribute],
             num_epochs=args.num_epochs,
             learning_rate=args.learning_rate,
+            weight_decay=args.weight_decay,
             max_length=args.max_length,
             batch_size=args.batch_size,
             output_path=output_dir / adapter_directory_name(attribute),

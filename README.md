@@ -96,6 +96,11 @@ python scripts/train_tinyllama_helpsteer2_adapters.py \
   --use_tensorboard
 ```
 
+The LoRA configuration keeps the rank fixed at `r=8` and uses
+`lora_alpha=16`, which keeps adapter capacity moderate. Regularization uses
+`lora_dropout=0.1` together with AdamW `weight_decay=0.01` by default;
+recommended weight-decay values are between `0.0` and `0.01`.
+
 After that command finishes, run the same command again with
 `--attributes correctness`, then `coherence`, `complexity`, and `verbosity`.
 The script still accepts multiple values after `--attributes` for compatibility,
