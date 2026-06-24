@@ -1,0 +1,65 @@
+\begin{thebibliography}{9}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Hu et~al.(2021)Hu, Shen, Wallis, Allen-Zhu, Li, Wang, Wang, and
+  Chen]{hu2021lora}
+Edward~J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Shean
+  Wang, Lu~Wang, and Weizhu Chen.
+\newblock {LoRA}: Low-rank adaptation of large language models.
+\newblock \emph{arXiv preprint arXiv:2106.09685}, 2021.
+
+\bibitem[Ilharco et~al.(2022)Ilharco, Ribeiro, Wortsman, Gururangan, Schmidt,
+  Hajishirzi, and Farhadi]{ilharco2022taskarithmetic}
+Gabriel Ilharco, Marco~Tulio Ribeiro, Mitchell Wortsman, Suchin Gururangan,
+  Ludwig Schmidt, Hannaneh Hajishirzi, and Ali Farhadi.
+\newblock Editing models with task arithmetic.
+\newblock \emph{arXiv preprint arXiv:2212.04089}, 2022.
+
+\bibitem[Liu et~al.(2021)Liu, Liu, Jin, Stone, and Liu]{liu2021cagrad}
+Bo~Liu, Xingchao Liu, Xiaojie Jin, Peter Stone, and Qiang Liu.
+\newblock Conflict-averse gradient descent for multi-task learning.
+\newblock \emph{arXiv preprint arXiv:2110.14048}, 2021.
+
+\bibitem[Miettinen(1999)]{miettinen1999nonlinear}
+Kaisa Miettinen.
+\newblock \emph{Nonlinear Multiobjective Optimization}.
+\newblock Kluwer Academic Publishers, Boston, 1999.
+
+\bibitem[Ram{\'e} et~al.(2023)Ram{\'e}, Couairon, Shukor, Dancette, Gaya,
+  Soulier, and Cord]{rame2023rewarded}
+Alexandre Ram{\'e}, Guillaume Couairon, Mustafa Shukor, Corentin Dancette,
+  Jean-Baptiste Gaya, Laure Soulier, and Matthieu Cord.
+\newblock Rewarded soups: Towards pareto-optimal alignment by interpolating
+  weights fine-tuned on diverse rewards.
+\newblock \emph{arXiv preprint arXiv:2306.04488}, 2023.
+
+\bibitem[Sener and Koltun(2018)]{sener2018mgda}
+Ozan Sener and Vladlen Koltun.
+\newblock Multi-task learning as multi-objective optimization.
+\newblock \emph{arXiv preprint arXiv:1810.04650}, 2018.
+
+\bibitem[Yadav et~al.(2023)Yadav, Tam, Choshen, Raffel, and
+  Bansal]{yadav2023ties}
+Prateek Yadav, Derek Tam, Leshem Choshen, Colin Raffel, and Mohit Bansal.
+\newblock {TIES}-{Merging}: Resolving interference when merging models.
+\newblock \emph{arXiv preprint arXiv:2306.01708}, 2023.
+
+\bibitem[Yang et~al.(2023)Yang, Wang, Shen, Liu, Guo, Wang, and
+  Tao]{yang2023adamerging}
+Enneng Yang, Zhenyi Wang, Li~Shen, Shiwei Liu, Guibing Guo, Xingwei Wang, and
+  Dacheng Tao.
+\newblock {AdaMerging}: Adaptive model merging for multi-task learning.
+\newblock \emph{arXiv preprint arXiv:2310.02575}, 2023.
+
+\bibitem[Yu et~al.(2020)Yu, Kumar, Gupta, Levine, Hausman, and
+  Finn]{yu2020pcgrad}
+Tianhe Yu, Saurabh Kumar, Abhishek Gupta, Sergey Levine, Karol Hausman, and
+  Chelsea Finn.
+\newblock Gradient surgery for multi-task learning.
+\newblock \emph{arXiv preprint arXiv:2001.06782}, 2020.
+
+\end{thebibliography}
