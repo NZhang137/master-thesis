@@ -98,7 +98,7 @@ def train_attribute_adapter(
     reward_eval_prompts_path: Path,
     reward_max_new_tokens: int,
     reward_output_dir: Path,
-    seed: int = 42,
+    seed: int = 67,
 ) -> TrainingResult:
     """Load a fresh base model, train one specialist, and save its adapter."""
     print(f"\n=== TinyLlama HelpSteer2 {attribute} adapter ===")

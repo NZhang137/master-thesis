@@ -498,7 +498,7 @@ def train_with_monitoring(
     tensorboard_log_dir: Path,
     reward_monitor: RewardMonitor | None = None,
     reward_eval_steps: int = 1000,
-    seed: int = 42,
+    seed: int = 67,
 ) -> TrainingResult:
     """Train one adapter with loss, checkpoint, stop, and reward monitoring."""
     train_texts = [text.strip() for text in training_texts if text.strip()]
