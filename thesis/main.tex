@@ -137,7 +137,7 @@ Symbol & Meaning & Type / dim. \\
 \(\operatorname{Gap}_p^{\mathcal{B}}\) & within-family regret vs.\ \(\mathcal{B}\) & scalar \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Hyperparameters}}\\
-\(\rho\) & faithfulness penalty (M1, M2, C2) & \(>0\) \\
+\(\rho\) & faithfulness penalty (M1, M2, C2, C3) & \(>0\) \\
 \(c\) & trust-region radius (C1) & \(\ge0\) \\
 \(\beta\) & conflict-shrinkage strength (P1) & \(\ge0\) \\
 \(\tau\) & soft-min temperature (C2) & \(>0\) \\
@@ -448,7 +448,11 @@ The reference \(\lambda_{\mathrm{best}}^{\mathcal{B}}(p)\) is the best coefficie
 \chapter{Method}
 \label{chap:method}
 
-This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the preference vector \(p\) and a static relationship matrix \(R\). No coefficient-space gradients are introduced. We define six mappings, grouped by the multi-objective method that inspires them: \emph{M1} and \emph{M2} (MGDA-inspired), \emph{P1} and \emph{P2} (PCGrad / conflict-inspired), and \emph{C1} and \emph{C2} (CAGrad-inspired).
+This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the preference vector \(p\) and a static relationship matrix \(R\). No coefficient-space gradients are introduced. We define seven mappings:
+\[
+\text{M1, M2, P1, P2, C1, C2, C3}.
+\]
+They are grouped by the multi-objective method that inspires them: \emph{M1} and \emph{M2} (MGDA-inspired), \emph{P1} and \emph{P2} (PCGrad / conflict-inspired), and \emph{C1}, \emph{C2}, and \emph{C3} (CAGrad-inspired).
 
 \section{General setup}
 
@@ -608,6 +612,37 @@ Then
 \]
 This is a smooth approximation of the worst-case alignment objective; as \(\tau\to 0^+\), \(\softmin_\tau\) converges to the minimum, recovering the C1 objective.
 \end{definition}
+
+\begin{definition}[C3: Preference-Alignment CAGrad-inspired Mapping]
+Given \(\mathbf p\in\Delta_m\), \(\mathbf R\succeq 0\), and \(\rho>0\), define
+\[
+\boldsymbol{\lambda}_{\mathrm{C3}}^{\star}
+=
+\arg\max_{\boldsymbol{\lambda}\in\Delta_m}
+\mathbf p^\top \mathbf R\boldsymbol{\lambda}
+-
+\rho
+\bigl(
+\boldsymbol{\lambda}-\mathbf p
+\bigr)^\top
+\mathbf R
+\bigl(
+\boldsymbol{\lambda}-\mathbf p
+\bigr).
+\]
+C3 is CAGrad-inspired because it searches for a corrected merge direction that remains aligned with the preference-induced reference direction while penalizing deviation from the original preference vector. The first term maximizes geometric alignment between the direct preference direction and the corrected merge direction, whereas the second term measures preference deviation in the \(\mathbf R\)-metric.
+\end{definition}
+
+\begin{remark}[Task-vector interpretation and distinction]
+If \(\mathbf R=\boldsymbol{\Delta}^\top\boldsymbol{\Delta}\), where \(\boldsymbol{\Delta}\) denotes the task-vector matrix, then
+\[
+\mathbf p^\top \mathbf R\boldsymbol{\lambda}
+=
+(\boldsymbol{\Delta}\mathbf p)^\top
+(\boldsymbol{\Delta}\boldsymbol{\lambda}).
+\]
+Thus the linear term measures alignment directly in task-vector space. In contrast, C1 protects hard worst-case alignment and C2 uses a soft-min approximation of worst-case alignment; C3 instead maximizes preference-direction alignment. Its main limitation is that it does not explicitly protect the worst-aligned objective, but optimizes preference-weighted alignment instead.
+\end{remark}
 
 
 
