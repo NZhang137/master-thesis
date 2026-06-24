@@ -79,6 +79,10 @@ def train_attribute_adapter(
     num_epochs: int,
     learning_rate: float,
     weight_decay: float,
+    lr_scheduler_type: str,
+    lr_decay_after_epoch: int,
+    lr_decay_factor: float,
+    min_lr_ratio: float,
     max_length: int,
     batch_size: int,
     output_path: Path,
@@ -122,6 +126,11 @@ def train_attribute_adapter(
     print(f"ArmoRM monitoring enabled: {use_armorm_monitoring}")
     print(f"Learning rate: {learning_rate}")
     print(f"Weight decay: {weight_decay}")
+    print(f"LR scheduler: {lr_scheduler_type}")
+    if lr_scheduler_type == "epoch_decay":
+        print(f"LR decay after epoch: {lr_decay_after_epoch}")
+        print(f"LR decay factor: {lr_decay_factor}")
+        print(f"Minimum LR ratio: {min_lr_ratio}")
     print("LoRA rank: 8")
     print("LoRA alpha: 16")
     print("LoRA dropout: 0.1")
@@ -163,6 +172,10 @@ def train_attribute_adapter(
         num_epochs=num_epochs,
         learning_rate=learning_rate,
         weight_decay=weight_decay,
+        lr_scheduler_type=lr_scheduler_type,
+        lr_decay_after_epoch=lr_decay_after_epoch,
+        lr_decay_factor=lr_decay_factor,
+        min_lr_ratio=min_lr_ratio,
         max_length=max_length,
         batch_size=batch_size,
         logging_steps=logging_steps,
@@ -245,6 +258,34 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=0.01,
         help="AdamW weight decay (recommended range: 0.0 to 0.01).",
+    )
+    parser.add_argument(
+        "--lr_scheduler_type",
+        "--lr-scheduler-type",
+        dest="lr_scheduler_type",
+        choices=("constant", "epoch_decay"),
+        default="constant",
+    )
+    parser.add_argument(
+        "--lr_decay_after_epoch",
+        "--lr-decay-after-epoch",
+        dest="lr_decay_after_epoch",
+        type=int,
+        default=1,
+    )
+    parser.add_argument(
+        "--lr_decay_factor",
+        "--lr-decay-factor",
+        dest="lr_decay_factor",
+        type=float,
+        default=0.8,
+    )
+    parser.add_argument(
+        "--min_lr_ratio",
+        "--min-lr-ratio",
+        dest="min_lr_ratio",
+        type=float,
+        default=0.1,
     )
     parser.add_argument(
         "--max_length", "--max-length", dest="max_length", type=int, default=512
@@ -375,6 +416,12 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("weight_decay must be non-negative.")
     if args.weight_decay > 0.01:
         print("Warning: recommended weight_decay values are between 0.0 and 0.01.")
+    if args.lr_decay_after_epoch < 1:
+        raise ValueError("lr_decay_after_epoch must be at least 1.")
+    if not 0 < args.lr_decay_factor <= 1:
+        raise ValueError("lr_decay_factor must be greater than 0 and at most 1.")
+    if not 0 < args.min_lr_ratio <= 1:
+        raise ValueError("min_lr_ratio must be greater than 0 and at most 1.")
     if args.max_length < 2 or args.batch_size < 1:
         raise ValueError("max_length must be at least 2 and batch_size at least 1.")
     for name in ("logging_steps", "eval_steps", "save_steps", "reward_eval_steps"):
@@ -435,6 +482,10 @@ def main() -> None:
             num_epochs=args.num_epochs,
             learning_rate=args.learning_rate,
             weight_decay=args.weight_decay,
+            lr_scheduler_type=args.lr_scheduler_type,
+            lr_decay_after_epoch=args.lr_decay_after_epoch,
+            lr_decay_factor=args.lr_decay_factor,
+            min_lr_ratio=args.min_lr_ratio,
             max_length=args.max_length,
             batch_size=args.batch_size,
             output_path=output_dir / adapter_directory_name(attribute),

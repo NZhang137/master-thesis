@@ -59,8 +59,12 @@ class CsvTrainingLogger:
         epoch: float,
         train_loss: float | None = None,
         eval_loss: float | None = None,
+        learning_rate: float | None = None,
     ) -> None:
         """Append one metric row and flush it immediately."""
+        logged_learning_rate = (
+            self.learning_rate if learning_rate is None else learning_rate
+        )
         self.rows.append(
             {
                 "attribute": self.attribute,
@@ -68,7 +72,7 @@ class CsvTrainingLogger:
                 "epoch": f"{epoch:.6f}",
                 "train_loss": "" if train_loss is None else f"{train_loss:.8f}",
                 "eval_loss": "" if eval_loss is None else f"{eval_loss:.8f}",
-                "learning_rate": f"{self.learning_rate:.12g}",
+                "learning_rate": f"{logged_learning_rate:.12g}",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
@@ -499,6 +503,10 @@ def train_with_monitoring(
     reward_monitor: RewardMonitor | None = None,
     reward_eval_steps: int = 1000,
     weight_decay: float = 0.01,
+    lr_scheduler_type: str = "constant",
+    lr_decay_after_epoch: int = 1,
+    lr_decay_factor: float = 0.8,
+    min_lr_ratio: float = 0.1,
     seed: int = 67,
 ) -> TrainingResult:
     """Train one adapter with loss, checkpoint, stop, and reward monitoring."""
@@ -506,6 +514,14 @@ def train_with_monitoring(
     evaluation_texts = [text.strip() for text in eval_texts if text.strip()]
     if not train_texts or not evaluation_texts:
         raise ValueError("Training and evaluation text lists must be non-empty.")
+    if lr_scheduler_type not in {"constant", "epoch_decay"}:
+        raise ValueError("lr_scheduler_type must be 'constant' or 'epoch_decay'.")
+    if lr_decay_after_epoch < 1:
+        raise ValueError("lr_decay_after_epoch must be at least 1.")
+    if not 0 < lr_decay_factor <= 1:
+        raise ValueError("lr_decay_factor must be greater than 0 and at most 1.")
+    if not 0 < min_lr_ratio <= 1:
+        raise ValueError("min_lr_ratio must be greater than 0 and at most 1.")
 
     trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
     if not trainable:
@@ -515,6 +531,10 @@ def train_with_monitoring(
         lr=learning_rate,
         weight_decay=weight_decay,
     )
+
+    def current_learning_rate() -> float:
+        return float(optimizer.param_groups[0]["lr"])
+
     writer = create_tensorboard_writer(
         use_tensorboard,
         tensorboard_log_dir,
@@ -554,7 +574,10 @@ def train_with_monitoring(
             total_loss = 0.0
             processed = 0
             last_eval_step: int | None = None
-            print(f"\nEpoch {epoch_number}/{num_epochs} for {attribute}")
+            print(
+                f"\nEpoch {epoch_number}/{num_epochs} for {attribute} "
+                f"(learning_rate={current_learning_rate():.8g})"
+            )
 
             for start in range(0, len(epoch_train_texts), batch_size):
                 batch_texts = epoch_train_texts[start : start + batch_size]
@@ -590,9 +613,15 @@ def train_with_monitoring(
                         global_step=global_step,
                         epoch=epoch_progress,
                         train_loss=train_loss,
+                        learning_rate=current_learning_rate(),
                     )
                     if writer is not None:
                         writer.add_scalar(f"{attribute}/train_loss", train_loss, global_step)
+                        writer.add_scalar(
+                            f"{attribute}/learning_rate",
+                            current_learning_rate(),
+                            global_step,
+                        )
                         writer.flush()
 
                 if global_step % eval_steps == 0:
@@ -614,6 +643,7 @@ def train_with_monitoring(
                         epoch=epoch_progress,
                         train_loss=train_loss,
                         eval_loss=eval_loss,
+                        learning_rate=current_learning_rate(),
                     )
                     if writer is not None:
                         writer.add_scalar(f"{attribute}/eval_loss", eval_loss, global_step)
@@ -683,11 +713,30 @@ def train_with_monitoring(
                     epoch=float(epoch_number),
                     train_loss=average_loss,
                     eval_loss=eval_loss,
+                    learning_rate=current_learning_rate(),
                 )
                 print(f"{attribute} epoch {epoch_number}: eval_loss={eval_loss:.4f}")
                 if writer is not None:
                     writer.add_scalar(f"{attribute}/eval_loss", eval_loss, global_step)
                     writer.flush()
+            if (
+                lr_scheduler_type == "epoch_decay"
+                and epoch_number >= lr_decay_after_epoch
+                and epoch_number < num_epochs
+            ):
+                previous_lr = current_learning_rate()
+                minimum_lr = learning_rate * min_lr_ratio
+                for parameter_group in optimizer.param_groups:
+                    parameter_group["lr"] = max(
+                        minimum_lr,
+                        float(parameter_group["lr"]) * lr_decay_factor,
+                    )
+                updated_lr = current_learning_rate()
+                if updated_lr < previous_lr:
+                    print(
+                        f"Learning rate decayed after epoch {epoch_number}: "
+                        f"{previous_lr:.8g} -> {updated_lr:.8g}"
+                    )
             detect_stop_files()
 
         if stop_requested or current_adapter_stop_requested:
