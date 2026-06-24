@@ -25,8 +25,8 @@ The final experiment direction is **TinyLlama + HelpSteer2 + ArmoRM**:
 
 1. Train five independent TinyLlama HelpSteer2 LoRA adapters.
 2. Compute the TinyLlama adapter relationship matrix \(R\).
-3. Compute M1, M2, C1, C2, P1, and P2 coefficients
-   \(\lambda=f(p,R)\).
+3. Compute corrected merge coefficients \(\lambda=f(p,R)\) for the target
+   method set M1, M2, P1, P2, C1, C2, and C3.
 4. Merge the TinyLlama adapters and generate responses on fixed prompts.
 5. Score generated responses with ArmoRM.
 6. Analyze preference-weighted utility, distance to \(p\), and computational
@@ -34,6 +34,11 @@ The final experiment direction is **TinyLlama + HelpSteer2 + ArmoRM**:
 
 ArmoRM monitoring in the training script is evaluation only. Its scores are
 not used as an optimization signal.
+
+The active coefficient implementation currently covers M1 and M2
+(MGDA-inspired), P1 and P2 (PCGrad-inspired), and C1 and C2
+(CAGrad-inspired). C3 is defined in the thesis method set but is not yet wired
+into the coefficient-generation and validation scripts.
 
 ## Current Final Experiment
 
@@ -79,17 +84,26 @@ python scripts/check_tinyllama_helpsteer2_adapters.py --attributes helpfulness
 
 Train one specialist per command. Start the five attributes manually in this
 order: `helpfulness`, `correctness`, `coherence`, `complexity`, and `verbosity`.
+The recommended Colab workflow is
+[`notebooks/02_train_tinyllama_helpsteer2_adapters_colab.ipynb`](notebooks/02_train_tinyllama_helpsteer2_adapters_colab.ipynb),
+which launches each adapter as a separate background process so its stop and
+status cells remain usable.
 For example, start helpfulness with:
 
 ```bash
 python scripts/train_tinyllama_helpsteer2_adapters.py \
   --attributes helpfulness \
-  --split "train[:10000]" \
-  --eval_split "train[10000:11000]" \
+  --split "train" \
+  --eval_split "validation" \
   --num_epochs 50 \
   --batch_size 8 \
   --max_length 1024 \
   --learning_rate 1e-4 \
+  --lr_scheduler_type epoch_decay \
+  --lr_decay_after_epoch 1 \
+  --lr_decay_factor 0.67 \
+  --min_lr_ratio 0.1 \
+  --weight_decay 0.01 \
   --logging_steps 10 \
   --eval_steps 100 \
   --save_steps 500 \
@@ -98,8 +112,15 @@ python scripts/train_tinyllama_helpsteer2_adapters.py \
 
 The LoRA configuration keeps the rank fixed at `r=8` and uses
 `lora_alpha=16`, which keeps adapter capacity moderate. Regularization uses
-`lora_dropout=0.1` together with AdamW `weight_decay=0.01` by default;
-recommended weight-decay values are between `0.0` and `0.01`.
+`lora_dropout=0.1` together with AdamW `weight_decay=0.01`. The notebook starts
+at `learning_rate=1e-4`, decays the rate by a factor of `0.67` after each
+completed epoch starting after epoch 1, and floors it at `1e-5`
+(`min_lr_ratio=0.1`). The script itself keeps `lr_scheduler_type=constant` as
+the backward-compatible default when no scheduler options are passed.
+
+Training texts are shuffled once per epoch with the deterministic seed
+`67 + epoch_index`. The original selected-text list is not mutated, and the
+evaluation-text order remains unchanged.
 
 After that command finishes, run the same command again with
 `--attributes correctness`, then `coherence`, `complexity`, and `verbosity`.
@@ -114,6 +135,10 @@ python scripts/compute_helpsteer2_relationship_matrix.py
 python scripts/compute_helpsteer2_all_method_coefficients.py
 python scripts/validate_coefficient_methods.py
 ```
+
+These commands currently generate and validate M1, M2, P1, P2, C1, and C2.
+C3 must be implemented in the active coefficient scripts before it is included
+in final coefficient grids.
 
 The relationship matrix uses cosine similarity between effective, PEFT-scaled
 LoRA updates, `delta_W = scaling * (B @ A)`. Frobenius inner products are
@@ -156,7 +181,10 @@ you are willing to wait before a requested stop takes effect.
 TinyLlama training writes CSV logs to
 `results/tinyllama_helpsteer2_training_logs/`, TensorBoard events to
 `results/tensorboard/tinyllama_helpsteer2/`, and optional reward-monitoring
-CSVs to `results/tinyllama_helpsteer2_reward_monitoring/`.
+CSVs to `results/tinyllama_helpsteer2_reward_monitoring/`. These generated
+logs, exported plots, adapters, checkpoints, model files, and zip archives
+should remain outside Git unless a small result artifact is selected
+intentionally for documentation.
 
 The dedicated TinyLlama merged-generation, ArmoRM scoring, and final analysis
 scripts are the next implementation stage. Archived GPT-2 evaluation scripts
