@@ -13,6 +13,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOG_DIR = "results/tinyllama_helpsteer2_training_logs"
 DEFAULT_OUTPUT_DIR = "results/plots/tensorboard"
+DEFAULT_SMOOTHING = 0.5
+DEFAULT_RAW_COLOR = "#65717f"
+DEFAULT_SMOOTHED_COLOR = "#ffffff"
 METRICS = ("train_loss", "eval_loss", "learning_rate")
 COMBINED_METRICS = ("train_loss", "eval_loss")
 ATTRIBUTE_ORDER = (
@@ -46,6 +49,57 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         dest="output_dir",
         default=DEFAULT_OUTPUT_DIR,
+    )
+    parser.add_argument(
+        "--smoothing",
+        type=float,
+        default=DEFAULT_SMOOTHING,
+        help="EMA smoothing coefficient in [0, 1); 0 disables smoothing.",
+    )
+    parser.add_argument(
+        "--theme",
+        choices=("dark", "light"),
+        default="dark",
+    )
+    parser.add_argument(
+        "--raw_color",
+        "--raw-color",
+        dest="raw_color",
+        default=DEFAULT_RAW_COLOR,
+    )
+    parser.add_argument(
+        "--smoothed_color",
+        "--smoothed-color",
+        dest="smoothed_color",
+        default=DEFAULT_SMOOTHED_COLOR,
+    )
+    parser.add_argument(
+        "--raw_alpha",
+        "--raw-alpha",
+        dest="raw_alpha",
+        type=float,
+        default=0.55,
+    )
+    parser.add_argument(
+        "--raw_linewidth",
+        "--raw-linewidth",
+        dest="raw_linewidth",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--smoothed_linewidth",
+        "--smoothed-linewidth",
+        dest="smoothed_linewidth",
+        type=float,
+        default=2.0,
+    )
+    parser.add_argument(
+        "--grid_alpha",
+        "--grid-alpha",
+        dest="grid_alpha",
+        type=float,
+        default=0.3,
     )
     parser.add_argument("--dpi", type=int, default=200)
     return parser.parse_args()
@@ -128,6 +182,25 @@ def merge_points(points: list[tuple[float, float]]) -> list[tuple[float, float]]
     return sorted(by_step.items())
 
 
+def smooth_values(values: list[float], smoothing: float) -> list[float]:
+    """Return a TensorBoard-style exponential moving average."""
+    if not values:
+        return []
+    if smoothing == 0:
+        return list(values)
+    smoothed = [values[0]]
+    for value in values[1:]:
+        smoothed.append(smoothing * smoothed[-1] + (1 - smoothing) * value)
+    return smoothed
+
+
+def apply_plot_theme(figure, axis, theme: str) -> None:
+    """Apply a compact TensorBoard-like dark or light plot background."""
+    background = "#303030" if theme == "dark" else "#ffffff"
+    figure.patch.set_facecolor(background)
+    axis.set_facecolor(background)
+
+
 def write_metric_csv(
     path: Path,
     metric: str,
@@ -162,17 +235,49 @@ def save_individual_plot(
     points: list[tuple[float, float]],
     output_path: Path,
     dpi: int,
+    smoothing: float,
+    theme: str,
+    raw_color: str,
+    smoothed_color: str,
+    raw_alpha: float,
+    raw_linewidth: float,
+    smoothed_linewidth: float,
+    grid_alpha: float,
 ) -> None:
-    """Save one attribute/metric curve."""
+    """Save one TensorBoard-style raw and smoothed attribute/metric curve."""
     steps, values = zip(*points)
     figure, axis = pyplot.subplots(figsize=(7.2, 4.4))
-    axis.plot(steps, values, linewidth=1.6, marker="o", markersize=2.5)
-    axis.set_title(f"TinyLlama HelpSteer2: {attribute} {metric_label(metric)}")
+    apply_plot_theme(figure, axis, theme)
+    axis.plot(
+        steps,
+        values,
+        color=raw_color,
+        alpha=raw_alpha,
+        linewidth=raw_linewidth,
+        label=f"{attribute} raw",
+    )
+    axis.plot(
+        steps,
+        smooth_values(list(values), smoothing),
+        color=smoothed_color,
+        linewidth=smoothed_linewidth,
+        label=f"{attribute} smoothed ({smoothing:g})",
+    )
+    axis.set_title(
+        f"TinyLlama HelpSteer2: {attribute} {metric_label(metric)}",
+        loc="left",
+    )
     axis.set_xlabel("Global Step")
     axis.set_ylabel(metric_label(metric))
-    axis.grid(True, alpha=0.3)
+    axis.grid(True, alpha=grid_alpha)
+    axis.legend()
     figure.tight_layout()
-    figure.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    figure.savefig(
+        output_path,
+        dpi=dpi,
+        bbox_inches="tight",
+        facecolor=figure.get_facecolor(),
+    )
     pyplot.close(figure)
 
 
@@ -183,19 +288,44 @@ def save_combined_plot(
     series: dict[str, list[tuple[float, float]]],
     output_path: Path,
     dpi: int,
+    smoothing: float,
+    theme: str,
+    raw_alpha: float,
+    raw_linewidth: float,
+    smoothed_linewidth: float,
+    grid_alpha: float,
 ) -> None:
-    """Save one comparison curve across all available attributes."""
+    """Save raw and smoothed comparison curves across available attributes."""
     figure, axis = pyplot.subplots(figsize=(8.2, 5.0))
+    apply_plot_theme(figure, axis, theme)
     for attribute in ordered_attributes(series):
         steps, values = zip(*series[attribute])
-        axis.plot(steps, values, linewidth=1.5, label=attribute)
+        (raw_line,) = axis.plot(
+            steps,
+            values,
+            alpha=raw_alpha,
+            linewidth=raw_linewidth,
+            label="_nolegend_",
+        )
+        axis.plot(
+            steps,
+            smooth_values(list(values), smoothing),
+            color=raw_line.get_color(),
+            linewidth=smoothed_linewidth,
+            label=f"{attribute} smoothed",
+        )
     axis.set_title(f"TinyLlama HelpSteer2: All Attributes {metric_label(metric)}")
     axis.set_xlabel("Global Step")
     axis.set_ylabel(metric_label(metric))
-    axis.grid(True, alpha=0.3)
+    axis.grid(True, alpha=grid_alpha)
     axis.legend()
     figure.tight_layout()
-    figure.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    figure.savefig(
+        output_path,
+        dpi=dpi,
+        bbox_inches="tight",
+        facecolor=figure.get_facecolor(),
+    )
     pyplot.close(figure)
 
 
@@ -204,6 +334,14 @@ def main() -> None:
     args = parse_args()
     if args.dpi < 1:
         raise ValueError("dpi must be a positive integer.")
+    if not 0 <= args.smoothing < 1:
+        raise ValueError("smoothing must be at least 0 and less than 1.")
+    if not 0 <= args.raw_alpha <= 1:
+        raise ValueError("raw_alpha must be between 0 and 1.")
+    if args.raw_linewidth <= 0 or args.smoothed_linewidth <= 0:
+        raise ValueError("Line widths must be positive.")
+    if not 0 <= args.grid_alpha <= 1:
+        raise ValueError("grid_alpha must be between 0 and 1.")
     log_dir = resolve_project_path(args.log_dir)
     output_dir = resolve_project_path(args.output_dir)
     if not log_dir.is_dir():
@@ -217,11 +355,24 @@ def main() -> None:
 
         matplotlib.use("Agg")
         import matplotlib.pyplot as pyplot
+        from matplotlib.colors import is_color_like
     except ImportError as error:
         raise ImportError(
             "Training-curve export requires matplotlib. Install it with "
             "`pip install matplotlib`."
         ) from error
+    for label, color in (
+        ("raw_color", args.raw_color),
+        ("smoothed_color", args.smoothed_color),
+    ):
+        if not is_color_like(color):
+            raise ValueError(f"{label} is not a valid Matplotlib color: {color!r}")
+    pyplot.style.use("dark_background" if args.theme == "dark" else "default")
+    print(
+        "Plot style: "
+        f"theme={args.theme}, smoothing={args.smoothing:g}, "
+        f"raw_color={args.raw_color}, smoothed_color={args.smoothed_color}"
+    )
 
     collected: dict[str, dict[str, list[tuple[float, float]]]] = defaultdict(
         lambda: defaultdict(list)
@@ -256,6 +407,14 @@ def main() -> None:
                 points=points,
                 output_path=png_path,
                 dpi=args.dpi,
+                smoothing=args.smoothing,
+                theme=args.theme,
+                raw_color=args.raw_color,
+                smoothed_color=args.smoothed_color,
+                raw_alpha=args.raw_alpha,
+                raw_linewidth=args.raw_linewidth,
+                smoothed_linewidth=args.smoothed_linewidth,
+                grid_alpha=args.grid_alpha,
             )
             write_metric_csv(csv_path, metric, {attribute: points})
             saved.extend((png_path, csv_path))
@@ -276,6 +435,12 @@ def main() -> None:
             series=series,
             output_path=png_path,
             dpi=args.dpi,
+            smoothing=args.smoothing,
+            theme=args.theme,
+            raw_alpha=args.raw_alpha,
+            raw_linewidth=args.raw_linewidth,
+            smoothed_linewidth=args.smoothed_linewidth,
+            grid_alpha=args.grid_alpha,
         )
         write_metric_csv(csv_path, metric, series)
         saved.extend((png_path, csv_path))

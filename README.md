@@ -163,12 +163,16 @@ Export TensorBoard-style loss and learning-rate curves directly from the CSV
 training logs without starting a TensorBoard server:
 
 ```bash
-python scripts/export_tinyllama_training_curves.py
+python scripts/export_tinyllama_training_curves.py --smoothing 0.5 --theme dark
 ```
 
 PNG figures and corresponding curve CSV files are written to
 `results/plots/tensorboard/`. Generated PNG files should only be committed when
 they are intentionally selected for a thesis chapter, report, or meeting.
+Individual plots show the raw curve as a darker line and an EMA-smoothed curve
+as a white line. The exporter also supports `--raw_color`, `--smoothed_color`,
+`--raw_alpha`, `--raw_linewidth`, `--smoothed_linewidth`, `--grid_alpha`, and
+`--dpi` for reproducible visual adjustments.
 
 Create `STOP_CURRENT_ADAPTER` to request a graceful stop. The script detects
 the file during training, continues only until the next `save_steps` boundary,
