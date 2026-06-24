@@ -222,45 +222,156 @@ Any empirical gain discussed later would concern only \emph{selection of \(\lamb
 \end{remark}
 
 \section{Relationship matrix from task-vector geometry}
+\label{sec:relationship-matrix}
 
-\begin{definition}[Task-vector matrix]
-Let
+\begin{definition}[Task vectors and task-vector matrix]
+For each specialist \(i\), define the task vector and collect the task vectors as columns:
 \[
-D:=[\delta_1,\dots,\delta_m]\in\R^{d\times m}.
+\boldsymbol{\delta}_i
+:=
+\theta_i-\theta_0,
+\qquad
+\boldsymbol{\Delta}
+:=
+\bigl[
+\boldsymbol{\delta}_1,\dots,\boldsymbol{\delta}_m
+\bigr]
+\in\R^{d\times m}.
 \]
-Then \(\theta(\lambda)=\theta_0+D\lambda\).
+Thus
+\[
+\theta(\boldsymbol{\lambda})
+=
+\theta_0+\boldsymbol{\Delta}\boldsymbol{\lambda}.
+\]
 \end{definition}
 
 \begin{definition}[Relationship matrix]
-Two canonical relationship matrices can be defined from the task vectors. The
-unnormalized Gram relationship matrix is
-
+\label{def:relationship-matrix}
+The unnormalized Gram relationship matrix is
 \[
-R:=D^\top D,\qquad R_{ij}=\delta_i^\top\delta_j,
+\mathbf R
+:=
+\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta},
 \]
-If \(\delta_i\neq 0\) for all \(i\), the cosine relationship matrix is defined
-separately through normalized task vectors
+with scalar entries
 \[
-\hat\delta_i:=\frac{\delta_i}{\norm{\delta_i}_2},\qquad \hat D:=[\hat\delta_1,\dots,\hat\delta_m],\qquad \hat R:=\hat D^\top\hat D,
+R_{ij}
+=
+\boldsymbol{\delta}_i^{\top}\boldsymbol{\delta}_j.
 \]
-so that
+If \(\boldsymbol{\delta}_i\neq 0\) for all \(i\), define normalized task vectors and their matrix by
 \[
-\hat R_{ij}=\cos(\delta_i,\delta_j)=\frac{\delta_i^\top\delta_j}{\norm{\delta_i}_2\norm{\delta_j}_2}.
+\widehat{\boldsymbol{\delta}}_i
+:=
+\frac{\boldsymbol{\delta}_i}{\norm{\boldsymbol{\delta}_i}_2},
+\qquad
+\widehat{\boldsymbol{\Delta}}
+:=
+\bigl[
+\widehat{\boldsymbol{\delta}}_1,\dots,
+\widehat{\boldsymbol{\delta}}_m
+\bigr].
 \]
-
-Interpretation:
-\begin{itemize}
-    \item positive values may indicate alignment or complementarity,
-    \item negative values may indicate conflict or suppression,
-    \item high positive similarity may also indicate redundancy.
-\end{itemize}
-
-This remains only a parameter-geometric proxy and must be empirically validated.
+The cosine relationship matrix is then
+\[
+\widehat{\mathbf R}
+:=
+\widehat{\boldsymbol{\Delta}}^{\top}
+\widehat{\boldsymbol{\Delta}},
+\qquad
+\widehat R_{ij}
+=
+\cos\!\bigl(
+\boldsymbol{\delta}_i,
+\boldsymbol{\delta}_j
+\bigr)
+=
+\frac{
+\boldsymbol{\delta}_i^{\top}\boldsymbol{\delta}_j
+}{
+\norm{\boldsymbol{\delta}_i}_2
+\norm{\boldsymbol{\delta}_j}_2
+}.
+\]
 \end{definition}
 
 \begin{remark}[PSD status]
-If \(R=D^\top D\), then \(R\) is positive semidefinite. The cosine relationship matrix \(\hat R=\hat D^\top\hat D\) is also positive semidefinite.
-%If one uses a non-Gram similarity table, PSD is not guaranteed.
+If \(\mathbf R=\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta}\), then \(\mathbf R\) is positive semidefinite by construction. The normalized Gram matrix \(\widehat{\mathbf R}=\widehat{\boldsymbol{\Delta}}^{\top}\widehat{\boldsymbol{\Delta}}\) is positive semidefinite as well. An arbitrary non-Gram similarity matrix need not be positive semidefinite.
+\end{remark}
+
+Definition~\ref{def:relationship-matrix} records only inner products among the task vectors; the reward gradients \(\nabla r_i\) do not appear in it. To state precisely what \(\mathbf R\) is a proxy for, we first identify the object that governs reward behavior to first order.
+
+\begin{definition}[Reward-sensitivity matrix]
+\label{def:reward-sensitivity}
+For differentiable rewards \(r_i\), define the reward-sensitivity matrix \(\mathbf H\in\R^{m\times m}\) by
+\[
+H_{ij}
+:=
+\left\langle
+\nabla r_i(\theta_0),
+\boldsymbol{\delta}_j
+\right\rangle.
+\]
+For \(\theta(\boldsymbol{\lambda})=\theta_0+\boldsymbol{\Delta}\boldsymbol{\lambda}\), a first-order expansion of the preference-weighted utility around \(\theta_0\) gives
+\[
+U_{\mathbf p}\!\bigl(\theta(\boldsymbol{\lambda})\bigr)
+-
+U_{\mathbf p}(\theta_0)
+=
+\mathbf p^{\top}\mathbf H\boldsymbol{\lambda}
++
+o\!\left(
+\norm{\boldsymbol{\Delta}\boldsymbol{\lambda}}_2
+\right)
+\approx
+\mathbf p^{\top}\mathbf H\boldsymbol{\lambda}.
+\]
+Indeed, \(\nabla U_{\mathbf p}(\theta_0)=\sum_i p_i\nabla r_i(\theta_0)\). Hence reward behavior is governed to first order by \(\mathbf H\), not directly by \(\mathbf R\): the scalar \(H_{ij}\) is the first-order change in reward \(i\) induced by moving along specialist direction \(\boldsymbol{\delta}_j\).
+\end{definition}
+
+\begin{assumption}[Linear short-horizon proxy]
+\label{ass:linear-short-horizon-proxy}
+Suppose that each task vector is approximately a short gradient step on its own reward, with a common step scale \(\eta>0\):
+\[
+\boldsymbol{\delta}_j
+\approx
+\eta\nabla r_j(\theta_0).
+\]
+Then
+\[
+H_{ij}
+\approx
+\eta
+\left\langle
+\nabla r_i(\theta_0),
+\nabla r_j(\theta_0)
+\right\rangle,
+\qquad
+R_{ij}
+\approx
+\eta^2
+\left\langle
+\nabla r_i(\theta_0),
+\nabla r_j(\theta_0)
+\right\rangle,
+\]
+and therefore, for the unnormalized Gram matrix,
+\[
+H_{ij}
+\approx
+\frac{1}{\eta}R_{ij},
+\qquad
+\mathbf H
+\approx
+\frac{1}{\eta}\mathbf R.
+\]
+Under this assumption, the symmetric, gradient-free matrix \(\mathbf R\) can serve as a proxy for \(\mathbf H\).
+\end{assumption}
+
+\begin{remark}[Validity, locality, and the limits of \(\mathbf R\)]
+\label{rem:relationship-limits}
+The proxy in Assumption~\ref{ass:linear-short-horizon-proxy} is local and first order. Its remainder is of order \(o(\norm{\boldsymbol{\Delta}\boldsymbol{\lambda}}_2)\), so the approximation is reliable only near the base model; far from \(\theta_0\), the linearization and the predictive value of \(\mathbf R\) may break down. Moreover, \(\mathbf H\) is generally asymmetric: the effect of \(\boldsymbol{\delta}_j\) on reward \(i\) need not equal the effect of \(\boldsymbol{\delta}_i\) on reward \(j\). In contrast, \(\mathbf R=\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta}\) is symmetric by construction and cannot represent such directed help or harm effects. Fully trained adapters or RLHF specialists may also violate \(\boldsymbol{\delta}_j\approx\eta\nabla r_j(\theta_0)\), because their net displacement need not be proportional to the initial reward gradient. The validity of \(\mathbf R\) as a proxy for \(\mathbf H\) must therefore be tested empirically rather than assumed.
 \end{remark}
 
 \section{Preference-to-coefficient mapping}
@@ -456,7 +567,7 @@ They are grouped by the multi-objective method that inspires them: \emph{M1} and
 
 \section{General setup}
 
-For optimization-based methods below, assume that the relationship matrix supplied to the mapping is symmetric and positive semidefinite. The canonical choices are the unnormalized matrix \(R=D^\top D\) and the cosine matrix \(\hat R=\hat D^\top\hat D\). For compactness, the method definitions use \(R\) as the generic matrix argument; when cosine geometry is selected, this argument is instantiated as \(R\leftarrow\hat R\). The current implementation uses \(\hat R\).
+The relationship-matrix construction and its reward-proxy interpretation are given in Section~\ref{sec:relationship-matrix}; the limitations of this proxy are summarized in Remark~\ref{rem:relationship-limits}. For optimization-based methods below, assume that the relationship matrix supplied to the mapping is symmetric and positive semidefinite. The canonical choices are the unnormalized matrix \(R=D^\top D\) and the cosine matrix \(\hat R=\hat D^\top\hat D\). For compactness, the method definitions use \(R\) as the generic matrix argument; when cosine geometry is selected, this argument is instantiated as \(R\leftarrow\hat R\). The current implementation uses \(\hat R\).
 
 \section{MGDA-inspired coefficient mapping}
 
