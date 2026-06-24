@@ -28,7 +28,6 @@ from src.experiment_config import (
 from src.helpsteer2_utils import HELPSTEER2_ATTRIBUTES, make_attribute_training_texts
 from src.tinyllama_training_utils import (
     CsvTrainingLogger,
-    RewardCsvLogger,
     RewardMonitor,
     TrainingResult,
     load_tinyllama_with_lora,
@@ -100,8 +99,11 @@ def train_attribute_adapter(
     use_armorm_monitoring: bool,
     armorm_model_name: str,
     reward_eval_steps: int,
+    reward_monitor_num_prompts: int,
     reward_eval_prompts_path: Path,
     reward_max_new_tokens: int,
+    reward_batch_size: int,
+    reward_csv_mode: str,
     reward_output_dir: Path,
     seed: int = 67,
 ) -> TrainingResult:
@@ -123,7 +125,17 @@ def train_attribute_adapter(
     )
     print(f"Selected {len(eval_texts)} evaluation texts.")
     print(f"Output adapter path: {output_path}")
-    print(f"ArmoRM monitoring enabled: {use_armorm_monitoring}")
+    if use_armorm_monitoring:
+        print("ArmoRM monitoring enabled: True")
+        print(f"ArmoRM reward evaluation steps: {reward_eval_steps}")
+        print(f"ArmoRM monitoring prompts: {reward_monitor_num_prompts}")
+        print(f"ArmoRM prompt file: {reward_eval_prompts_path}")
+        print(f"ArmoRM maximum new tokens: {reward_max_new_tokens}")
+        print(f"ArmoRM reward batch size: {reward_batch_size}")
+        print(f"ArmoRM reward CSV mode: {reward_csv_mode}")
+        print(f"ArmoRM reward output directory: {reward_output_dir}")
+    else:
+        print("ArmoRM monitoring disabled.")
     print(f"Learning rate: {learning_rate}")
     print(f"Weight decay: {weight_decay}")
     print(f"LR scheduler: {lr_scheduler_type}")
@@ -151,16 +163,22 @@ def train_attribute_adapter(
     )
     reward_monitor = None
     if use_armorm_monitoring:
-        reward_logger = RewardCsvLogger(
-            reward_output_dir
-            / f"tinyllama_helpsteer2_{attribute}_reward_monitoring.csv",
-            attribute,
-        )
         reward_monitor = RewardMonitor(
+            attribute=attribute,
             reward_model_name=armorm_model_name,
             prompts_path=reward_eval_prompts_path,
+            num_prompts=reward_monitor_num_prompts,
             max_new_tokens=reward_max_new_tokens,
-            csv_logger=reward_logger,
+            batch_size=reward_batch_size,
+            prompt_csv_path=(
+                reward_output_dir
+                / f"tinyllama_helpsteer2_{attribute}_reward_prompts.csv"
+            ),
+            summary_csv_path=(
+                reward_output_dir
+                / f"tinyllama_helpsteer2_{attribute}_reward_summary.csv"
+            ),
+            csv_mode=reward_csv_mode,
         )
 
     result = train_with_monitoring(
@@ -372,7 +390,14 @@ def parse_args() -> argparse.Namespace:
         "--reward-eval-steps",
         dest="reward_eval_steps",
         type=int,
-        default=1000,
+        default=200,
+    )
+    parser.add_argument(
+        "--reward_monitor_num_prompts",
+        "--reward-monitor-num-prompts",
+        dest="reward_monitor_num_prompts",
+        type=int,
+        default=10,
     )
     parser.add_argument(
         "--reward_eval_prompts_path",
@@ -385,7 +410,21 @@ def parse_args() -> argparse.Namespace:
         "--reward-max-new-tokens",
         dest="reward_max_new_tokens",
         type=int,
-        default=80,
+        default=96,
+    )
+    parser.add_argument(
+        "--reward_batch_size",
+        "--reward-batch-size",
+        dest="reward_batch_size",
+        type=int,
+        default=1,
+    )
+    parser.add_argument(
+        "--reward_csv_mode",
+        "--reward-csv-mode",
+        dest="reward_csv_mode",
+        choices=("overwrite", "append"),
+        default="overwrite",
     )
     parser.add_argument(
         "--stop_all_on_max_steps",
@@ -431,6 +470,13 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("max_steps must be -1 or a positive integer.")
     if args.save_total_limit < 1 or args.reward_max_new_tokens < 1:
         raise ValueError("save_total_limit and reward_max_new_tokens must be positive.")
+    if args.reward_monitor_num_prompts < 1:
+        raise ValueError("reward_monitor_num_prompts must be at least 1.")
+    if args.reward_batch_size != 1:
+        raise ValueError(
+            "reward_batch_size currently supports only 1; true batching is not "
+            "implemented."
+        )
     if args.use_armorm_monitoring and not args.armorm_model_name.strip():
         raise ValueError("armorm_model_name must be non-empty when monitoring is enabled.")
 
@@ -503,8 +549,11 @@ def main() -> None:
             use_armorm_monitoring=args.use_armorm_monitoring,
             armorm_model_name=args.armorm_model_name,
             reward_eval_steps=args.reward_eval_steps,
+            reward_monitor_num_prompts=args.reward_monitor_num_prompts,
             reward_eval_prompts_path=reward_prompts_path,
             reward_max_new_tokens=args.reward_max_new_tokens,
+            reward_batch_size=args.reward_batch_size,
+            reward_csv_mode=args.reward_csv_mode,
             reward_output_dir=reward_output_dir,
         )
         if result.stop_requested:

@@ -35,6 +35,25 @@ The final experiment direction is **TinyLlama + HelpSteer2 + ArmoRM**:
 ArmoRM monitoring in the training script is evaluation only. Its scores are
 not used as an optimization signal.
 
+Optional ArmoRM monitoring evaluates the current adapter every 200 optimizer
+steps on the same first 10 prompts from
+`data/evaluation_prompts/helpsteer2_reward_monitor_prompts.jsonl`. Monitoring
+generation is deterministic (`do_sample=False`) and runs without gradients.
+The default maximum generation length is 96 new tokens and the currently
+supported reward batch size is 1. Enable it with:
+
+```bash
+--use_armorm_monitoring \
+--reward_eval_steps 200 \
+--reward_monitor_num_prompts 10 \
+--reward_max_new_tokens 96 \
+--reward_batch_size 1 \
+--reward_csv_mode overwrite
+```
+
+`--reward_csv_mode overwrite` starts clean monitoring logs for each adapter
+run. Use `append` only when adding rows to an intentionally retained run.
+
 The active coefficient implementation currently covers M1 and M2
 (MGDA-inspired), P1 and P2 (PCGrad-inspired), and C1 and C2
 (CAGrad-inspired). C3 is defined in the thesis method set but is not yet wired
@@ -174,6 +193,16 @@ as a white line. The exporter also supports `--raw_color`, `--smoothed_color`,
 `--raw_alpha`, `--raw_linewidth`, `--smoothed_linewidth`, `--grid_alpha`, and
 `--dpi` for reproducible visual adjustments.
 
+Export diagnostic ArmoRM mean-reward curves from the lightweight summary CSVs
+without loading TinyLlama or ArmoRM:
+
+```bash
+python scripts/export_tinyllama_reward_monitoring_curves.py --smoothing 0.5
+```
+
+The plots are written to
+`results/tinyllama_helpsteer2_reward_monitoring/plots/`.
+
 Create `STOP_CURRENT_ADAPTER` to request a graceful stop. The script detects
 the file during training, continues only until the next `save_steps` boundary,
 saves the numbered checkpoint and final current adapter, removes
@@ -185,7 +214,16 @@ you are willing to wait before a requested stop takes effect.
 TinyLlama training writes CSV logs to
 `results/tinyllama_helpsteer2_training_logs/`, TensorBoard events to
 `results/tensorboard/tinyllama_helpsteer2/`, and optional reward-monitoring
-CSVs to `results/tinyllama_helpsteer2_reward_monitoring/`. These generated
+CSVs to `results/tinyllama_helpsteer2_reward_monitoring/`. Per-prompt rows are
+stored in `tinyllama_helpsteer2_<attribute>_reward_prompts.csv`; aggregate
+mean, population standard deviation, minimum, and maximum rewards are stored
+in `tinyllama_helpsteer2_<attribute>_reward_summary.csv`. TensorBoard uses the
+scalars `<attribute>/armorm_mean_reward` and `<attribute>/learning_rate`.
+
+The 10-prompt ArmoRM curve is diagnostic monitoring only. It can reveal trends
+during training, but it is not a statistically reliable final evaluation.
+Final evaluation still uses the complete fixed evaluation prompt set and the
+thesis merge-evaluation pipeline. These generated
 logs, exported plots, adapters, checkpoints, model files, and zip archives
 should remain outside Git unless a small result artifact is selected
 intentionally for documentation.

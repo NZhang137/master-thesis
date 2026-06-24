@@ -12,6 +12,7 @@ import gc
 import json
 import random
 import shutil
+import statistics
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -86,42 +87,40 @@ class CsvTrainingLogger:
             writer.writerows(self.rows)
 
 
-class RewardCsvLogger:
-    """Write optional reward-monitoring scores without affecting training."""
+class _StreamingCsvLogger:
+    """Write and immediately flush rows in explicit overwrite or append mode."""
 
-    fieldnames = (
-        "attribute",
-        "global_step",
-        "prompt_id",
-        "reward_score",
-        "timestamp",
-    )
-
-    def __init__(self, path: Path, attribute: str) -> None:
+    def __init__(
+        self,
+        path: Path,
+        fieldnames: tuple[str, ...],
+        mode: str,
+    ) -> None:
+        if mode not in {"overwrite", "append"}:
+            raise ValueError("CSV mode must be 'overwrite' or 'append'.")
         self.path = path
-        self.attribute = attribute
-        self.rows: list[dict[str, object]] = []
         self.path.parent.mkdir(parents=True, exist_ok=True)
-
-    def log(self, *, global_step: int, prompt_id: str, reward_score: float) -> None:
-        """Append one reward-monitoring score and flush it immediately."""
-        self.rows.append(
-            {
-                "attribute": self.attribute,
-                "global_step": global_step,
-                "prompt_id": prompt_id,
-                "reward_score": f"{reward_score:.8f}",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }
+        write_header = mode == "overwrite" or not path.exists() or path.stat().st_size == 0
+        self.output_file = path.open(
+            "w" if mode == "overwrite" else "a",
+            encoding="utf-8",
+            newline="",
         )
-        self.flush()
+        self.writer = csv.DictWriter(self.output_file, fieldnames=fieldnames)
+        if write_header:
+            self.writer.writeheader()
+            self.output_file.flush()
 
-    def flush(self) -> None:
-        """Write all accumulated reward rows to disk."""
-        with self.path.open("w", encoding="utf-8", newline="") as output_file:
-            writer = csv.DictWriter(output_file, fieldnames=self.fieldnames)
-            writer.writeheader()
-            writer.writerows(self.rows)
+    def log(self, row: dict[str, object]) -> None:
+        """Write one row and flush it so monitoring survives interruptions."""
+        self.writer.writerow(row)
+        self.output_file.flush()
+
+    def close(self) -> None:
+        """Flush and close the underlying CSV file."""
+        if not self.output_file.closed:
+            self.output_file.flush()
+            self.output_file.close()
 
 
 def model_input_device(model) -> torch.device:
@@ -317,17 +316,25 @@ def load_reward_prompts(path: Path) -> list[dict[str, str]]:
                 raise ValueError(
                     f"Invalid JSON at {path}:{line_number}: {error}"
                 ) from error
+            if not isinstance(record, dict):
+                raise ValueError(f"Expected a JSON object at {path}:{line_number}.")
+            prompt_id = str(record.get("prompt_id", "")).strip()
             prompt = str(record.get("prompt", "")).strip()
+            if not prompt_id:
+                raise ValueError(f"Missing prompt_id at {path}:{line_number}.")
             if not prompt:
                 raise ValueError(f"Missing prompt at {path}:{line_number}.")
             prompts.append(
                 {
-                    "prompt_id": str(record.get("prompt_id", line_number)),
+                    "prompt_id": prompt_id,
                     "prompt": prompt,
                 }
             )
     if not prompts:
         raise ValueError(f"Reward-monitoring prompt file is empty: {path}")
+    prompt_ids = [record["prompt_id"] for record in prompts]
+    if len(set(prompt_ids)) != len(prompt_ids):
+        raise ValueError(f"Reward-monitoring prompt IDs must be unique: {path}")
     return prompts
 
 
@@ -341,15 +348,65 @@ class RewardMonitor:
     def __init__(
         self,
         *,
+        attribute: str,
         reward_model_name: str,
         prompts_path: Path,
+        num_prompts: int,
         max_new_tokens: int,
-        csv_logger: RewardCsvLogger,
+        batch_size: int,
+        prompt_csv_path: Path,
+        summary_csv_path: Path,
+        csv_mode: str,
     ) -> None:
+        if num_prompts < 1:
+            raise ValueError("Reward monitoring requires at least one prompt.")
+        if batch_size != 1:
+            raise ValueError(
+                "reward_batch_size currently supports only 1; true batching "
+                "is not implemented."
+            )
+        available_prompts = load_reward_prompts(prompts_path)
+        if len(available_prompts) < num_prompts:
+            raise ValueError(
+                f"Reward-monitoring prompt file contains {len(available_prompts)} "
+                f"prompts, but {num_prompts} are required: {prompts_path}"
+            )
+        self.attribute = attribute
         self.reward_model_name = reward_model_name
-        self.prompts = load_reward_prompts(prompts_path)
+        # Always use the same deterministic first N prompts for every attribute.
+        self.prompts = available_prompts[:num_prompts]
         self.max_new_tokens = max_new_tokens
-        self.csv_logger = csv_logger
+        self.prompt_csv_logger = _StreamingCsvLogger(
+            prompt_csv_path,
+            (
+                "attribute",
+                "global_step",
+                "prompt_id",
+                "prompt",
+                "generated_text",
+                "reward_score",
+                "reward_model",
+                "reward_max_new_tokens",
+                "timestamp",
+            ),
+            csv_mode,
+        )
+        self.summary_csv_logger = _StreamingCsvLogger(
+            summary_csv_path,
+            (
+                "attribute",
+                "global_step",
+                "mean_reward",
+                "std_reward",
+                "min_reward",
+                "max_reward",
+                "num_prompts",
+                "reward_model",
+                "reward_max_new_tokens",
+                "timestamp",
+            ),
+            csv_mode,
+        )
         self.reward_model = None
         self.reward_tokenizer = None
 
@@ -380,6 +437,7 @@ class RewardMonitor:
             torch_dtype=dtype,
             device_map="auto" if torch.cuda.is_available() else None,
         )
+        self.reward_model.requires_grad_(False)
         self.reward_model.eval()
 
     @staticmethod
@@ -410,7 +468,7 @@ class RewardMonitor:
             input_ids = encoded["input_ids"].to(device)
             attention_mask = encoded["attention_mask"].to(device)
 
-        with torch.no_grad():
+        with torch.inference_mode():
             generated = model.generate(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
@@ -442,7 +500,7 @@ class RewardMonitor:
 
         reward_device = next(self.reward_model.parameters()).device
         inputs = {key: value.to(reward_device) for key, value in inputs.items()}
-        with torch.no_grad():
+        with torch.inference_mode():
             outputs = self.reward_model(**inputs)
         return self._extract_score(outputs)
 
@@ -450,25 +508,60 @@ class RewardMonitor:
         """Return the mean reward score over the fixed monitoring prompts."""
         was_training = model.training
         model.eval()
-        scores = []
-        for record in self.prompts:
-            answer = self._generate_answer(model, tokenizer, record["prompt"])
-            score = self._score_answer(record["prompt"], answer)
-            scores.append(score)
-            self.csv_logger.log(
-                global_step=global_step,
-                prompt_id=record["prompt_id"],
-                reward_score=score,
-            )
-        if was_training:
-            model.train()
+        scores: list[float] = []
+        timestamp = datetime.now(timezone.utc).isoformat()
+        try:
+            # Load outside inference_mode so library initialization is unaffected.
+            self._load_reward_model()
+            with torch.inference_mode():
+                for record in self.prompts:
+                    answer = self._generate_answer(model, tokenizer, record["prompt"])
+                    score = self._score_answer(record["prompt"], answer)
+                    scores.append(score)
+                    self.prompt_csv_logger.log(
+                        {
+                            "attribute": self.attribute,
+                            "global_step": global_step,
+                            "prompt_id": record["prompt_id"],
+                            "prompt": record["prompt"],
+                            "generated_text": answer,
+                            "reward_score": f"{score:.8f}",
+                            "reward_model": self.reward_model_name,
+                            "reward_max_new_tokens": self.max_new_tokens,
+                            "timestamp": timestamp,
+                        }
+                    )
+        finally:
+            if was_training:
+                model.train()
         mean_score = float(sum(scores) / len(scores))
-        print(f"Reward monitoring at step {global_step}: mean={mean_score:.4f}")
+        # Population standard deviation describes the complete fixed prompt set.
+        std_score = float(statistics.pstdev(scores))
+        self.summary_csv_logger.log(
+            {
+                "attribute": self.attribute,
+                "global_step": global_step,
+                "mean_reward": f"{mean_score:.8f}",
+                "std_reward": f"{std_score:.8f}",
+                "min_reward": f"{min(scores):.8f}",
+                "max_reward": f"{max(scores):.8f}",
+                "num_prompts": len(scores),
+                "reward_model": self.reward_model_name,
+                "reward_max_new_tokens": self.max_new_tokens,
+                "timestamp": timestamp,
+            }
+        )
+        print(
+            f"ArmoRM monitoring at step {global_step}: "
+            f"mean={mean_score:.4f}, std={std_score:.4f}, "
+            f"min={min(scores):.4f}, max={max(scores):.4f}"
+        )
         return mean_score
 
     def close(self) -> None:
-        """Release the optional reward model and flush its CSV logger."""
-        self.csv_logger.flush()
+        """Release the optional reward model and close monitoring CSV files."""
+        self.prompt_csv_logger.close()
+        self.summary_csv_logger.close()
         if self.reward_model is not None:
             del self.reward_model, self.reward_tokenizer
             self.reward_model = None
@@ -654,7 +747,7 @@ def train_with_monitoring(
                     mean_reward = reward_monitor.evaluate(model, tokenizer, global_step)
                     if writer is not None:
                         writer.add_scalar(
-                            f"{attribute}/reward_monitor_score",
+                            f"{attribute}/armorm_mean_reward",
                             mean_reward,
                             global_step,
                         )
