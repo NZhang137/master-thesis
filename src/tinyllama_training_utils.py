@@ -600,6 +600,7 @@ def train_with_monitoring(
     lr_decay_after_epoch: int = 1,
     lr_decay_factor: float = 0.8,
     min_lr_ratio: float = 0.1,
+    warmup_ratio: float = 0.06,
     seed: int = 67,
 ) -> TrainingResult:
     """Train one adapter with loss, checkpoint, stop, and reward monitoring."""
@@ -615,6 +616,14 @@ def train_with_monitoring(
         raise ValueError("lr_decay_factor must be greater than 0 and at most 1.")
     if not 0 < min_lr_ratio <= 1:
         raise ValueError("min_lr_ratio must be greater than 0 and at most 1.")
+    if not 0 <= warmup_ratio <= 1:
+        raise ValueError("warmup_ratio must be between 0 and 1.")
+
+    steps_per_epoch = (len(train_texts) + batch_size - 1) // batch_size
+    total_steps = num_epochs * steps_per_epoch
+    if max_steps > 0:
+        total_steps = min(total_steps, max_steps)
+    warmup_steps = int(warmup_ratio * total_steps)
 
     trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
     if not trainable:
@@ -627,6 +636,21 @@ def train_with_monitoring(
 
     def current_learning_rate() -> float:
         return float(optimizer.param_groups[0]["lr"])
+
+    def learning_rate_at(global_step: int, epoch_index: int) -> float:
+        """Return linear warmup LR followed by the configured epoch schedule."""
+        if warmup_steps > 0 and global_step < warmup_steps:
+            return learning_rate * (global_step + 1) / warmup_steps
+        if lr_scheduler_type == "epoch_decay":
+            decay_epochs = max(0, epoch_index - lr_decay_after_epoch + 1)
+            decayed_lr = learning_rate * (lr_decay_factor**decay_epochs)
+            return max(decayed_lr, learning_rate * min_lr_ratio)
+        return learning_rate
+
+    print(
+        f"Learning-rate warmup: ratio={warmup_ratio:.4g}, "
+        f"warmup_steps={warmup_steps}, total_steps={total_steps}"
+    )
 
     writer = create_tensorboard_writer(
         use_tensorboard,
@@ -670,7 +694,8 @@ def train_with_monitoring(
             last_eval_step: int | None = None
             print(
                 f"\nEpoch {epoch_number}/{num_epochs} for {attribute} "
-                f"(learning_rate={current_learning_rate():.8g}, "
+                f"(next_learning_rate="
+                f"{learning_rate_at(global_step, epoch_index):.8g}, "
                 f"shuffle_seed={epoch_shuffle_seed})"
             )
 
@@ -690,6 +715,9 @@ def train_with_monitoring(
                 )
                 loss = outputs.loss
                 loss.backward()
+                step_learning_rate = learning_rate_at(global_step, epoch_index)
+                for parameter_group in optimizer.param_groups:
+                    parameter_group["lr"] = step_learning_rate
                 optimizer.step()
 
                 loss_value = float(loss.item())
@@ -814,24 +842,6 @@ def train_with_monitoring(
                 if writer is not None:
                     writer.add_scalar(f"{attribute}/eval_loss", eval_loss, global_step)
                     writer.flush()
-            if (
-                lr_scheduler_type == "epoch_decay"
-                and epoch_number >= lr_decay_after_epoch
-                and epoch_number < num_epochs
-            ):
-                previous_lr = current_learning_rate()
-                minimum_lr = learning_rate * min_lr_ratio
-                for parameter_group in optimizer.param_groups:
-                    parameter_group["lr"] = max(
-                        minimum_lr,
-                        float(parameter_group["lr"]) * lr_decay_factor,
-                    )
-                updated_lr = current_learning_rate()
-                if updated_lr < previous_lr:
-                    print(
-                        f"Learning rate decayed after epoch {epoch_number}: "
-                        f"{previous_lr:.8g} -> {updated_lr:.8g}"
-                    )
             detect_stop_files()
 
         if stop_requested or current_adapter_stop_requested:

@@ -82,6 +82,7 @@ def train_attribute_adapter(
     lr_decay_after_epoch: int,
     lr_decay_factor: float,
     min_lr_ratio: float,
+    warmup_ratio: float,
     max_length: int,
     batch_size: int,
     output_path: Path,
@@ -139,6 +140,7 @@ def train_attribute_adapter(
     print(f"Learning rate: {learning_rate}")
     print(f"Weight decay: {weight_decay}")
     print(f"LR scheduler: {lr_scheduler_type}")
+    print(f"Warmup ratio: {warmup_ratio}")
     if lr_scheduler_type == "epoch_decay":
         print(f"LR decay after epoch: {lr_decay_after_epoch}")
         print(f"LR decay factor: {lr_decay_factor}")
@@ -194,6 +196,7 @@ def train_attribute_adapter(
         lr_decay_after_epoch=lr_decay_after_epoch,
         lr_decay_factor=lr_decay_factor,
         min_lr_ratio=min_lr_ratio,
+        warmup_ratio=warmup_ratio,
         max_length=max_length,
         batch_size=batch_size,
         logging_steps=logging_steps,
@@ -304,6 +307,14 @@ def parse_args() -> argparse.Namespace:
         dest="min_lr_ratio",
         type=float,
         default=0.1,
+    )
+    parser.add_argument(
+        "--warmup_ratio",
+        "--warmup-ratio",
+        dest="warmup_ratio",
+        type=float,
+        default=0.06,
+        help="Fraction of total optimizer steps used for linear LR warmup.",
     )
     parser.add_argument(
         "--max_length", "--max-length", dest="max_length", type=int, default=512
@@ -461,6 +472,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("lr_decay_factor must be greater than 0 and at most 1.")
     if not 0 < args.min_lr_ratio <= 1:
         raise ValueError("min_lr_ratio must be greater than 0 and at most 1.")
+    if not 0 <= args.warmup_ratio <= 1:
+        raise ValueError("warmup_ratio must be between 0 and 1.")
     if args.max_length < 2 or args.batch_size < 1:
         raise ValueError("max_length must be at least 2 and batch_size at least 1.")
     for name in ("logging_steps", "eval_steps", "save_steps", "reward_eval_steps"):
@@ -532,6 +545,7 @@ def main() -> None:
             lr_decay_after_epoch=args.lr_decay_after_epoch,
             lr_decay_factor=args.lr_decay_factor,
             min_lr_ratio=args.min_lr_ratio,
+            warmup_ratio=args.warmup_ratio,
             max_length=args.max_length,
             batch_size=args.batch_size,
             output_path=output_dir / adapter_directory_name(attribute),
