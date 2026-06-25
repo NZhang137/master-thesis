@@ -36,7 +36,7 @@ ArmoRM monitoring in the training script is evaluation only. Its scores are
 not used as an optimization signal.
 
 Optional ArmoRM monitoring evaluates the current adapter every 200 optimizer
-steps on the same first 10 prompts from
+steps on the same first 20 prompts from
 `data/evaluation_prompts/helpsteer2_reward_monitor_prompts.jsonl`. Monitoring
 generation is deterministic (`do_sample=False`) and runs without gradients.
 For each adapter, the logged score is the matching ArmoRM HelpSteer objective:
@@ -49,7 +49,7 @@ supported reward batch size is 1. Enable it with:
 ```bash
 --use_armorm_monitoring \
 --reward_eval_steps 200 \
---reward_monitor_num_prompts 10 \
+--reward_monitor_num_prompts 20 \
 --reward_max_new_tokens 96 \
 --reward_batch_size 1 \
 --reward_csv_mode overwrite
@@ -234,7 +234,7 @@ backward-compatible scalar `<attribute>/armorm_mean_reward` for the selected
 attribute-specific HelpSteer objective, an explicit scalar such as
 `<attribute>/armorm_helpsteer_helpfulness`, and `<attribute>/learning_rate`.
 
-The 10-prompt ArmoRM curve is diagnostic monitoring only. It can reveal trends
+The 20-prompt ArmoRM curve is diagnostic monitoring only. It can reveal trends
 during training, but it is not a statistically reliable final evaluation.
 Final evaluation still uses the complete fixed evaluation prompt set and the
 thesis merge-evaluation pipeline. These generated

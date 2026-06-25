@@ -422,7 +422,7 @@ def parse_args() -> argparse.Namespace:
         "--reward-monitor-num-prompts",
         dest="reward_monitor_num_prompts",
         type=int,
-        default=10,
+        default=20,
     )
     parser.add_argument(
         "--reward_eval_prompts_path",
