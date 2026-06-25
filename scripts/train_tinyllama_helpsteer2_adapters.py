@@ -158,6 +158,7 @@ def train_attribute_adapter(
     if lr_scheduler_type == "epoch_decay":
         print(f"LR decay after epoch: {lr_decay_after_epoch}")
         print(f"LR decay factor: {lr_decay_factor}")
+    if lr_scheduler_type in {"epoch_decay", "cosine"}:
         print(f"Minimum LR ratio: {min_lr_ratio}")
     print("LoRA rank: 8")
     print("LoRA alpha: 16")
@@ -298,7 +299,7 @@ def parse_args() -> argparse.Namespace:
         "--lr_scheduler_type",
         "--lr-scheduler-type",
         dest="lr_scheduler_type",
-        choices=("constant", "epoch_decay"),
+        choices=("constant", "epoch_decay", "cosine"),
         default="constant",
     )
     parser.add_argument(
@@ -452,6 +453,12 @@ def parse_args() -> argparse.Namespace:
         default="overwrite",
     )
     parser.add_argument(
+        "--reward_output_dir",
+        "--reward-output-dir",
+        dest="reward_output_dir",
+        default="results/tinyllama_helpsteer2_reward_monitoring",
+    )
+    parser.add_argument(
         "--stop_all_on_max_steps",
         "--stop-all-on-max-steps",
         dest="stop_all_on_max_steps",
@@ -530,9 +537,7 @@ def main() -> None:
     tensorboard_log_dir = resolve_project_path(args.tensorboard_log_dir)
     checkpoint_dir = resolve_project_path(args.checkpoint_dir)
     reward_prompts_path = resolve_project_path(args.reward_eval_prompts_path)
-    reward_output_dir = resolve_project_path(
-        "results/tinyllama_helpsteer2_reward_monitoring"
-    )
+    reward_output_dir = resolve_project_path(args.reward_output_dir)
 
     print(f"Selected attributes: {', '.join(attributes)}")
     print(

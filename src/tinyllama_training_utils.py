@@ -10,6 +10,7 @@ from __future__ import annotations
 import csv
 import gc
 import json
+import math
 import random
 import shutil
 import statistics
@@ -647,8 +648,10 @@ def train_with_monitoring(
     evaluation_texts = [text.strip() for text in eval_texts if text.strip()]
     if not train_texts or not evaluation_texts:
         raise ValueError("Training and evaluation text lists must be non-empty.")
-    if lr_scheduler_type not in {"constant", "epoch_decay"}:
-        raise ValueError("lr_scheduler_type must be 'constant' or 'epoch_decay'.")
+    if lr_scheduler_type not in {"constant", "epoch_decay", "cosine"}:
+        raise ValueError(
+            "lr_scheduler_type must be 'constant', 'epoch_decay', or 'cosine'."
+        )
     if lr_decay_after_epoch < 1:
         raise ValueError("lr_decay_after_epoch must be at least 1.")
     if not 0 < lr_decay_factor <= 1:
@@ -680,6 +683,15 @@ def train_with_monitoring(
         """Return linear warmup LR followed by the configured epoch schedule."""
         if warmup_steps > 0 and global_step < warmup_steps:
             return learning_rate * (global_step + 1) / warmup_steps
+        if lr_scheduler_type == "cosine":
+            min_lr = learning_rate * min_lr_ratio
+            decay_steps = max(1, total_steps - warmup_steps)
+            progress = min(
+                max((global_step - warmup_steps) / decay_steps, 0.0),
+                1.0,
+            )
+            cosine_factor = 0.5 * (1.0 + math.cos(math.pi * progress))
+            return min_lr + (learning_rate - min_lr) * cosine_factor
         if lr_scheduler_type == "epoch_decay":
             decay_epochs = max(0, epoch_index - lr_decay_after_epoch + 1)
             decayed_lr = learning_rate * (lr_decay_factor**decay_epochs)
