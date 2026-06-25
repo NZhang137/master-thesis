@@ -27,6 +27,7 @@ from src.experiment_config import (
 )
 from src.helpsteer2_utils import HELPSTEER2_ATTRIBUTES, make_attribute_training_texts
 from src.tinyllama_training_utils import (
+    ARMORM_HELPSTEER_OBJECTIVES,
     CsvTrainingLogger,
     RewardMonitor,
     TrainingResult,
@@ -128,6 +129,11 @@ def train_attribute_adapter(
     print(f"Output adapter path: {output_path}")
     if use_armorm_monitoring:
         print("ArmoRM monitoring enabled: True")
+        objective_index, objective_name = ARMORM_HELPSTEER_OBJECTIVES[attribute]
+        print(
+            "ArmoRM monitored objective: "
+            f"{objective_name} (rewards index {objective_index})"
+        )
         print(f"ArmoRM reward evaluation steps: {reward_eval_steps}")
         print(f"ArmoRM monitoring prompts: {reward_monitor_num_prompts}")
         print(f"ArmoRM prompt file: {reward_eval_prompts_path}")

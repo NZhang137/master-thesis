@@ -33,6 +33,15 @@ class TrainingResult:
     interrupted: bool = False
 
 
+ARMORM_HELPSTEER_OBJECTIVES: dict[str, tuple[int, str]] = {
+    "helpfulness": (0, "helpsteer-helpfulness"),
+    "correctness": (1, "helpsteer-correctness"),
+    "coherence": (2, "helpsteer-coherence"),
+    "complexity": (3, "helpsteer-complexity"),
+    "verbosity": (4, "helpsteer-verbosity"),
+}
+
+
 class CsvTrainingLogger:
     """Write train and evaluation losses for one attribute to CSV."""
 
@@ -372,6 +381,16 @@ class RewardMonitor:
                 f"prompts, but {num_prompts} are required: {prompts_path}"
             )
         self.attribute = attribute
+        if attribute not in ARMORM_HELPSTEER_OBJECTIVES:
+            raise ValueError(
+                f"No ArmoRM HelpSteer objective mapping is configured for {attribute!r}."
+            )
+        self.reward_objective_index, self.reward_objective_name = (
+            ARMORM_HELPSTEER_OBJECTIVES[attribute]
+        )
+        self.tensorboard_scalar_name = (
+            f"armorm_{self.reward_objective_name.replace('-', '_')}"
+        )
         self.reward_model_name = reward_model_name
         # Always use the same deterministic first N prompts for every attribute.
         self.prompts = available_prompts[:num_prompts]
@@ -384,6 +403,7 @@ class RewardMonitor:
                 "prompt_id",
                 "prompt",
                 "generated_text",
+                "reward_objective",
                 "reward_score",
                 "reward_model",
                 "reward_max_new_tokens",
@@ -396,6 +416,7 @@ class RewardMonitor:
             (
                 "attribute",
                 "global_step",
+                "reward_objective",
                 "mean_reward",
                 "std_reward",
                 "min_reward",
@@ -440,19 +461,34 @@ class RewardMonitor:
         self.reward_model.requires_grad_(False)
         self.reward_model.eval()
 
-    @staticmethod
-    def _extract_score(outputs) -> float:
-        score = getattr(outputs, "score", None)
-        if score is None:
-            score = getattr(outputs, "logits", None)
-        if score is None:
-            raise ValueError("The configured reward model returned no score or logits.")
-        tensor = torch.as_tensor(score).detach().float().reshape(-1)
-        if tensor.numel() != 1:
+    def _extract_objective_score(self, outputs) -> float:
+        rewards = getattr(outputs, "rewards", None)
+        if rewards is None:
             raise ValueError(
-                "Reward monitoring expects one scalar score per prompt/answer pair."
+                "The configured reward model returned no multi-objective "
+                "reward vector. Objective-specific ArmoRM monitoring requires "
+                "outputs.rewards."
             )
-        return float(tensor.item())
+        tensor = torch.as_tensor(rewards).detach().float()
+        if tensor.ndim == 1:
+            tensor = tensor.unsqueeze(0)
+        if tensor.ndim != 2:
+            raise ValueError(
+                "Objective-specific ArmoRM monitoring expects rewards with "
+                "shape [batch, objectives]."
+            )
+        if tensor.shape[0] != 1:
+            raise ValueError(
+                "reward_batch_size currently supports only 1, but ArmoRM returned "
+                f"a batch of {tensor.shape[0]} rewards."
+            )
+        if tensor.shape[1] <= self.reward_objective_index:
+            raise ValueError(
+                f"ArmoRM returned only {tensor.shape[1]} objective rewards; "
+                f"cannot read {self.reward_objective_name} at index "
+                f"{self.reward_objective_index}."
+            )
+        return float(tensor[0, self.reward_objective_index].item())
 
     def _generate_answer(self, model, tokenizer, prompt: str) -> str:
         device = model_input_device(model)
@@ -502,10 +538,10 @@ class RewardMonitor:
         inputs = {key: value.to(reward_device) for key, value in inputs.items()}
         with torch.inference_mode():
             outputs = self.reward_model(**inputs)
-        return self._extract_score(outputs)
+        return self._extract_objective_score(outputs)
 
     def evaluate(self, model, tokenizer, global_step: int) -> float:
-        """Return the mean reward score over the fixed monitoring prompts."""
+        """Return the mean selected ArmoRM objective over the fixed prompts."""
         was_training = model.training
         model.eval()
         scores: list[float] = []
@@ -525,6 +561,7 @@ class RewardMonitor:
                             "prompt_id": record["prompt_id"],
                             "prompt": record["prompt"],
                             "generated_text": answer,
+                            "reward_objective": self.reward_objective_name,
                             "reward_score": f"{score:.8f}",
                             "reward_model": self.reward_model_name,
                             "reward_max_new_tokens": self.max_new_tokens,
@@ -541,6 +578,7 @@ class RewardMonitor:
             {
                 "attribute": self.attribute,
                 "global_step": global_step,
+                "reward_objective": self.reward_objective_name,
                 "mean_reward": f"{mean_score:.8f}",
                 "std_reward": f"{std_score:.8f}",
                 "min_reward": f"{min(scores):.8f}",
@@ -553,6 +591,7 @@ class RewardMonitor:
         )
         print(
             f"ArmoRM monitoring at step {global_step}: "
+            f"objective={self.reward_objective_name}, "
             f"mean={mean_score:.4f}, std={std_score:.4f}, "
             f"min={min(scores):.4f}, max={max(scores):.4f}"
         )
@@ -776,8 +815,15 @@ def train_with_monitoring(
                 if reward_monitor is not None and global_step % reward_eval_steps == 0:
                     mean_reward = reward_monitor.evaluate(model, tokenizer, global_step)
                     if writer is not None:
+                        # Backward-compatible scalar: now the selected HelpSteer
+                        # objective for the active adapter, not the global score.
                         writer.add_scalar(
                             f"{attribute}/armorm_mean_reward",
+                            mean_reward,
+                            global_step,
+                        )
+                        writer.add_scalar(
+                            f"{attribute}/{reward_monitor.tensorboard_scalar_name}",
                             mean_reward,
                             global_step,
                         )

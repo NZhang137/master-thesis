@@ -39,6 +39,10 @@ Optional ArmoRM monitoring evaluates the current adapter every 200 optimizer
 steps on the same first 10 prompts from
 `data/evaluation_prompts/helpsteer2_reward_monitor_prompts.jsonl`. Monitoring
 generation is deterministic (`do_sample=False`) and runs without gradients.
+For each adapter, the logged score is the matching ArmoRM HelpSteer objective:
+`helpsteer-helpfulness`, `helpsteer-correctness`, `helpsteer-coherence`,
+`helpsteer-complexity`, or `helpsteer-verbosity`. It is not the global
+ArmoRM preference score.
 The default maximum generation length is 96 new tokens and the currently
 supported reward batch size is 1. Enable it with:
 
@@ -221,7 +225,9 @@ CSVs to `results/tinyllama_helpsteer2_reward_monitoring/`. Per-prompt rows are
 stored in `tinyllama_helpsteer2_<attribute>_reward_prompts.csv`; aggregate
 mean, population standard deviation, minimum, and maximum rewards are stored
 in `tinyllama_helpsteer2_<attribute>_reward_summary.csv`. TensorBoard uses the
-scalars `<attribute>/armorm_mean_reward` and `<attribute>/learning_rate`.
+backward-compatible scalar `<attribute>/armorm_mean_reward` for the selected
+attribute-specific HelpSteer objective, an explicit scalar such as
+`<attribute>/armorm_helpsteer_helpfulness`, and `<attribute>/learning_rate`.
 
 The 10-prompt ArmoRM curve is diagnostic monitoring only. It can reveal trends
 during training, but it is not a statistically reliable final evaluation.

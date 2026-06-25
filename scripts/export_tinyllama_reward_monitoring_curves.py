@@ -40,8 +40,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_summary(path: Path) -> tuple[str, list[tuple[float, float]]]:
-    """Load one attribute's global-step and mean-reward series."""
+def load_summary(path: Path) -> tuple[str, str | None, list[tuple[float, float]]]:
+    """Load one attribute's global-step and mean selected-objective series."""
     with path.open("r", encoding="utf-8", newline="") as input_file:
         reader = csv.DictReader(input_file)
         required = {"attribute", "global_step", "mean_reward"}
@@ -49,11 +49,15 @@ def load_summary(path: Path) -> tuple[str, list[tuple[float, float]]]:
         if missing:
             raise ValueError(f"Missing columns in {path}: {sorted(missing)}")
         attributes: set[str] = set()
+        reward_objectives: set[str] = set()
         by_step: dict[float, float] = {}
         for row in reader:
             attribute = str(row["attribute"]).strip()
             if attribute:
                 attributes.add(attribute)
+            reward_objective = str(row.get("reward_objective", "")).strip()
+            if reward_objective:
+                reward_objectives.add(reward_objective)
             try:
                 step = float(row["global_step"])
                 reward = float(row["mean_reward"])
@@ -64,9 +68,14 @@ def load_summary(path: Path) -> tuple[str, list[tuple[float, float]]]:
             by_step[step] = reward
     if len(attributes) != 1:
         raise ValueError(f"Expected exactly one attribute in {path}: {attributes}")
+    if len(reward_objectives) > 1:
+        raise ValueError(
+            f"Expected at most one reward objective in {path}: {reward_objectives}"
+        )
     if not by_step:
         raise ValueError(f"No reward rows found in {path}")
-    return next(iter(attributes)), sorted(by_step.items())
+    reward_objective = next(iter(reward_objectives)) if reward_objectives else None
+    return next(iter(attributes)), reward_objective, sorted(by_step.items())
 
 
 def smooth(values: list[float], smoothing: float) -> list[float]:
@@ -91,13 +100,13 @@ def configure_axis(figure, axis, theme: str) -> None:
     figure.patch.set_facecolor(background)
     axis.set_facecolor(background)
     axis.set_xlabel("Global Step")
-    axis.set_ylabel("Mean ArmoRM Reward")
+    axis.set_ylabel("Mean ArmoRM Selected-Objective Reward")
     axis.grid(True, alpha=0.3)
 
 
 def save_plots(
     pyplot,
-    series: dict[str, list[tuple[float, float]]],
+    series: dict[str, dict[str, object]],
     output_dir: Path,
     smoothing: float,
     theme: str,
@@ -106,7 +115,9 @@ def save_plots(
     """Save individual and combined raw/smoothed reward curves."""
     saved: list[Path] = []
     for attribute in ordered_attributes(series):
-        steps, rewards = zip(*series[attribute])
+        points = series[attribute]["points"]
+        objective = series[attribute]["reward_objective"] or "selected objective"
+        steps, rewards = zip(*points)
         figure, axis = pyplot.subplots(figsize=(7.2, 4.4))
         configure_axis(figure, axis, theme)
         axis.plot(steps, rewards, color="#65717f", alpha=0.55, label="raw")
@@ -117,7 +128,7 @@ def save_plots(
             linewidth=2.0,
             label=f"smoothed ({smoothing:g})",
         )
-        axis.set_title(f"{attribute}/armorm_mean_reward", loc="left")
+        axis.set_title(f"{attribute}/armorm_mean_reward ({objective})", loc="left")
         axis.legend()
         figure.tight_layout()
         path = output_dir / f"{attribute}_armorm_mean_reward.png"
@@ -128,7 +139,8 @@ def save_plots(
     figure, axis = pyplot.subplots(figsize=(8.2, 5.0))
     configure_axis(figure, axis, theme)
     for attribute in ordered_attributes(series):
-        steps, rewards = zip(*series[attribute])
+        points = series[attribute]["points"]
+        steps, rewards = zip(*points)
         (raw_line,) = axis.plot(steps, rewards, alpha=0.3, label="_nolegend_")
         axis.plot(
             steps,
@@ -137,7 +149,7 @@ def save_plots(
             linewidth=2.0,
             label=attribute,
         )
-    axis.set_title("All attributes: ArmoRM mean reward", loc="left")
+    axis.set_title("All attributes: ArmoRM selected-objective mean reward", loc="left")
     axis.legend()
     figure.tight_layout()
     combined_path = output_dir / "tinyllama_all_attributes_armorm_mean_reward.png"
@@ -165,12 +177,15 @@ def main() -> None:
     if not paths:
         raise FileNotFoundError(f"No reward summary CSV files found in {log_dir}")
 
-    series: dict[str, list[tuple[float, float]]] = {}
+    series: dict[str, dict[str, object]] = {}
     for path in paths:
-        attribute, points = load_summary(path)
+        attribute, reward_objective, points = load_summary(path)
         if attribute in series:
             raise ValueError(f"Multiple summary files found for {attribute!r}.")
-        series[attribute] = points
+        series[attribute] = {
+            "reward_objective": reward_objective,
+            "points": points,
+        }
 
     try:
         import matplotlib
