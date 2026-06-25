@@ -14,6 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.experiment_config import (
     get_attribute_min_ratings,
     get_attribute_order,
+    get_max_training_examples_per_attribute,
     load_experiment_config,
     validate_preference_vectors,
 )
@@ -57,6 +58,7 @@ def main() -> None:
     config = load_experiment_config(config_path)
     attributes = get_attribute_order(config)
     min_ratings = get_attribute_min_ratings(config)
+    max_training_examples = get_max_training_examples_per_attribute(config)
     preferences = validate_preference_vectors(config)
 
     print("TinyLlama + HelpSteer2 + ArmoRM configuration is valid.\n")
@@ -68,6 +70,11 @@ def main() -> None:
     print("Attribute minimum ratings:")
     for attribute, threshold in min_ratings.items():
         print(f"  - {attribute}: >= {threshold}")
+    if max_training_examples is not None:
+        print(
+            "Max training examples per attribute: "
+            f"{max_training_examples} (highest ratings first)"
+        )
     print("Preference vectors:")
     for name, vector in preferences.items():
         values = ", ".join(f"{value:.2f}" for value in vector)

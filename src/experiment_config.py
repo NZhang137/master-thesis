@@ -138,6 +138,22 @@ def get_attribute_min_ratings(
     return thresholds
 
 
+def get_max_training_examples_per_attribute(config: Mapping[str, Any]) -> int | None:
+    """Return an optional shared cap for selected training texts per attribute."""
+    value = config.get("max_training_examples_per_attribute")
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(
+            "config['max_training_examples_per_attribute'] must be an integer or null."
+        )
+    if value < 1:
+        raise ValueError(
+            "config['max_training_examples_per_attribute'] must be at least 1."
+        )
+    return value
+
+
 def validate_preference_vectors(
     config: Mapping[str, Any],
     tolerance: float = DEFAULT_SIMPLEX_TOLERANCE,

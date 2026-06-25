@@ -16,6 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.experiment_config import (
     get_attribute_min_ratings,
     get_attribute_order,
+    get_max_training_examples_per_attribute,
     load_experiment_config,
     validate_preference_vectors,
 )
@@ -97,6 +98,10 @@ def main() -> None:
     config = load_experiment_config(config_path)
     attributes = get_attribute_order(config)
     min_ratings = get_attribute_min_ratings(config)
+    configured_max_examples = get_max_training_examples_per_attribute(config)
+    max_examples = args.max_examples
+    if max_examples is None:
+        max_examples = configured_max_examples
     preferences = validate_preference_vectors(config)
     if attributes != HELPSTEER2_ATTRIBUTES:
         raise ValueError(
@@ -139,7 +144,7 @@ def main() -> None:
             attribute=attribute,
             split=args.split,
             min_rating=None,
-            max_examples=args.max_examples,
+            max_examples=max_examples,
             attribute_min_ratings=min_ratings,
         )
         if not texts or any(not text.strip() for text in texts):
@@ -166,7 +171,7 @@ def main() -> None:
                 counts["selected_count_at_threshold"]
             ),
             "selected_example_count": len(texts),
-            "max_examples": args.max_examples,
+            "max_examples": max_examples,
             "example_training_texts": [
                 preview_text(text) for text in texts[:EXAMPLE_TEXT_COUNT]
             ],
@@ -187,7 +192,7 @@ def main() -> None:
         "selection": {
             "attribute_min_ratings": min_ratings,
             "small_split_fallback": "highest observed rating",
-            "max_examples": args.max_examples,
+            "max_examples": max_examples,
             "ordering": "descending rating, then original row index",
         },
         "attribute_summaries": attribute_summaries,

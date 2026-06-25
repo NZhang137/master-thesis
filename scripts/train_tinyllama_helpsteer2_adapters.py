@@ -22,6 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.experiment_config import (
     get_attribute_min_ratings,
     get_attribute_order,
+    get_max_training_examples_per_attribute,
     load_experiment_config,
     validate_preference_vectors,
 )
@@ -76,6 +77,7 @@ def train_attribute_adapter(
     split: str,
     eval_split: str,
     min_rating: int,
+    max_training_examples: int | None,
     num_epochs: int,
     learning_rate: float,
     weight_decay: float,
@@ -112,11 +114,17 @@ def train_attribute_adapter(
     """Load a fresh base model, train one specialist, and save its adapter."""
     print(f"\n=== TinyLlama HelpSteer2 {attribute} adapter ===")
     print(f"Attribute selection threshold: rating >= {min_rating}")
+    if max_training_examples is not None:
+        print(
+            "Training text cap: "
+            f"top {max_training_examples} examples after descending-rating sorting"
+        )
     print(f"Loading training split {split!r}")
     training_texts = make_attribute_training_texts(
         attribute,
         split,
         min_rating=min_rating,
+        max_examples=max_training_examples,
     )
     print(f"Selected {len(training_texts)} high-{attribute} training texts.")
     print(f"Loading evaluation split {eval_split!r}")
@@ -512,6 +520,7 @@ def main() -> None:
             "order: " + ", ".join(HELPSTEER2_ATTRIBUTES)
         )
     min_ratings = get_attribute_min_ratings(config)
+    max_training_examples = get_max_training_examples_per_attribute(config)
     validate_preference_vectors(config)
     attributes = normalize_attributes(args.attributes)
     output_dir = resolve_project_path(args.output_dir)
@@ -532,6 +541,11 @@ def main() -> None:
             f"{attribute}>={min_ratings[attribute]}" for attribute in attributes
         )
     )
+    if max_training_examples is not None:
+        print(
+            "Training example cap: "
+            f"{max_training_examples} per attribute, using highest ratings first"
+        )
     print(
         "Training uses attribute-selected supervised HelpSteer2 texts. "
         "External reward monitoring, when enabled, is evaluation only."
@@ -544,6 +558,7 @@ def main() -> None:
             split=args.split,
             eval_split=args.eval_split,
             min_rating=min_ratings[attribute],
+            max_training_examples=max_training_examples,
             num_epochs=args.num_epochs,
             learning_rate=args.learning_rate,
             weight_decay=args.weight_decay,
