@@ -435,7 +435,7 @@ def parse_args() -> argparse.Namespace:
         "--reward-max-new-tokens",
         dest="reward_max_new_tokens",
         type=int,
-        default=96,
+        default=256,
     )
     parser.add_argument(
         "--reward_batch_size",

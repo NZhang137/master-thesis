@@ -43,14 +43,14 @@ For each adapter, the logged score is the matching ArmoRM HelpSteer objective:
 `helpsteer-helpfulness`, `helpsteer-correctness`, `helpsteer-coherence`,
 `helpsteer-complexity`, or `helpsteer-verbosity`. It is not the global
 ArmoRM preference score.
-The default maximum generation length is 96 new tokens and the currently
+The default maximum generation length is 256 new tokens and the currently
 supported reward batch size is 1. Enable it with:
 
 ```bash
 --use_armorm_monitoring \
 --reward_eval_steps 200 \
 --reward_monitor_num_prompts 20 \
---reward_max_new_tokens 96 \
+--reward_max_new_tokens 256 \
 --reward_batch_size 1 \
 --reward_csv_mode overwrite
 ```
