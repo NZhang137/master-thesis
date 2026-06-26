@@ -127,9 +127,7 @@ python scripts/train_tinyllama_helpsteer2_adapters.py \
   --batch_size 8 \
   --max_length 1024 \
   --learning_rate 1e-4 \
-  --lr_scheduler_type epoch_decay \
-  --lr_decay_after_epoch 1 \
-  --lr_decay_factor 0.67 \
+  --lr_scheduler_type cosine_decay \
   --min_lr_ratio 0.1 \
   --warmup_ratio 0.06 \
   --weight_decay 0.01 \
@@ -143,11 +141,10 @@ The LoRA configuration keeps the rank fixed at `r=8` and uses
 `lora_alpha=16`, which keeps adapter capacity moderate. Regularization uses
 `lora_dropout=0.1` together with AdamW `weight_decay=0.01`. The first 6% of
 planned optimizer steps linearly warm the learning rate from near zero to
-`1e-4`. After warmup, the notebook decays the rate by a factor of `0.67` after
-each completed epoch starting after epoch 1 and floors it at `1e-5`
-(`min_lr_ratio=0.1`). The script itself keeps `lr_scheduler_type=constant` as
-the backward-compatible post-warmup default when no scheduler options are
-passed.
+`1e-4`. After warmup, the notebook uses `cosine_decay` to smoothly decay the
+rate toward the `1e-5` floor (`min_lr_ratio=0.1`). The script itself keeps
+`lr_scheduler_type=constant` as the backward-compatible post-warmup default
+when no scheduler option is passed.
 
 Training texts are shuffled once per epoch with the deterministic seed
 `67 + epoch_index`. The original selected-text list is not mutated, and the

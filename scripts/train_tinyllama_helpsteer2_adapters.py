@@ -82,8 +82,6 @@ def train_attribute_adapter(
     learning_rate: float,
     weight_decay: float,
     lr_scheduler_type: str,
-    lr_decay_after_epoch: int,
-    lr_decay_factor: float,
     min_lr_ratio: float,
     warmup_ratio: float,
     max_length: int,
@@ -155,10 +153,7 @@ def train_attribute_adapter(
     print(f"Weight decay: {weight_decay}")
     print(f"LR scheduler: {lr_scheduler_type}")
     print(f"Warmup ratio: {warmup_ratio}")
-    if lr_scheduler_type == "epoch_decay":
-        print(f"LR decay after epoch: {lr_decay_after_epoch}")
-        print(f"LR decay factor: {lr_decay_factor}")
-    if lr_scheduler_type in {"epoch_decay", "cosine"}:
+    if lr_scheduler_type == "cosine_decay":
         print(f"Minimum LR ratio: {min_lr_ratio}")
     print("LoRA rank: 8")
     print("LoRA alpha: 16")
@@ -208,8 +203,6 @@ def train_attribute_adapter(
         learning_rate=learning_rate,
         weight_decay=weight_decay,
         lr_scheduler_type=lr_scheduler_type,
-        lr_decay_after_epoch=lr_decay_after_epoch,
-        lr_decay_factor=lr_decay_factor,
         min_lr_ratio=min_lr_ratio,
         warmup_ratio=warmup_ratio,
         max_length=max_length,
@@ -299,22 +292,8 @@ def parse_args() -> argparse.Namespace:
         "--lr_scheduler_type",
         "--lr-scheduler-type",
         dest="lr_scheduler_type",
-        choices=("constant", "epoch_decay", "cosine"),
+        choices=("constant", "cosine_decay"),
         default="constant",
-    )
-    parser.add_argument(
-        "--lr_decay_after_epoch",
-        "--lr-decay-after-epoch",
-        dest="lr_decay_after_epoch",
-        type=int,
-        default=1,
-    )
-    parser.add_argument(
-        "--lr_decay_factor",
-        "--lr-decay-factor",
-        dest="lr_decay_factor",
-        type=float,
-        default=0.8,
     )
     parser.add_argument(
         "--min_lr_ratio",
@@ -487,10 +466,6 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("weight_decay must be non-negative.")
     if args.weight_decay > 0.01:
         print("Warning: recommended weight_decay values are between 0.0 and 0.01.")
-    if args.lr_decay_after_epoch < 1:
-        raise ValueError("lr_decay_after_epoch must be at least 1.")
-    if not 0 < args.lr_decay_factor <= 1:
-        raise ValueError("lr_decay_factor must be greater than 0 and at most 1.")
     if not 0 < args.min_lr_ratio <= 1:
         raise ValueError("min_lr_ratio must be greater than 0 and at most 1.")
     if not 0 <= args.warmup_ratio <= 1:
@@ -568,8 +543,6 @@ def main() -> None:
             learning_rate=args.learning_rate,
             weight_decay=args.weight_decay,
             lr_scheduler_type=args.lr_scheduler_type,
-            lr_decay_after_epoch=args.lr_decay_after_epoch,
-            lr_decay_factor=args.lr_decay_factor,
             min_lr_ratio=args.min_lr_ratio,
             warmup_ratio=args.warmup_ratio,
             max_length=args.max_length,

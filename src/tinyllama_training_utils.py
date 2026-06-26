@@ -637,8 +637,6 @@ def train_with_monitoring(
     reward_eval_steps: int = 1000,
     weight_decay: float = 0.01,
     lr_scheduler_type: str = "constant",
-    lr_decay_after_epoch: int = 1,
-    lr_decay_factor: float = 0.8,
     min_lr_ratio: float = 0.1,
     warmup_ratio: float = 0.06,
     seed: int = 67,
@@ -648,14 +646,10 @@ def train_with_monitoring(
     evaluation_texts = [text.strip() for text in eval_texts if text.strip()]
     if not train_texts or not evaluation_texts:
         raise ValueError("Training and evaluation text lists must be non-empty.")
-    if lr_scheduler_type not in {"constant", "epoch_decay", "cosine"}:
+    if lr_scheduler_type not in {"constant", "cosine_decay"}:
         raise ValueError(
-            "lr_scheduler_type must be 'constant', 'epoch_decay', or 'cosine'."
+            "lr_scheduler_type must be 'constant' or 'cosine_decay'."
         )
-    if lr_decay_after_epoch < 1:
-        raise ValueError("lr_decay_after_epoch must be at least 1.")
-    if not 0 < lr_decay_factor <= 1:
-        raise ValueError("lr_decay_factor must be greater than 0 and at most 1.")
     if not 0 < min_lr_ratio <= 1:
         raise ValueError("min_lr_ratio must be greater than 0 and at most 1.")
     if not 0 <= warmup_ratio <= 1:
@@ -680,10 +674,10 @@ def train_with_monitoring(
         return float(optimizer.param_groups[0]["lr"])
 
     def learning_rate_at(global_step: int, epoch_index: int) -> float:
-        """Return linear warmup LR followed by the configured epoch schedule."""
+        """Return linear warmup LR followed by the configured schedule."""
         if warmup_steps > 0 and global_step < warmup_steps:
             return learning_rate * (global_step + 1) / warmup_steps
-        if lr_scheduler_type == "cosine":
+        if lr_scheduler_type == "cosine_decay":
             min_lr = learning_rate * min_lr_ratio
             decay_steps = max(1, total_steps - warmup_steps)
             progress = min(
@@ -692,10 +686,6 @@ def train_with_monitoring(
             )
             cosine_factor = 0.5 * (1.0 + math.cos(math.pi * progress))
             return min_lr + (learning_rate - min_lr) * cosine_factor
-        if lr_scheduler_type == "epoch_decay":
-            decay_epochs = max(0, epoch_index - lr_decay_after_epoch + 1)
-            decayed_lr = learning_rate * (lr_decay_factor**decay_epochs)
-            return max(decayed_lr, learning_rate * min_lr_ratio)
         return learning_rate
 
     print(
