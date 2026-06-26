@@ -104,6 +104,16 @@ def configure_axis(figure, axis, theme: str) -> None:
     axis.grid(True, alpha=0.3)
 
 
+def raw_curve_color(theme: str) -> str:
+    """Return the light raw-curve color for the selected theme."""
+    return "#ffffff" if theme == "dark" else "#bbbbbb"
+
+
+def smoothed_curve_color(theme: str) -> str:
+    """Return the darker smoothed-curve color for the selected theme."""
+    return "#65717f" if theme == "dark" else "#111111"
+
+
 def save_plots(
     pyplot,
     series: dict[str, dict[str, object]],
@@ -120,11 +130,17 @@ def save_plots(
         steps, rewards = zip(*points)
         figure, axis = pyplot.subplots(figsize=(7.2, 4.4))
         configure_axis(figure, axis, theme)
-        axis.plot(steps, rewards, color="#65717f", alpha=0.55, label="raw")
+        axis.plot(
+            steps,
+            rewards,
+            color=raw_curve_color(theme),
+            alpha=0.55,
+            label="raw",
+        )
         axis.plot(
             steps,
             smooth(list(rewards), smoothing),
-            color="#ffffff" if theme == "dark" else "#111111",
+            color=smoothed_curve_color(theme),
             linewidth=2.0,
             label=f"smoothed ({smoothing:g})",
         )
@@ -141,11 +157,16 @@ def save_plots(
     for attribute in ordered_attributes(series):
         points = series[attribute]["points"]
         steps, rewards = zip(*points)
-        (raw_line,) = axis.plot(steps, rewards, alpha=0.3, label="_nolegend_")
+        axis.plot(
+            steps,
+            rewards,
+            color=raw_curve_color(theme),
+            alpha=0.25,
+            label="_nolegend_",
+        )
         axis.plot(
             steps,
             smooth(list(rewards), smoothing),
-            color=raw_line.get_color(),
             linewidth=2.0,
             label=attribute,
         )
