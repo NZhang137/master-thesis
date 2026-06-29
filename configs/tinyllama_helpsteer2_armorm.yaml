@@ -11,13 +11,13 @@ attributes:
   - verbosity
 
 attribute_min_ratings:
-  helpfulness: 3
-  correctness: 3
+  helpfulness: 4
+  correctness: 4
   coherence: 4
   complexity: 2
   verbosity: 2
 
-max_training_examples_per_attribute: 12871
+max_training_examples_per_attribute: 8434
 
 preference_vectors:
   balanced: [0.2, 0.2, 0.2, 0.2, 0.2]
