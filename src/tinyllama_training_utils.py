@@ -209,21 +209,24 @@ def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.d
 
     The prompt prefix up to and including ``Assistant:`` is masked with
     ``-100`` so the loss is computed only on assistant response tokens.
-    Padding tokens are also ignored.
+    Padding tokens are also ignored. If an example is longer than
+    ``max_length``, the prompt prefix is truncated from the left so that
+    assistant response tokens remain supervised.
     """
-    encoded = tokenizer(
-        texts,
-        return_tensors="pt",
-        truncation=True,
-        max_length=max_length,
-        padding=True,
-    )
-    input_ids = encoded["input_ids"].to(device)
-    attention_mask = encoded["attention_mask"].to(device)
-    labels = input_ids.clone()
-    labels[attention_mask == 0] = -100
+    if max_length < 2:
+        raise ValueError("Response-only SFT requires max_length >= 2.")
 
-    for row_index, text in enumerate(texts):
+    pad_token_id = tokenizer.pad_token_id
+    if pad_token_id is None:
+        pad_token_id = tokenizer.eos_token_id
+    if pad_token_id is None:
+        raise ValueError("Tokenizer must define pad_token_id or eos_token_id.")
+
+    batch_input_ids: list[list[int]] = []
+    batch_attention_mask: list[list[int]] = []
+    batch_labels: list[list[int]] = []
+
+    for text in texts:
         marker_index = text.rfind(ASSISTANT_RESPONSE_MARKER)
         if marker_index < 0:
             raise ValueError(
@@ -231,19 +234,42 @@ def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.d
                 f"{ASSISTANT_RESPONSE_MARKER!r}."
             )
         prompt_prefix = text[: marker_index + len(ASSISTANT_RESPONSE_MARKER)]
-        prefix_ids = tokenizer(
-            prompt_prefix,
-            truncation=True,
-            max_length=max_length,
-            add_special_tokens=True,
-        )["input_ids"]
-        prefix_length = min(len(prefix_ids), int(attention_mask[row_index].sum().item()))
-        labels[row_index, :prefix_length] = -100
-        if not torch.any(labels[row_index] != -100):
+        response_text = text[marker_index + len(ASSISTANT_RESPONSE_MARKER) :]
+        prefix_ids = tokenizer(prompt_prefix, add_special_tokens=True)["input_ids"]
+        response_ids = tokenizer(response_text, add_special_tokens=False)["input_ids"]
+
+        if not response_ids:
             raise ValueError(
                 "No assistant response tokens remain after tokenization. "
-                "Increase max_length or shorten the prompt."
+                "Check the formatted training text."
             )
+
+        if len(prefix_ids) + len(response_ids) > max_length:
+            # For response-only SFT, keep response tokens supervised and shorten
+            # long prompts from the left instead of losing the assistant answer.
+            response_budget = min(len(response_ids), max_length - 1)
+            prompt_budget = max_length - response_budget
+            prefix_ids = prefix_ids[-prompt_budget:] if prompt_budget > 0 else []
+            response_ids = response_ids[:response_budget]
+
+        input_row = prefix_ids + response_ids
+        label_row = [-100] * len(prefix_ids) + response_ids
+
+        batch_input_ids.append(input_row)
+        batch_attention_mask.append([1] * len(input_row))
+        batch_labels.append(label_row)
+
+    batch_max_length = max(len(row) for row in batch_input_ids)
+    for row_index in range(len(batch_input_ids)):
+        padding_length = batch_max_length - len(batch_input_ids[row_index])
+        if padding_length:
+            batch_input_ids[row_index].extend([pad_token_id] * padding_length)
+            batch_attention_mask[row_index].extend([0] * padding_length)
+            batch_labels[row_index].extend([-100] * padding_length)
+
+    input_ids = torch.tensor(batch_input_ids, dtype=torch.long, device=device)
+    attention_mask = torch.tensor(batch_attention_mask, dtype=torch.long, device=device)
+    labels = torch.tensor(batch_labels, dtype=torch.long, device=device)
     return input_ids, attention_mask, labels
 
 
