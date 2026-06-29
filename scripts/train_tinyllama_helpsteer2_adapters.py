@@ -266,6 +266,17 @@ def parse_args() -> argparse.Namespace:
         default="train[1000:1100]",
     )
     parser.add_argument(
+        "--max_training_examples",
+        "--max-training-examples",
+        dest="max_training_examples",
+        type=int,
+        default=None,
+        help=(
+            "Override the configured maximum number of selected training "
+            "examples per attribute."
+        ),
+    )
+    parser.add_argument(
         "--attributes",
         nargs="+",
         default=list(HELPSTEER2_ATTRIBUTES),
@@ -472,6 +483,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("warmup_ratio must be between 0 and 1.")
     if args.max_length < 2 or args.batch_size < 1:
         raise ValueError("max_length must be at least 2 and batch_size at least 1.")
+    if args.max_training_examples is not None and args.max_training_examples < 1:
+        raise ValueError("max_training_examples must be at least 1 when provided.")
     for name in ("logging_steps", "eval_steps", "save_steps", "reward_eval_steps"):
         if getattr(args, name) < 1:
             raise ValueError(f"{name} must be at least 1.")
@@ -503,6 +516,8 @@ def main() -> None:
         )
     min_ratings = get_attribute_min_ratings(config)
     max_training_examples = get_max_training_examples_per_attribute(config)
+    if args.max_training_examples is not None:
+        max_training_examples = args.max_training_examples
     validate_preference_vectors(config)
     attributes = normalize_attributes(args.attributes)
     output_dir = resolve_project_path(args.output_dir)
