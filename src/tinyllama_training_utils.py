@@ -698,6 +698,7 @@ def train_with_monitoring(
     weight_decay: float = 0.01,
     lr_scheduler_type: str = "constant",
     min_lr_ratio: float = 0.1,
+    epoch_decay_factor: float = 0.9,
     warmup_ratio: float = 0.06,
     seed: int = 67,
 ) -> TrainingResult:
@@ -706,12 +707,15 @@ def train_with_monitoring(
     evaluation_texts = [text.strip() for text in eval_texts if text.strip()]
     if not train_texts or not evaluation_texts:
         raise ValueError("Training and evaluation text lists must be non-empty.")
-    if lr_scheduler_type not in {"constant", "cosine_decay"}:
+    if lr_scheduler_type not in {"constant", "cosine_decay", "epoch_decay"}:
         raise ValueError(
-            "lr_scheduler_type must be 'constant' or 'cosine_decay'."
+            "lr_scheduler_type must be 'constant', 'cosine_decay', or "
+            "'epoch_decay'."
         )
     if not 0 < min_lr_ratio <= 1:
         raise ValueError("min_lr_ratio must be greater than 0 and at most 1.")
+    if not 0 < epoch_decay_factor <= 1:
+        raise ValueError("epoch_decay_factor must be greater than 0 and at most 1.")
     if not 0 <= warmup_ratio <= 1:
         raise ValueError("warmup_ratio must be between 0 and 1.")
 
@@ -746,6 +750,10 @@ def train_with_monitoring(
             )
             cosine_factor = 0.5 * (1.0 + math.cos(math.pi * progress))
             return min_lr + (learning_rate - min_lr) * cosine_factor
+        if lr_scheduler_type == "epoch_decay":
+            min_lr = learning_rate * min_lr_ratio
+            decayed_lr = learning_rate * (epoch_decay_factor**epoch_index)
+            return max(min_lr, decayed_lr)
         return learning_rate
 
     print(
