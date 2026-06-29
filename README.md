@@ -90,16 +90,15 @@ python scripts/inspect_helpsteer2_dataset.py --split "train[:1000]"
 The command writes a compact, reproducible summary to
 `results/helpsteer2_dataset_summary.json`.
 
-The configured training threshold is rating `>= 3` for helpfulness,
-correctness, and coherence. Complexity and verbosity use rating `>= 2`
-because ratings of 3 and 4 are less frequent for those attributes. An
-explicit `min_rating` passed to the data utility still overrides the
-configured value. To keep the five specialist adapters balanced, the central
-config caps training selection at `12871` examples per attribute. Selection is
-ordered by descending rating and then original dataset row index, so each
-adapter uses the highest-rated available examples first. For example,
-helpfulness uses all rating-4 examples and then enough rating-3 examples to
-reach `12871`, while coherence uses `12871` rating-4 examples.
+The configured training thresholds are rating `>= 3` for helpfulness and
+correctness, rating `>= 4` for coherence, and rating `>= 2` for complexity
+and verbosity. An explicit `min_rating` passed to the data utility still
+overrides the configured value. To keep the five specialist adapters balanced,
+the central config caps training selection at the best `12871` examples per
+attribute. Selection is ordered by descending rating and then original dataset
+row index, so each adapter uses the highest-rated available examples first.
+For example, helpfulness uses all rating-4 examples and then enough rating-3
+examples to reach `12871`, while coherence uses `12871` rating-4 examples.
 
 ## Active Commands
 
