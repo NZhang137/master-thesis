@@ -150,6 +150,12 @@ Training texts are shuffled once per epoch with the deterministic seed
 `67 + epoch_index`. The original selected-text list is not mutated, and the
 evaluation-text order remains unchanged.
 
+Training uses response-only SFT labels: prompt tokens up to and including the
+`Assistant:` marker are masked with `-100`, so the loss is computed only on the
+assistant response tokens. Padding tokens are also ignored. Loss curves from
+response-only runs are therefore not directly comparable to older runs that
+used the full prompt-response text as labels.
+
 After that command finishes, run the same command again with
 `--attributes correctness`, then `coherence`, `complexity`, and `verbosity`.
 The script still accepts multiple values after `--attributes` for compatibility,

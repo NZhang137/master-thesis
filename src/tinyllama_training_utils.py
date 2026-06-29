@@ -22,6 +22,9 @@ from typing import Any
 import torch
 
 
+ASSISTANT_RESPONSE_MARKER = "Assistant:"
+
+
 @dataclass
 class TrainingResult:
     """Control state returned after training one attribute adapter."""
@@ -202,7 +205,12 @@ def load_tinyllama_with_lora(
 
 
 def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.device):
-    """Tokenize a causal-LM batch and mask padding tokens in labels."""
+    """Tokenize a batch and compute response-only SFT labels.
+
+    The prompt prefix up to and including ``Assistant:`` is masked with
+    ``-100`` so the loss is computed only on assistant response tokens.
+    Padding tokens are also ignored.
+    """
     encoded = tokenizer(
         texts,
         return_tensors="pt",
@@ -214,6 +222,28 @@ def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.d
     attention_mask = encoded["attention_mask"].to(device)
     labels = input_ids.clone()
     labels[attention_mask == 0] = -100
+
+    for row_index, text in enumerate(texts):
+        marker_index = text.rfind(ASSISTANT_RESPONSE_MARKER)
+        if marker_index < 0:
+            raise ValueError(
+                "Response-only SFT requires formatted texts containing "
+                f"{ASSISTANT_RESPONSE_MARKER!r}."
+            )
+        prompt_prefix = text[: marker_index + len(ASSISTANT_RESPONSE_MARKER)]
+        prefix_ids = tokenizer(
+            prompt_prefix,
+            truncation=True,
+            max_length=max_length,
+            add_special_tokens=True,
+        )["input_ids"]
+        prefix_length = min(len(prefix_ids), int(attention_mask[row_index].sum().item()))
+        labels[row_index, :prefix_length] = -100
+        if not torch.any(labels[row_index] != -100):
+            raise ValueError(
+                "No assistant response tokens remain after tokenization. "
+                "Increase max_length or shorten the prompt."
+            )
     return input_ids, attention_mask, labels
 
 
