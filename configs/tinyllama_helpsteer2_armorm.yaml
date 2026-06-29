@@ -17,7 +17,7 @@ attribute_min_ratings:
   complexity: 2
   verbosity: 2
 
-max_training_examples_per_attribute: 8434
+max_training_examples_per_attribute: 2005
 
 preference_vectors:
   balanced: [0.2, 0.2, 0.2, 0.2, 0.2]
