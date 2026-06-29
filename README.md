@@ -44,7 +44,8 @@ For each adapter, the logged score is the matching ArmoRM HelpSteer objective:
 `helpsteer-complexity`, or `helpsteer-verbosity`. It is not the global
 ArmoRM preference score.
 The default maximum generation length is 256 new tokens and the currently
-supported reward batch size is 1. Enable it with:
+supported reward batch size is 1. It is temporarily disabled in the Colab
+training commands. To enable it again, add:
 
 ```bash
 --use_armorm_monitoring \
