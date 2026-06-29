@@ -36,6 +36,9 @@ class TrainingResult:
     current_adapter_stop_requested: bool = False
     max_steps_reached: bool = False
     interrupted: bool = False
+    best_eval_loss: float | None = None
+    best_global_step: int | None = None
+    best_checkpoint_path: Path | None = None
 
 
 ARMORM_HELPSTEER_OBJECTIVES: dict[str, tuple[int, str]] = {
@@ -142,9 +145,32 @@ def model_input_device(model) -> torch.device:
     return model.get_input_embeddings().weight.device
 
 
+def resolve_training_precision(precision: str) -> tuple[torch.dtype, str]:
+    """Resolve the requested training precision to a torch dtype and label."""
+    normalized = precision.strip().lower()
+    if normalized not in {"auto", "bf16", "fp16", "fp32"}:
+        raise ValueError("precision must be one of: auto, bf16, fp16, fp32.")
+    if normalized == "auto":
+        if not torch.cuda.is_available():
+            return torch.float32, "fp32"
+        if torch.cuda.is_bf16_supported():
+            return torch.bfloat16, "bf16"
+        return torch.float16, "fp16"
+    if normalized == "bf16":
+        if not torch.cuda.is_available() or not torch.cuda.is_bf16_supported():
+            raise ValueError("bf16 precision was requested but is not supported.")
+        return torch.bfloat16, "bf16"
+    if normalized == "fp16":
+        if not torch.cuda.is_available():
+            raise ValueError("fp16 precision requires CUDA.")
+        return torch.float16, "fp16"
+    return torch.float32, "fp32"
+
+
 def load_tinyllama_with_lora(
     model_name: str,
-) -> tuple[Any, Any]:
+    precision: str = "auto",
+) -> tuple[Any, Any, str]:
     """Load a fresh TinyLlama model and attach a trainable LoRA adapter."""
     try:
         from peft import (
@@ -168,13 +194,10 @@ def load_tinyllama_with_lora(
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
+    torch_dtype, precision_label = resolve_training_precision(precision)
     model_kwargs: dict[str, object] = {}
-    if torch.cuda.is_available():
-        model_kwargs["torch_dtype"] = (
-            torch.bfloat16
-            if torch.cuda.is_bf16_supported()
-            else torch.float16
-        )
+    if torch.cuda.is_available() or torch_dtype != torch.float32:
+        model_kwargs["torch_dtype"] = torch_dtype
 
     model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
 
@@ -202,7 +225,7 @@ def load_tinyllama_with_lora(
     model = get_peft_model(model, lora_config)
     if torch.cuda.is_available():
         model.enable_input_require_grads()
-    return model, tokenizer
+    return model, tokenizer, precision_label
 
 
 def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.device):
@@ -686,6 +709,9 @@ def train_with_monitoring(
     eval_steps: int,
     save_steps: int,
     max_steps: int,
+    gradient_accumulation_steps: int,
+    max_grad_norm: float,
+    save_best_by_eval_loss: bool,
     stop_file: Path,
     stop_current_adapter_file: Path,
     csv_logger: CsvTrainingLogger,
@@ -718,8 +744,15 @@ def train_with_monitoring(
         raise ValueError("epoch_decay_factor must be greater than 0 and at most 1.")
     if not 0 <= warmup_ratio <= 1:
         raise ValueError("warmup_ratio must be between 0 and 1.")
+    if gradient_accumulation_steps < 1:
+        raise ValueError("gradient_accumulation_steps must be at least 1.")
+    if max_grad_norm <= 0:
+        raise ValueError("max_grad_norm must be positive.")
 
-    steps_per_epoch = (len(train_texts) + batch_size - 1) // batch_size
+    micro_batches_per_epoch = (len(train_texts) + batch_size - 1) // batch_size
+    steps_per_epoch = (
+        micro_batches_per_epoch + gradient_accumulation_steps - 1
+    ) // gradient_accumulation_steps
     total_steps = num_epochs * steps_per_epoch
     if max_steps > 0:
         total_steps = min(total_steps, max_steps)
@@ -760,6 +793,15 @@ def train_with_monitoring(
         f"Learning-rate warmup: ratio={warmup_ratio:.4g}, "
         f"warmup_steps={warmup_steps}, total_steps={total_steps}"
     )
+    effective_batch_size = batch_size * gradient_accumulation_steps
+    print(
+        "Batching: "
+        f"micro_batch_size={batch_size}, "
+        f"gradient_accumulation_steps={gradient_accumulation_steps}, "
+        f"effective_batch_size={effective_batch_size}"
+    )
+    print(f"Gradient clipping: max_grad_norm={max_grad_norm}")
+    print(f"Best-by-eval-loss saving: {save_best_by_eval_loss}")
 
     writer = create_tensorboard_writer(
         use_tensorboard,
@@ -773,6 +815,25 @@ def train_with_monitoring(
     recent_losses: list[float] = []
     stop_requested = False
     current_adapter_stop_requested = False
+    best_eval_loss: float | None = None
+    best_global_step: int | None = None
+    best_checkpoint_path = checkpoint_root / "best-eval-loss"
+
+    def maybe_save_best_eval_loss(eval_loss: float, step: int) -> None:
+        """Save a best-eval-loss adapter snapshot when enabled and improved."""
+        nonlocal best_eval_loss, best_global_step
+        if not save_best_by_eval_loss:
+            return
+        if best_eval_loss is not None and eval_loss >= best_eval_loss:
+            return
+        best_eval_loss = eval_loss
+        best_global_step = step
+        save_adapter_snapshot(
+            model,
+            tokenizer,
+            best_checkpoint_path,
+            f"best eval_loss={eval_loss:.4f} at global_step={step}",
+        )
 
     def detect_stop_files() -> None:
         """Latch stop requests so training can finish at the next save step."""
@@ -808,32 +869,45 @@ def train_with_monitoring(
                 f"shuffle_seed={epoch_shuffle_seed})"
             )
 
-            for start in range(0, len(epoch_train_texts), batch_size):
-                batch_texts = epoch_train_texts[start : start + batch_size]
-                input_ids, attention_mask, labels = tokenize_batch(
-                    tokenizer,
-                    batch_texts,
-                    max_length,
-                    device,
-                )
+            micro_starts = list(range(0, len(epoch_train_texts), batch_size))
+            for accumulation_start in range(
+                0,
+                len(micro_starts),
+                gradient_accumulation_steps,
+            ):
+                accumulation_starts = micro_starts[
+                    accumulation_start : accumulation_start
+                    + gradient_accumulation_steps
+                ]
                 optimizer.zero_grad(set_to_none=True)
-                outputs = model(
-                    input_ids=input_ids,
-                    attention_mask=attention_mask,
-                    labels=labels,
-                )
-                loss = outputs.loss
-                loss.backward()
+                loss_value = 0.0
+                for start in accumulation_starts:
+                    batch_texts = epoch_train_texts[start : start + batch_size]
+                    input_ids, attention_mask, labels = tokenize_batch(
+                        tokenizer,
+                        batch_texts,
+                        max_length,
+                        device,
+                    )
+                    outputs = model(
+                        input_ids=input_ids,
+                        attention_mask=attention_mask,
+                        labels=labels,
+                    )
+                    loss = outputs.loss
+                    loss_value = float(loss.item())
+                    (loss / len(accumulation_starts)).backward()
+                    recent_losses.append(loss_value)
+                    total_loss += loss_value * len(batch_texts)
+                    processed += len(batch_texts)
+
                 step_learning_rate = learning_rate_at(global_step, epoch_index)
                 for parameter_group in optimizer.param_groups:
                     parameter_group["lr"] = step_learning_rate
+                torch.nn.utils.clip_grad_norm_(trainable, max_grad_norm)
                 optimizer.step()
 
-                loss_value = float(loss.item())
                 global_step += 1
-                recent_losses.append(loss_value)
-                total_loss += loss_value * len(batch_texts)
-                processed += len(batch_texts)
                 epoch_progress = epoch_index + processed / len(train_texts)
                 detect_stop_files()
 
@@ -881,6 +955,7 @@ def train_with_monitoring(
                         writer.add_scalar(f"{attribute}/eval_loss", eval_loss, global_step)
                         writer.flush()
                     last_eval_step = global_step
+                    maybe_save_best_eval_loss(eval_loss, global_step)
 
                 if reward_monitor is not None and global_step % reward_eval_steps == 0:
                     mean_reward = reward_monitor.evaluate(model, tokenizer, global_step)
@@ -919,6 +994,13 @@ def train_with_monitoring(
                             current_adapter_stop_requested=(
                                 current_adapter_stop_requested
                             ),
+                            best_eval_loss=best_eval_loss,
+                            best_global_step=best_global_step,
+                            best_checkpoint_path=(
+                                best_checkpoint_path
+                                if best_eval_loss is not None
+                                else None
+                            ),
                         )
 
                 if (
@@ -931,6 +1013,11 @@ def train_with_monitoring(
                         global_step=global_step,
                         completed_epochs=completed_epochs,
                         max_steps_reached=True,
+                        best_eval_loss=best_eval_loss,
+                        best_global_step=best_global_step,
+                        best_checkpoint_path=(
+                            best_checkpoint_path if best_eval_loss is not None else None
+                        ),
                     )
 
             completed_epochs = epoch_number
@@ -958,6 +1045,7 @@ def train_with_monitoring(
                 if writer is not None:
                     writer.add_scalar(f"{attribute}/eval_loss", eval_loss, global_step)
                     writer.flush()
+                maybe_save_best_eval_loss(eval_loss, global_step)
             detect_stop_files()
 
         if stop_requested or current_adapter_stop_requested:
@@ -970,6 +1058,11 @@ def train_with_monitoring(
             completed_epochs=completed_epochs,
             stop_requested=stop_requested,
             current_adapter_stop_requested=current_adapter_stop_requested,
+            best_eval_loss=best_eval_loss,
+            best_global_step=best_global_step,
+            best_checkpoint_path=(
+                best_checkpoint_path if best_eval_loss is not None else None
+            ),
         )
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt received; saving this adapter before stopping.")
@@ -977,6 +1070,11 @@ def train_with_monitoring(
             global_step=global_step,
             completed_epochs=completed_epochs,
             interrupted=True,
+            best_eval_loss=best_eval_loss,
+            best_global_step=best_global_step,
+            best_checkpoint_path=(
+                best_checkpoint_path if best_eval_loss is not None else None
+            ),
         )
     finally:
         csv_logger.flush()

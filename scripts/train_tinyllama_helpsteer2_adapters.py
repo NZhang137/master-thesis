@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import shutil
 import sys
 from pathlib import Path
 
@@ -40,6 +41,9 @@ from src.tinyllama_training_utils import (
 DEFAULT_MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 DEFAULT_ARMORM_MODEL = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
 DEFAULT_CONFIG_PATH = "configs/tinyllama_helpsteer2_armorm.yaml"
+FIXED_GRADIENT_ACCUMULATION_STEPS = 1
+FIXED_MAX_GRAD_NORM = 1.0
+FIXED_PRECISION = "auto"
 
 
 def adapter_directory_name(attribute: str) -> str:
@@ -70,6 +74,20 @@ def resolve_project_path(value: str) -> Path:
     return path if path.is_absolute() else PROJECT_ROOT / path
 
 
+def parse_bool(value: str | bool) -> bool:
+    """Parse notebook-friendly boolean command-line values."""
+    if isinstance(value, bool):
+        return value
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off"}:
+        return False
+    raise argparse.ArgumentTypeError(
+        "Boolean values must be one of true/false, yes/no, 1/0, or on/off."
+    )
+
+
 def train_attribute_adapter(
     *,
     attribute: str,
@@ -85,6 +103,7 @@ def train_attribute_adapter(
     min_lr_ratio: float,
     epoch_decay_factor: float,
     warmup_ratio: float,
+    save_best_by_eval_loss: bool,
     max_length: int,
     batch_size: int,
     output_path: Path,
@@ -152,6 +171,11 @@ def train_attribute_adapter(
         print("ArmoRM monitoring disabled.")
     print(f"Learning rate: {learning_rate}")
     print(f"Weight decay: {weight_decay}")
+    print(f"Requested precision: {FIXED_PRECISION}")
+    print(f"Gradient accumulation steps: {FIXED_GRADIENT_ACCUMULATION_STEPS}")
+    print(f"Effective batch size: {batch_size * FIXED_GRADIENT_ACCUMULATION_STEPS}")
+    print(f"Max grad norm: {FIXED_MAX_GRAD_NORM}")
+    print(f"Save best by eval loss: {save_best_by_eval_loss}")
     print(f"LR scheduler: {lr_scheduler_type}")
     print(f"Warmup ratio: {warmup_ratio}")
     if lr_scheduler_type in {"cosine_decay", "epoch_decay"}:
@@ -168,7 +192,11 @@ def train_attribute_adapter(
 
     # A fresh load for every attribute keeps all specialists independent.
     print(f"Loading a fresh base model: {model_name}")
-    model, tokenizer = load_tinyllama_with_lora(model_name)
+    model, tokenizer, precision_label = load_tinyllama_with_lora(
+        model_name,
+        precision=FIXED_PRECISION,
+    )
+    print(f"Actual training precision: {precision_label}")
     model.print_trainable_parameters()
 
     csv_logger = CsvTrainingLogger(
@@ -215,6 +243,9 @@ def train_attribute_adapter(
         eval_steps=eval_steps,
         save_steps=save_steps,
         max_steps=max_steps,
+        gradient_accumulation_steps=FIXED_GRADIENT_ACCUMULATION_STEPS,
+        max_grad_norm=FIXED_MAX_GRAD_NORM,
+        save_best_by_eval_loss=save_best_by_eval_loss,
         stop_file=stop_file,
         stop_current_adapter_file=stop_current_adapter_file,
         csv_logger=csv_logger,
@@ -227,10 +258,25 @@ def train_attribute_adapter(
         seed=seed,
     )
 
-    output_path.mkdir(parents=True, exist_ok=True)
-    model.save_pretrained(output_path)
-    tokenizer.save_pretrained(output_path)
-    print(f"Saved {attribute} adapter to {output_path}")
+    if save_best_by_eval_loss and result.best_checkpoint_path is not None:
+        if output_path.exists():
+            shutil.rmtree(output_path)
+        shutil.copytree(result.best_checkpoint_path, output_path)
+        print(
+            f"Saved best-by-eval-loss {attribute} adapter to {output_path} "
+            f"(eval_loss={result.best_eval_loss:.4f}, "
+            f"global_step={result.best_global_step})"
+        )
+    else:
+        if save_best_by_eval_loss:
+            print(
+                "No best eval-loss checkpoint was recorded; saving the current "
+                "adapter instead."
+            )
+        output_path.mkdir(parents=True, exist_ok=True)
+        model.save_pretrained(output_path)
+        tokenizer.save_pretrained(output_path)
+        print(f"Saved {attribute} adapter to {output_path}")
     if result.current_adapter_stop_requested:
         try:
             stop_current_adapter_file.unlink(missing_ok=True)
@@ -341,6 +387,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--batch_size", "--batch-size", dest="batch_size", type=int, default=1
+    )
+    parser.add_argument(
+        "--save_best_by_eval_loss",
+        "--save-best-by-eval-loss",
+        dest="save_best_by_eval_loss",
+        type=parse_bool,
+        default=False,
+        help="Save the lowest held-out eval_loss adapter instead of the final one.",
     )
     parser.add_argument(
         "--output_dir", "--output-dir", dest="output_dir", default="adapters"
@@ -578,6 +632,7 @@ def main() -> None:
             min_lr_ratio=args.min_lr_ratio,
             epoch_decay_factor=args.epoch_decay_factor,
             warmup_ratio=args.warmup_ratio,
+            save_best_by_eval_loss=args.save_best_by_eval_loss,
             max_length=args.max_length,
             batch_size=args.batch_size,
             output_path=output_dir / adapter_directory_name(attribute),
