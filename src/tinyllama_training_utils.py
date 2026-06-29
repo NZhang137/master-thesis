@@ -14,6 +14,7 @@ import math
 import random
 import shutil
 import statistics
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -599,6 +600,7 @@ class RewardMonitor:
 
     def evaluate(self, model, tokenizer, global_step: int) -> float:
         """Return the mean selected ArmoRM objective over the fixed prompts."""
+        started_at = time.perf_counter()
         was_training = model.training
         model.eval()
         scores: list[float] = []
@@ -646,11 +648,13 @@ class RewardMonitor:
                 "timestamp": timestamp,
             }
         )
+        elapsed_seconds = time.perf_counter() - started_at
         print(
             f"ArmoRM monitoring at step {global_step}: "
             f"objective={self.reward_objective_name}, "
             f"mean={mean_score:.4f}, std={std_score:.4f}, "
-            f"min={min(scores):.4f}, max={max(scores):.4f}"
+            f"min={min(scores):.4f}, max={max(scores):.4f}, "
+            f"time={elapsed_seconds:.1f}s"
         )
         return mean_score
 
