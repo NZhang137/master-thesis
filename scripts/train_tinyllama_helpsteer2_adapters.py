@@ -399,7 +399,7 @@ def parse_args() -> argparse.Namespace:
         help="Fraction of total optimizer steps used for linear LR warmup.",
     )
     parser.add_argument(
-        "--max_length", "--max-length", dest="max_length", type=int, default=512
+        "--max_length", "--max-length", dest="max_length", type=int, default=2048
     )
     parser.add_argument(
         "--batch_size", "--batch-size", dest="batch_size", type=int, default=1
