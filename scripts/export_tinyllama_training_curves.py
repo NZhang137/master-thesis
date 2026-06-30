@@ -16,8 +16,8 @@ DEFAULT_OUTPUT_DIR = "results/plots/tensorboard"
 DEFAULT_SMOOTHING = 0.5
 DEFAULT_RAW_COLOR = "#ffffff"
 DEFAULT_SMOOTHED_COLOR = "#65717f"
-METRICS = ("train_loss", "eval_loss", "learning_rate")
-COMBINED_METRICS = ("train_loss", "eval_loss")
+METRICS = ("train_loss", "eval_loss", "learning_rate", "grad_norm")
+COMBINED_METRICS = ("train_loss", "eval_loss", "grad_norm")
 ATTRIBUTE_ORDER = (
     "helpfulness",
     "correctness",

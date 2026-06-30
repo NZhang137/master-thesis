@@ -60,6 +60,7 @@ class CsvTrainingLogger:
         "train_loss",
         "eval_loss",
         "learning_rate",
+        "grad_norm",
         "timestamp",
     )
 
@@ -78,6 +79,7 @@ class CsvTrainingLogger:
         train_loss: float | None = None,
         eval_loss: float | None = None,
         learning_rate: float | None = None,
+        grad_norm: float | None = None,
     ) -> None:
         """Append one metric row and flush it immediately."""
         logged_learning_rate = (
@@ -91,6 +93,7 @@ class CsvTrainingLogger:
                 "train_loss": "" if train_loss is None else f"{train_loss:.8f}",
                 "eval_loss": "" if eval_loss is None else f"{eval_loss:.8f}",
                 "learning_rate": f"{logged_learning_rate:.12g}",
+                "grad_norm": "" if grad_norm is None else f"{grad_norm:.8f}",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
@@ -836,6 +839,7 @@ def train_with_monitoring(
     global_step = 0
     completed_epochs = 0
     recent_losses: list[float] = []
+    last_grad_norm: float | None = None
     stop_requested = False
     current_adapter_stop_requested = False
     best_eval_loss: float | None = None
@@ -928,22 +932,45 @@ def train_with_monitoring(
                 step_learning_rate = learning_rate_at(global_step, epoch_index)
                 for parameter_group in optimizer.param_groups:
                     parameter_group["lr"] = step_learning_rate
-                torch.nn.utils.clip_grad_norm_(trainable, max_grad_norm)
+                total_norm = torch.nn.utils.clip_grad_norm_(
+                    trainable,
+                    max_grad_norm,
+                )
+                total_norm_tensor = torch.as_tensor(total_norm, device=device)
+                if not bool(torch.isfinite(total_norm_tensor).item()):
+                    value = float(total_norm_tensor.detach().float().item())
+                    raise FloatingPointError(
+                        "Non-finite gradient norm detected before clipping: "
+                        f"{value}. Check precision, masking, and batch contents."
+                    )
+                last_grad_norm = float(total_norm_tensor.detach().float().item())
                 optimizer.step()
 
                 global_step += 1
                 epoch_progress = epoch_index + processed / len(train_texts)
                 detect_stop_files()
 
+                if writer is not None:
+                    writer.add_scalar(
+                        f"{attribute}/grad_norm",
+                        last_grad_norm,
+                        global_step,
+                    )
+
                 if global_step % logging_steps == 0:
                     train_loss = float(sum(recent_losses) / len(recent_losses))
                     recent_losses.clear()
-                    print(f"{attribute} step {global_step}: train_loss={train_loss:.4f}")
+                    print(
+                        f"{attribute} step {global_step}: "
+                        f"train_loss={train_loss:.4f}, "
+                        f"grad_norm={last_grad_norm:.4f}"
+                    )
                     csv_logger.log(
                         global_step=global_step,
                         epoch=epoch_progress,
                         train_loss=train_loss,
                         learning_rate=current_learning_rate(),
+                        grad_norm=last_grad_norm,
                     )
                     if writer is not None:
                         writer.add_scalar(f"{attribute}/train_loss", train_loss, global_step)
@@ -974,6 +1001,7 @@ def train_with_monitoring(
                         train_loss=train_loss,
                         eval_loss=eval_loss,
                         learning_rate=current_learning_rate(),
+                        grad_norm=last_grad_norm,
                     )
                     if writer is not None:
                         writer.add_scalar(f"{attribute}/eval_loss", eval_loss, global_step)
@@ -1064,6 +1092,7 @@ def train_with_monitoring(
                     train_loss=average_loss,
                     eval_loss=eval_loss,
                     learning_rate=current_learning_rate(),
+                    grad_norm=last_grad_norm,
                 )
                 print(f"{attribute} epoch {epoch_number}: eval_loss={eval_loss:.4f}")
                 if writer is not None:
