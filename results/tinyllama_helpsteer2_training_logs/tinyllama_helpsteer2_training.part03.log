@@ -1,0 +1,180 @@
+verbosity step 740: eval_loss=0.8174
+verbosity step 750: train_loss=0.7774, grad_norm=0.4375
+Epoch 3/3 - average train loss: 0.7220
+verbosity epoch 3: eval_loss=0.8174
+Saved best-by-eval-loss verbosity adapter to /content/master-thesis/adapters/tinyllama-helpsteer2-verbosity-adapter (eval_loss=0.8154, global_step=480)
+
+=== TinyLlama HelpSteer2 helpfulness adapter ===
+Attribute selection threshold: rating >= 4
+Training text cap: 2005 examples after low-overlap selection
+Loading training split 'train'
+Selected 2005 high-helpfulness training texts with low-overlap selection.
+Selection prior-use buckets: {0: 2005}
+Selected rating counts: {4: 2005}
+Loading evaluation split 'validation'
+Selected 432 evaluation texts.
+Output adapter path: /content/master-thesis/adapters/tinyllama-helpsteer2-helpfulness-adapter
+ArmoRM monitoring disabled.
+Learning rate: 0.0001
+Weight decay: 0.01
+Requested precision: bf16
+Gradient accumulation steps: 1
+Effective batch size: 8
+Max grad norm: 1.0
+Save best by eval loss: True
+LR scheduler: cosine_decay
+Warmup ratio: 0.06
+Minimum LR ratio: 0.1
+LoRA rank: 8
+LoRA alpha: 16
+LoRA dropout: 0.1
+Loading a fresh base model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+Actual training precision: bf16
+trainable params: 6,307,840 || all params: 1,106,356,224 || trainable%: 0.570145479653396
+Learning-rate warmup: ratio=0.06, warmup_steps=45, total_steps=753
+Batching: micro_batch_size=8, gradient_accumulation_steps=1, effective_batch_size=8
+Gradient clipping: max_grad_norm=1.0
+Best-by-eval-loss saving: True
+TensorBoard log directory: /content/master-thesis/results/tensorboard/tinyllama_helpsteer2/helpfulness
+
+Epoch 1/3 for helpfulness (next_learning_rate=2.2222222e-06, shuffle_seed=67)
+helpfulness step 10: train_loss=0.8738, grad_norm=0.4004
+helpfulness step 20: train_loss=0.9072, grad_norm=0.4434
+helpfulness step 20: eval_loss=0.9667
+Saved best eval_loss=0.9667 at global_step=20 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 30: train_loss=0.8607, grad_norm=0.4707
+helpfulness step 40: train_loss=0.8240, grad_norm=0.4980
+helpfulness step 40: eval_loss=0.9227
+Saved best eval_loss=0.9227 at global_step=40 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 50: train_loss=0.8856, grad_norm=0.5391
+helpfulness step 60: train_loss=0.8575, grad_norm=0.5117
+helpfulness step 60: eval_loss=0.9082
+Saved best eval_loss=0.9082 at global_step=60 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 70: train_loss=0.8240, grad_norm=0.5430
+helpfulness step 80: train_loss=0.8833, grad_norm=0.4023
+helpfulness step 80: eval_loss=0.9042
+Saved best eval_loss=0.9042 at global_step=80 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 90: train_loss=0.8244, grad_norm=0.5234
+helpfulness step 100: train_loss=0.8498, grad_norm=0.3574
+helpfulness step 100: eval_loss=0.9024
+Saved best eval_loss=0.9024 at global_step=100 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 110: train_loss=0.7843, grad_norm=0.4121
+helpfulness step 120: train_loss=0.7934, grad_norm=0.5156
+helpfulness step 120: eval_loss=0.8996
+Saved best eval_loss=0.8996 at global_step=120 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 130: train_loss=0.8551, grad_norm=0.6016
+helpfulness step 140: train_loss=0.8049, grad_norm=0.3242
+helpfulness step 140: eval_loss=0.8987
+Saved best eval_loss=0.8987 at global_step=140 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 150: train_loss=0.8098, grad_norm=0.5859
+helpfulness step 160: train_loss=0.8043, grad_norm=0.4629
+helpfulness step 160: eval_loss=0.8985
+Saved best eval_loss=0.8985 at global_step=160 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 170: train_loss=0.7873, grad_norm=0.3828
+helpfulness step 180: train_loss=0.8329, grad_norm=0.5430
+helpfulness step 180: eval_loss=0.8976
+Saved best eval_loss=0.8976 at global_step=180 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 190: train_loss=0.7792, grad_norm=0.5391
+helpfulness step 200: train_loss=0.8017, grad_norm=0.4648
+helpfulness step 200: eval_loss=0.8976
+Saved best eval_loss=0.8976 at global_step=200 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 210: train_loss=0.7648, grad_norm=0.4414
+helpfulness step 220: train_loss=0.8557, grad_norm=0.4688
+helpfulness step 220: eval_loss=0.8952
+Saved best eval_loss=0.8952 at global_step=220 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 230: train_loss=0.7723, grad_norm=0.3770
+helpfulness step 240: train_loss=0.8266, grad_norm=0.3457
+helpfulness step 240: eval_loss=0.8945
+Saved best eval_loss=0.8945 at global_step=240 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+helpfulness step 250: train_loss=0.8041, grad_norm=0.5078
+Epoch 1/3 - average train loss: 0.8266
+helpfulness epoch 1: eval_loss=0.8944
+Saved best eval_loss=0.8944 at global_step=251 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/best-eval-loss
+
+Epoch 2/3 for helpfulness (next_learning_rate=8.2473404e-05, shuffle_seed=68)
+helpfulness step 260: train_loss=0.7986, grad_norm=0.5312
+helpfulness step 260: eval_loss=0.8947
+helpfulness step 270: train_loss=0.8134, grad_norm=0.3086
+helpfulness step 280: train_loss=0.7770, grad_norm=0.3809
+helpfulness step 280: eval_loss=0.8952
+helpfulness step 290: train_loss=0.7496, grad_norm=0.7656
+helpfulness step 300: train_loss=0.8024, grad_norm=0.4238
+helpfulness step 300: eval_loss=0.8950
+helpfulness step 310: train_loss=0.7924, grad_norm=0.4688
+helpfulness step 320: train_loss=0.7331, grad_norm=0.4570
+helpfulness step 320: eval_loss=0.8969
+helpfulness step 330: train_loss=0.7632, grad_norm=0.3770
+helpfulness step 340: train_loss=0.7668, grad_norm=0.6094
+helpfulness step 340: eval_loss=0.8953
+helpfulness step 350: train_loss=0.7665, grad_norm=0.4258
+helpfulness step 360: train_loss=0.7299, grad_norm=0.4844
+helpfulness step 360: eval_loss=0.8965
+helpfulness step 370: train_loss=0.7689, grad_norm=0.4941
+helpfulness step 380: train_loss=0.7632, grad_norm=0.4688
+helpfulness step 380: eval_loss=0.8961
+helpfulness step 390: train_loss=0.7475, grad_norm=0.4512
+helpfulness step 400: train_loss=0.7903, grad_norm=0.5469
+helpfulness step 400: eval_loss=0.8949
+helpfulness step 410: train_loss=0.6925, grad_norm=0.4355
+helpfulness step 420: train_loss=0.7551, grad_norm=0.5430
+helpfulness step 420: eval_loss=0.8957
+helpfulness step 430: train_loss=0.7521, grad_norm=0.5703
+helpfulness step 440: train_loss=0.8047, grad_norm=0.4980
+helpfulness step 440: eval_loss=0.8945
+helpfulness step 450: train_loss=0.8007, grad_norm=0.5273
+helpfulness step 460: train_loss=0.7536, grad_norm=0.5742
+helpfulness step 460: eval_loss=0.8975
+helpfulness step 470: train_loss=0.7419, grad_norm=0.4570
+helpfulness step 480: train_loss=0.8290, grad_norm=0.4551
+helpfulness step 480: eval_loss=0.8947
+helpfulness step 490: train_loss=0.7532, grad_norm=0.6094
+helpfulness step 500: train_loss=0.7493, grad_norm=0.5312
+helpfulness step 500: eval_loss=0.8955
+Saved checkpoint at global_step=500 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-helpfulness-adapter/step-00000500
+Epoch 2/3 - average train loss: 0.7672
+helpfulness epoch 2: eval_loss=0.8955
+
+Epoch 3/3 for helpfulness (next_learning_rate=3.5141793e-05, shuffle_seed=69)
+helpfulness step 510: train_loss=0.7052, grad_norm=0.5312
+helpfulness step 520: train_loss=0.7436, grad_norm=0.4551
+helpfulness step 520: eval_loss=0.8971
+helpfulness step 530: train_loss=0.7128, grad_norm=0.5352
+helpfulness step 540: train_loss=0.8000, grad_norm=0.5469
+helpfulness step 540: eval_loss=0.8970
+helpfulness step 550: train_loss=0.7614, grad_norm=0.5078
+helpfulness step 560: train_loss=0.7308, grad_norm=0.5039
+helpfulness step 560: eval_loss=0.8981
+helpfulness step 570: train_loss=0.7652, grad_norm=0.5508
+helpfulness step 580: train_loss=0.6896, grad_norm=0.6055
+helpfulness step 580: eval_loss=0.8990
+helpfulness step 590: train_loss=0.7022, grad_norm=0.5039
+helpfulness step 600: train_loss=0.7355, grad_norm=0.5664
+helpfulness step 600: eval_loss=0.8985
+helpfulness step 610: train_loss=0.7643, grad_norm=0.6211
+helpfulness step 620: train_loss=0.7275, grad_norm=0.5703
+helpfulness step 620: eval_loss=0.8977
+helpfulness step 630: train_loss=0.6996, grad_norm=0.5625
+helpfulness step 640: train_loss=0.7634, grad_norm=0.5078
+helpfulness step 640: eval_loss=0.8981
+helpfulness step 650: train_loss=0.6855, grad_norm=0.5820
+helpfulness step 660: train_loss=0.7159, grad_norm=0.5195
+helpfulness step 660: eval_loss=0.8992
+helpfulness step 670: train_loss=0.7070, grad_norm=0.5742
+helpfulness step 680: train_loss=0.7332, grad_norm=0.5352
+helpfulness step 680: eval_loss=0.8993
+helpfulness step 690: train_loss=0.6769, grad_norm=0.6797
+helpfulness step 700: train_loss=0.7017, grad_norm=0.4570
+helpfulness step 700: eval_loss=0.8988
+helpfulness step 710: train_loss=0.7276, grad_norm=0.5938
+helpfulness step 720: train_loss=0.7346, grad_norm=0.6094
+helpfulness step 720: eval_loss=0.8986
+helpfulness step 730: train_loss=0.7765, grad_norm=0.4531
+helpfulness step 740: train_loss=0.7153, grad_norm=0.4746
+helpfulness step 740: eval_loss=0.8985
+helpfulness step 750: train_loss=0.7734, grad_norm=0.6250
+Epoch 3/3 - average train loss: 0.7303
+helpfulness epoch 3: eval_loss=0.8985
+Saved best-by-eval-loss helpfulness adapter to /content/master-thesis/adapters/tinyllama-helpsteer2-helpfulness-adapter (eval_loss=0.8944, global_step=251)
+
+=== TinyLlama HelpSteer2 correctness adapter ===
+Attribute selection threshold: rating >= 4
