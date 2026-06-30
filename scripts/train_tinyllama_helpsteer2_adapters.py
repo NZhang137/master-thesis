@@ -27,7 +27,12 @@ from src.experiment_config import (
     load_experiment_config,
     validate_preference_vectors,
 )
-from src.helpsteer2_utils import HELPSTEER2_ATTRIBUTES, make_attribute_training_texts
+from src.helpsteer2_utils import (
+    HELPSTEER2_ATTRIBUTES,
+    LOW_OVERLAP_SELECTION_ORDER,
+    make_attribute_training_texts,
+    make_low_overlap_attribute_training_texts,
+)
 from src.tinyllama_training_utils import (
     ARMORM_HELPSTEER_OBJECTIVES,
     CsvTrainingLogger,
@@ -95,6 +100,8 @@ def train_attribute_adapter(
     split: str,
     eval_split: str,
     min_rating: int,
+    training_texts: list[str],
+    selection_summary: dict[str, object],
     max_training_examples: int | None,
     num_epochs: int,
     learning_rate: float,
@@ -135,16 +142,21 @@ def train_attribute_adapter(
     if max_training_examples is not None:
         print(
             "Training text cap: "
-            f"top {max_training_examples} examples after descending-rating sorting"
+            f"{max_training_examples} examples after low-overlap selection"
         )
     print(f"Loading training split {split!r}")
-    training_texts = make_attribute_training_texts(
-        attribute,
-        split,
-        min_rating=min_rating,
-        max_examples=max_training_examples,
+    print(
+        f"Selected {len(training_texts)} high-{attribute} training texts "
+        "with low-overlap selection."
     )
-    print(f"Selected {len(training_texts)} high-{attribute} training texts.")
+    print(
+        "Selection prior-use buckets: "
+        f"{selection_summary.get('prior_usage_counts', {})}"
+    )
+    print(
+        "Selected rating counts: "
+        f"{selection_summary.get('selected_rating_counts', {})}"
+    )
     print(f"Loading evaluation split {eval_split!r}")
     eval_texts = make_attribute_training_texts(
         attribute,
@@ -610,11 +622,24 @@ def main() -> None:
     if max_training_examples is not None:
         print(
             "Training example cap: "
-            f"{max_training_examples} per attribute, using highest ratings first"
+            f"{max_training_examples} per attribute, using low-overlap selection"
         )
     print(
         "Training uses attribute-selected supervised HelpSteer2 texts. "
         "External reward monitoring, when enabled, is evaluation only."
+    )
+    print(
+        "Low-overlap training selection order: "
+        + " -> ".join(LOW_OVERLAP_SELECTION_ORDER)
+    )
+    training_texts_by_attribute, selection_summaries = (
+        make_low_overlap_attribute_training_texts(
+            attributes=list(configured_attributes),
+            split=args.split,
+            max_examples=max_training_examples,
+            attribute_min_ratings=min_ratings,
+            selection_order=LOW_OVERLAP_SELECTION_ORDER,
+        )
     )
 
     for attribute in attributes:
@@ -624,6 +649,8 @@ def main() -> None:
             split=args.split,
             eval_split=args.eval_split,
             min_rating=min_ratings[attribute],
+            training_texts=training_texts_by_attribute[attribute],
+            selection_summary=selection_summaries[attribute],
             max_training_examples=max_training_examples,
             num_epochs=args.num_epochs,
             learning_rate=args.learning_rate,

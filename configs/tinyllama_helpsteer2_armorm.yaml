@@ -15,7 +15,7 @@ attribute_min_ratings:
   correctness: 4
   coherence: 4
   complexity: 2
-  verbosity: 2
+  verbosity: 3
 
 max_training_examples_per_attribute: 2005
 

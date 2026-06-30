@@ -73,7 +73,7 @@ def main() -> None:
     if max_training_examples is not None:
         print(
             "Max training examples per attribute: "
-            f"{max_training_examples} (highest ratings first)"
+            f"{max_training_examples} (low-overlap, high-rated selection)"
         )
     print("Preference vectors:")
     for name, vector in preferences.items():

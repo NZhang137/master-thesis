@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 from collections import Counter
 from collections.abc import Mapping
+from dataclasses import dataclass
 from functools import lru_cache
 
 
@@ -21,6 +22,13 @@ HELPSTEER2_ATTRIBUTES = (
     "complexity",
     "verbosity",
 )
+LOW_OVERLAP_SELECTION_ORDER = (
+    "complexity",
+    "verbosity",
+    "helpfulness",
+    "correctness",
+    "coherence",
+)
 HELPSTEER2_TEXT_COLUMNS = ("prompt", "response")
 DEFAULT_MIN_RATING = 3
 MIN_RATING = 0
@@ -30,8 +38,17 @@ DEFAULT_ATTRIBUTE_MIN_RATINGS = {
     "correctness": 3,
     "coherence": 3,
     "complexity": 2,
-    "verbosity": 2,
+    "verbosity": 3,
 }
+
+
+@dataclass(frozen=True)
+class HelpSteer2ScoredRow:
+    """One validated HelpSteer2 row prepared for deterministic selection."""
+
+    index: int
+    text: str
+    ratings: dict[str, int]
 
 
 def _validate_split(split: str) -> str:
@@ -170,11 +187,10 @@ def make_attribute_training_texts(
     """Create deterministic supervised texts for one objective specialist.
 
     An explicit ``min_rating`` overrides ``attribute_min_ratings`` and the
-    built-in defaults. The built-in threshold is 2 for complexity and
-    verbosity and 3 for the other attributes. If a small split has no row at
-    the resolved threshold, rows with its highest observed rating are selected
-    instead. Results are sorted by descending rating and then original dataset
-    index.
+    built-in defaults. The built-in threshold is 2 for complexity and 3 for
+    the other attributes. If a small split has no row at the resolved
+    threshold, rows with its highest observed rating are selected instead.
+    Results are sorted by descending rating and then original dataset index.
     """
     normalized_attribute = _normalize_attribute(attribute)
     threshold, limit = _resolve_selection_options(
@@ -213,6 +229,152 @@ def make_attribute_training_texts(
             f"No non-empty training texts were selected for {normalized_attribute}."
         )
     return texts
+
+
+def _collect_scored_rows(split: str) -> list[HelpSteer2ScoredRow]:
+    """Load one split and validate text plus all HelpSteer2 ratings once."""
+    dataset = load_helpsteer2_split(split)
+    scored_rows: list[HelpSteer2ScoredRow] = []
+    for index, example in enumerate(dataset):
+        if not isinstance(example, Mapping):
+            raise TypeError("Every HelpSteer2 row must be a mapping.")
+        _validate_row_fields(example)
+        ratings = {
+            attribute: _parse_rating(example[attribute], attribute)
+            for attribute in HELPSTEER2_ATTRIBUTES
+        }
+        text = format_helpsteer2_text(example)
+        if not text.strip():
+            raise ValueError("Selected HelpSteer2 training text is empty.")
+        scored_rows.append(
+            HelpSteer2ScoredRow(index=index, text=text, ratings=ratings)
+        )
+    if not scored_rows:
+        raise ValueError(f"HelpSteer2 split contains no examples: {split!r}.")
+    return scored_rows
+
+
+def _normalize_attribute_sequence(
+    attributes: tuple[str, ...] | list[str],
+    *,
+    label: str,
+) -> tuple[str, ...]:
+    """Validate and de-duplicate an attribute sequence while preserving order."""
+    normalized: list[str] = []
+    for attribute in attributes:
+        value = _normalize_attribute(attribute)
+        if value not in normalized:
+            normalized.append(value)
+    if not normalized:
+        raise ValueError(f"{label} must contain at least one attribute.")
+    return tuple(normalized)
+
+
+def make_low_overlap_attribute_training_texts(
+    attributes: tuple[str, ...] | list[str] = HELPSTEER2_ATTRIBUTES,
+    split: str = "train[:100]",
+    max_examples: int | None = None,
+    attribute_min_ratings: Mapping[str, int] | None = None,
+    selection_order: tuple[str, ...] | list[str] = LOW_OVERLAP_SELECTION_ORDER,
+) -> tuple[dict[str, list[str]], dict[str, dict[str, object]]]:
+    """Select training texts for all attributes with minimal row reuse.
+
+    The first selected attribute gets its highest-rated examples. Later
+    attributes prefer rows with fewer previous selections before considering
+    rating and original dataset order. This keeps each specialist high-rating
+    filtered while reducing overlap between specialists as much as possible.
+    """
+    normalized_attributes = _normalize_attribute_sequence(
+        list(attributes),
+        label="attributes",
+    )
+    normalized_order = _normalize_attribute_sequence(
+        list(selection_order),
+        label="selection_order",
+    )
+    unknown = [
+        attribute
+        for attribute in normalized_attributes
+        if attribute not in normalized_order
+    ]
+    if unknown:
+        raise ValueError(
+            "selection_order is missing requested attributes: "
+            + ", ".join(unknown)
+        )
+    thresholds = {
+        attribute: _resolve_selection_options(
+            attribute,
+            min_rating=None,
+            max_examples=max_examples,
+            attribute_min_ratings=attribute_min_ratings,
+        )[0]
+        for attribute in normalized_attributes
+    }
+    limit = _resolve_selection_options(
+        normalized_attributes[0],
+        min_rating=None,
+        max_examples=max_examples,
+        attribute_min_ratings=attribute_min_ratings,
+    )[1]
+
+    scored_rows = _collect_scored_rows(split)
+    usage_counts = {row.index: 0 for row in scored_rows}
+    texts_by_attribute: dict[str, list[str]] = {}
+    summaries: dict[str, dict[str, object]] = {}
+    ordered_attributes = [
+        attribute for attribute in normalized_order if attribute in normalized_attributes
+    ]
+
+    for selection_index, attribute in enumerate(ordered_attributes, start=1):
+        threshold = thresholds[attribute]
+        candidates = [
+            row for row in scored_rows if row.ratings[attribute] >= threshold
+        ]
+        fallback_rating = None
+        if not candidates:
+            fallback_rating = max(row.ratings[attribute] for row in scored_rows)
+            candidates = [
+                row
+                for row in scored_rows
+                if row.ratings[attribute] == fallback_rating
+            ]
+
+        candidates.sort(
+            key=lambda row: (
+                usage_counts[row.index],
+                -row.ratings[attribute],
+                row.index,
+            )
+        )
+        selected = candidates if limit is None else candidates[:limit]
+        if not selected:
+            raise ValueError(
+                f"No non-empty training texts were selected for {attribute}."
+            )
+
+        prior_usage_counts = Counter(usage_counts[row.index] for row in selected)
+        rating_counts = Counter(row.ratings[attribute] for row in selected)
+        for row in selected:
+            usage_counts[row.index] += 1
+
+        texts_by_attribute[attribute] = [row.text for row in selected]
+        summaries[attribute] = {
+            "selection_order_index": selection_index,
+            "min_rating": threshold,
+            "fallback_rating": fallback_rating,
+            "available_at_threshold": sum(
+                1 for row in scored_rows if row.ratings[attribute] >= threshold
+            ),
+            "candidate_count": len(candidates),
+            "selected_example_count": len(selected),
+            "max_examples": limit,
+            "prior_usage_counts": dict(sorted(prior_usage_counts.items())),
+            "selected_rating_counts": dict(sorted(rating_counts.items())),
+            "ordering": "lowest prior use, descending rating, original row index",
+        }
+
+    return texts_by_attribute, summaries
 
 
 def summarize_attribute_counts(

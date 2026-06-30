@@ -24,9 +24,10 @@ from src.helpsteer2_utils import (
     HELPSTEER2_ATTRIBUTES,
     HELPSTEER2_DATASET_NAME,
     HELPSTEER2_TEXT_COLUMNS,
+    LOW_OVERLAP_SELECTION_ORDER,
     inspect_helpsteer2_columns,
     load_helpsteer2_split,
-    make_attribute_training_texts,
+    make_low_overlap_attribute_training_texts,
     summarize_attribute_counts,
 )
 
@@ -131,6 +132,13 @@ def main() -> None:
         args.split,
         attribute_min_ratings=min_ratings,
     )
+    selected_texts, selection_summaries = make_low_overlap_attribute_training_texts(
+        attributes=list(attributes),
+        split=args.split,
+        max_examples=max_examples,
+        attribute_min_ratings=min_ratings,
+        selection_order=LOW_OVERLAP_SELECTION_ORDER,
+    )
     attribute_summaries: dict[str, dict[str, object]] = {}
     print(f"Dataset: {dataset_name}")
     print(f"Split: {args.split}")
@@ -138,15 +146,15 @@ def main() -> None:
     print(f"Columns: {', '.join(columns)}")
     print(f"Attributes: {', '.join(attributes)}\n")
 
+    print(
+        "Low-overlap selection order: "
+        + " -> ".join(LOW_OVERLAP_SELECTION_ORDER)
+        + "\n"
+    )
+
     for attribute in attributes:
         threshold = min_ratings[attribute]
-        texts = make_attribute_training_texts(
-            attribute=attribute,
-            split=args.split,
-            min_rating=None,
-            max_examples=max_examples,
-            attribute_min_ratings=min_ratings,
-        )
+        texts = selected_texts[attribute]
         if not texts or any(not text.strip() for text in texts):
             raise ValueError(
                 f"Attribute {attribute!r} produced no non-empty training texts."
@@ -159,7 +167,8 @@ def main() -> None:
         print(
             f"{attribute}: threshold >= {threshold}; "
             f"ratings {{{rating_text}}}; "
-            f"selected={len(texts)}"
+            f"selected={len(texts)}; "
+            f"prior_use={selection_summaries[attribute]['prior_usage_counts']}"
         )
         print("  example: " + preview_text(texts[0], 180).replace("\n", " "))
         attribute_summaries[attribute] = {
@@ -172,6 +181,7 @@ def main() -> None:
             ),
             "selected_example_count": len(texts),
             "max_examples": max_examples,
+            "low_overlap_selection": selection_summaries[attribute],
             "example_training_texts": [
                 preview_text(text) for text in texts[:EXAMPLE_TEXT_COUNT]
             ],
@@ -193,7 +203,8 @@ def main() -> None:
             "attribute_min_ratings": min_ratings,
             "small_split_fallback": "highest observed rating",
             "max_examples": max_examples,
-            "ordering": "descending rating, then original row index",
+            "selection_order": list(LOW_OVERLAP_SELECTION_ORDER),
+            "ordering": "lowest prior use, descending rating, then original row index",
         },
         "attribute_summaries": attribute_summaries,
     }

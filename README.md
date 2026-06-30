@@ -92,15 +92,15 @@ The command writes a compact, reproducible summary to
 `results/helpsteer2_dataset_summary.json`.
 
 The configured training thresholds are rating `>= 4` for helpfulness,
-correctness, and coherence, and rating `>= 2` for complexity and verbosity.
-An explicit `min_rating` passed to the data utility still
+correctness, and coherence, rating `>= 2` for complexity, and rating `>= 3`
+for verbosity. An explicit `min_rating` passed to the data utility still
 overrides the configured value. To keep the five specialist adapters balanced,
 the central config caps training selection at the best `2005` examples per
-attribute. Selection is ordered by descending rating and then original dataset
-row index, so each adapter uses the highest-rated available examples first.
-For example, helpfulness, correctness, and coherence use the first 2005
-rating-4 examples under this deterministic
-ordering.
+attribute. Training selection is planned globally in the order `complexity`,
+`verbosity`, `helpfulness`, `correctness`, and `coherence`. Each attribute
+first prefers rows with the lowest prior use, then descending rating, then
+original dataset row index. This keeps each adapter high-rated while reducing
+overlap between adapters.
 
 ## Active Commands
 
