@@ -232,3 +232,4 @@ STOP_CURRENT_ADAPTER
 *.zip
 results/tensorboard/
 results/tinyllama_helpsteer2_reward_monitoring/
+results/tinyllama_helpsteer2_geometry/
