@@ -1,0 +1,170 @@
+Selection prior-use buckets: {0: 2005}
+Selected rating counts: {4: 2005}
+Loading evaluation split 'validation'
+Selected 753 evaluation texts.
+Output adapter path: /content/master-thesis/adapters/tinyllama-helpsteer2-coherence-adapter
+ArmoRM monitoring disabled.
+Learning rate: 0.0001
+Weight decay: 0.01
+Requested precision: bf16
+Gradient accumulation steps: 1
+Effective batch size: 8
+Max grad norm: 1.0
+Save best by eval loss: True
+LR scheduler: cosine_decay
+Warmup ratio: 0.06
+Minimum LR ratio: 0.1
+LoRA rank: 8
+LoRA alpha: 16
+LoRA dropout: 0.1
+Loading a fresh base model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+Actual training precision: bf16
+trainable params: 6,307,840 || all params: 1,106,356,224 || trainable%: 0.570145479653396
+Learning-rate warmup: ratio=0.06, warmup_steps=45, total_steps=753
+Batching: micro_batch_size=8, gradient_accumulation_steps=1, effective_batch_size=8
+Gradient clipping: max_grad_norm=1.0
+Best-by-eval-loss saving: True
+TensorBoard log directory: /content/master-thesis/results/tensorboard/tinyllama_helpsteer2/coherence
+
+Epoch 1/3 for coherence (next_learning_rate=2.2222222e-06, shuffle_seed=67)
+coherence step 10: train_loss=0.9256, grad_norm=0.2500
+coherence step 20: train_loss=0.9397, grad_norm=0.3496
+coherence step 20: eval_loss=0.9481
+Saved best eval_loss=0.9481 at global_step=20 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 30: train_loss=0.8885, grad_norm=0.4590
+coherence step 40: train_loss=0.9031, grad_norm=0.4805
+coherence step 40: eval_loss=0.8993
+Saved best eval_loss=0.8993 at global_step=40 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 50: train_loss=0.8912, grad_norm=0.6094
+coherence step 60: train_loss=0.8770, grad_norm=0.3926
+coherence step 60: eval_loss=0.8853
+Saved best eval_loss=0.8853 at global_step=60 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 70: train_loss=0.8097, grad_norm=0.4766
+coherence step 80: train_loss=0.8457, grad_norm=0.5039
+coherence step 80: eval_loss=0.8797
+Saved best eval_loss=0.8797 at global_step=80 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 90: train_loss=0.8230, grad_norm=0.3633
+coherence step 100: train_loss=0.8738, grad_norm=0.4512
+coherence step 100: eval_loss=0.8760
+Saved best eval_loss=0.8760 at global_step=100 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 110: train_loss=0.8281, grad_norm=0.3477
+coherence step 120: train_loss=0.7832, grad_norm=0.5391
+coherence step 120: eval_loss=0.8744
+Saved best eval_loss=0.8744 at global_step=120 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 130: train_loss=0.8017, grad_norm=0.4062
+coherence step 140: train_loss=0.8255, grad_norm=0.4062
+coherence step 140: eval_loss=0.8722
+Saved best eval_loss=0.8722 at global_step=140 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 150: train_loss=0.8067, grad_norm=0.3477
+coherence step 160: train_loss=0.7993, grad_norm=0.6562
+coherence step 160: eval_loss=0.8724
+coherence step 170: train_loss=0.7767, grad_norm=0.3516
+coherence step 180: train_loss=0.8029, grad_norm=0.4199
+coherence step 180: eval_loss=0.8704
+Saved best eval_loss=0.8704 at global_step=180 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 190: train_loss=0.8563, grad_norm=0.5000
+coherence step 200: train_loss=0.8503, grad_norm=0.3574
+coherence step 200: eval_loss=0.8698
+Saved best eval_loss=0.8698 at global_step=200 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 210: train_loss=0.7798, grad_norm=0.4453
+coherence step 220: train_loss=0.8660, grad_norm=0.4707
+coherence step 220: eval_loss=0.8684
+Saved best eval_loss=0.8684 at global_step=220 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 230: train_loss=0.8116, grad_norm=0.4785
+coherence step 240: train_loss=0.7894, grad_norm=0.2949
+coherence step 240: eval_loss=0.8676
+Saved best eval_loss=0.8676 at global_step=240 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 250: train_loss=0.8101, grad_norm=0.4629
+Epoch 1/3 - average train loss: 0.8385
+coherence epoch 1: eval_loss=0.8675
+Saved best eval_loss=0.8675 at global_step=251 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+
+Epoch 2/3 for coherence (next_learning_rate=8.2473404e-05, shuffle_seed=68)
+coherence step 260: train_loss=0.7517, grad_norm=0.3516
+coherence step 260: eval_loss=0.8683
+coherence step 270: train_loss=0.7698, grad_norm=0.4883
+coherence step 280: train_loss=0.7964, grad_norm=0.4922
+coherence step 280: eval_loss=0.8679
+coherence step 290: train_loss=0.7747, grad_norm=0.3359
+coherence step 300: train_loss=0.7416, grad_norm=0.5820
+coherence step 300: eval_loss=0.8690
+coherence step 310: train_loss=0.7642, grad_norm=0.4434
+coherence step 320: train_loss=0.8063, grad_norm=0.4590
+coherence step 320: eval_loss=0.8697
+coherence step 330: train_loss=0.7667, grad_norm=0.3926
+coherence step 340: train_loss=0.7755, grad_norm=0.4531
+coherence step 340: eval_loss=0.8679
+coherence step 350: train_loss=0.7833, grad_norm=0.4199
+coherence step 360: train_loss=0.7942, grad_norm=0.5039
+coherence step 360: eval_loss=0.8686
+coherence step 370: train_loss=0.7523, grad_norm=0.4062
+coherence step 380: train_loss=0.7636, grad_norm=0.4609
+coherence step 380: eval_loss=0.8684
+coherence step 390: train_loss=0.8539, grad_norm=0.5000
+coherence step 400: train_loss=0.8041, grad_norm=0.4160
+coherence step 400: eval_loss=0.8674
+Saved best eval_loss=0.8674 at global_step=400 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 410: train_loss=0.7864, grad_norm=0.6016
+coherence step 420: train_loss=0.8040, grad_norm=0.3535
+coherence step 420: eval_loss=0.8679
+coherence step 430: train_loss=0.7909, grad_norm=0.4863
+coherence step 440: train_loss=0.7767, grad_norm=0.4316
+coherence step 440: eval_loss=0.8670
+Saved best eval_loss=0.8670 at global_step=440 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 450: train_loss=0.7594, grad_norm=0.5195
+coherence step 460: train_loss=0.8042, grad_norm=0.5117
+coherence step 460: eval_loss=0.8671
+coherence step 470: train_loss=0.8407, grad_norm=0.4727
+coherence step 480: train_loss=0.7609, grad_norm=0.6758
+coherence step 480: eval_loss=0.8669
+Saved best eval_loss=0.8669 at global_step=480 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+coherence step 490: train_loss=0.8461, grad_norm=0.5781
+coherence step 500: train_loss=0.7379, grad_norm=0.5391
+coherence step 500: eval_loss=0.8669
+Saved best eval_loss=0.8669 at global_step=500 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/best-eval-loss
+Saved checkpoint at global_step=500 to /content/master-thesis/checkpoints/tinyllama_helpsteer2/tinyllama-helpsteer2-coherence-adapter/step-00000500
+Epoch 2/3 - average train loss: 0.7840
+coherence epoch 2: eval_loss=0.8670
+
+Epoch 3/3 for coherence (next_learning_rate=3.5141793e-05, shuffle_seed=69)
+coherence step 510: train_loss=0.7550, grad_norm=0.5898
+coherence step 520: train_loss=0.7092, grad_norm=0.6367
+coherence step 520: eval_loss=0.8702
+coherence step 530: train_loss=0.7955, grad_norm=0.7852
+coherence step 540: train_loss=0.7654, grad_norm=0.4805
+coherence step 540: eval_loss=0.8698
+coherence step 550: train_loss=0.7547, grad_norm=0.4609
+coherence step 560: train_loss=0.7260, grad_norm=0.4766
+coherence step 560: eval_loss=0.8691
+coherence step 570: train_loss=0.7852, grad_norm=0.4023
+coherence step 580: train_loss=0.7810, grad_norm=0.4824
+coherence step 580: eval_loss=0.8691
+coherence step 590: train_loss=0.7602, grad_norm=0.4805
+coherence step 600: train_loss=0.7572, grad_norm=0.4199
+coherence step 600: eval_loss=0.8693
+coherence step 610: train_loss=0.7411, grad_norm=0.4707
+coherence step 620: train_loss=0.7573, grad_norm=0.4199
+coherence step 620: eval_loss=0.8702
+coherence step 630: train_loss=0.7867, grad_norm=0.5703
+coherence step 640: train_loss=0.7726, grad_norm=0.3965
+coherence step 640: eval_loss=0.8698
+coherence step 650: train_loss=0.7283, grad_norm=0.6094
+coherence step 660: train_loss=0.7592, grad_norm=0.5977
+coherence step 660: eval_loss=0.8696
+coherence step 670: train_loss=0.7362, grad_norm=0.6055
+coherence step 680: train_loss=0.7858, grad_norm=0.4863
+coherence step 680: eval_loss=0.8694
+coherence step 690: train_loss=0.7561, grad_norm=0.5156
+coherence step 700: train_loss=0.6841, grad_norm=0.5273
+coherence step 700: eval_loss=0.8693
+coherence step 710: train_loss=0.7024, grad_norm=0.4492
+coherence step 720: train_loss=0.7078, grad_norm=0.5625
+coherence step 720: eval_loss=0.8696
+coherence step 730: train_loss=0.7554, grad_norm=0.4941
+coherence step 740: train_loss=0.7082, grad_norm=0.6055
+coherence step 740: eval_loss=0.8697
+coherence step 750: train_loss=0.7552, grad_norm=0.5508
+Epoch 3/3 - average train loss: 0.7486
+coherence epoch 3: eval_loss=0.8698
+Saved best-by-eval-loss coherence adapter to /content/master-thesis/adapters/tinyllama-helpsteer2-coherence-adapter (eval_loss=0.8669, global_step=500)
+Finished TinyLlama HelpSteer2 adapter training.
