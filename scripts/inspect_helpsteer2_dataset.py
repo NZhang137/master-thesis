@@ -204,7 +204,10 @@ def main() -> None:
             "small_split_fallback": "highest observed rating",
             "max_examples": max_examples,
             "selection_order": list(LOW_OVERLAP_SELECTION_ORDER),
-            "ordering": "lowest prior use, descending rating, then original row index",
+            "ordering": (
+                "descending rating buckets, then lowest prior use within "
+                "rating, then original row index"
+            ),
         },
         "attribute_summaries": attribute_summaries,
     }

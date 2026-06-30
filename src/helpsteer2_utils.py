@@ -25,8 +25,8 @@ HELPSTEER2_ATTRIBUTES = (
 LOW_OVERLAP_SELECTION_ORDER = (
     "complexity",
     "verbosity",
-    "helpfulness",
     "correctness",
+    "helpfulness",
     "coherence",
 )
 HELPSTEER2_TEXT_COLUMNS = ("prompt", "response")
@@ -270,6 +270,42 @@ def _normalize_attribute_sequence(
     return tuple(normalized)
 
 
+def _order_low_overlap_candidates(
+    candidates: list[HelpSteer2ScoredRow],
+    *,
+    attribute: str,
+    usage_counts: Mapping[int, int],
+) -> list[HelpSteer2ScoredRow]:
+    """Order candidates by rating first, then by previous row usage.
+
+    This keeps the strongest rating bucket intact before falling back to lower
+    ratings. Within each rating bucket, rows with fewer previous selections are
+    preferred, and original dataset order is used as the deterministic tie-break.
+    """
+    ordered: list[HelpSteer2ScoredRow] = []
+    ratings = sorted(
+        {row.ratings[attribute] for row in candidates},
+        reverse=True,
+    )
+    for rating in ratings:
+        rating_rows = [
+            row for row in candidates if row.ratings[attribute] == rating
+        ]
+        usage_buckets = sorted({usage_counts[row.index] for row in rating_rows})
+        for usage_count in usage_buckets:
+            ordered.extend(
+                sorted(
+                    (
+                        row
+                        for row in rating_rows
+                        if usage_counts[row.index] == usage_count
+                    ),
+                    key=lambda row: row.index,
+                )
+            )
+    return ordered
+
+
 def make_low_overlap_attribute_training_texts(
     attributes: tuple[str, ...] | list[str] = HELPSTEER2_ATTRIBUTES,
     split: str = "train[:100]",
@@ -279,10 +315,10 @@ def make_low_overlap_attribute_training_texts(
 ) -> tuple[dict[str, list[str]], dict[str, dict[str, object]]]:
     """Select training texts for all attributes with minimal row reuse.
 
-    The first selected attribute gets its highest-rated examples. Later
-    attributes prefer rows with fewer previous selections before considering
-    rating and original dataset order. This keeps each specialist high-rating
-    filtered while reducing overlap between specialists as much as possible.
+    For each attribute, selection exhausts stronger rating buckets first
+    (for example rating 4 before rating 3). Inside one rating bucket, rows with
+    fewer previous selections are preferred before reusing already selected
+    rows. Original dataset order is the final deterministic tie-break.
     """
     normalized_attributes = _normalize_attribute_sequence(
         list(attributes),
@@ -340,12 +376,10 @@ def make_low_overlap_attribute_training_texts(
                 if row.ratings[attribute] == fallback_rating
             ]
 
-        candidates.sort(
-            key=lambda row: (
-                usage_counts[row.index],
-                -row.ratings[attribute],
-                row.index,
-            )
+        candidates = _order_low_overlap_candidates(
+            candidates,
+            attribute=attribute,
+            usage_counts=usage_counts,
         )
         selected = candidates if limit is None else candidates[:limit]
         if not selected:
@@ -355,6 +389,9 @@ def make_low_overlap_attribute_training_texts(
 
         prior_usage_counts = Counter(usage_counts[row.index] for row in selected)
         rating_counts = Counter(row.ratings[attribute] for row in selected)
+        rating_prior_usage_counts = Counter(
+            (row.ratings[attribute], usage_counts[row.index]) for row in selected
+        )
         for row in selected:
             usage_counts[row.index] += 1
 
@@ -371,7 +408,16 @@ def make_low_overlap_attribute_training_texts(
             "max_examples": limit,
             "prior_usage_counts": dict(sorted(prior_usage_counts.items())),
             "selected_rating_counts": dict(sorted(rating_counts.items())),
-            "ordering": "lowest prior use, descending rating, original row index",
+            "selected_rating_prior_usage_counts": {
+                f"rating_{rating}_prior_use_{prior_use}": count
+                for (rating, prior_use), count in sorted(
+                    rating_prior_usage_counts.items()
+                )
+            },
+            "ordering": (
+                "descending rating buckets, then lowest prior use within "
+                "rating, then original row index"
+            ),
         }
 
     return texts_by_attribute, summaries

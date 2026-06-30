@@ -157,6 +157,10 @@ def train_attribute_adapter(
         "Selected rating counts: "
         f"{selection_summary.get('selected_rating_counts', {})}"
     )
+    print(
+        "Selected rating/prior-use buckets: "
+        f"{selection_summary.get('selected_rating_prior_usage_counts', {})}"
+    )
     print(f"Loading evaluation split {eval_split!r}")
     eval_texts = make_attribute_training_texts(
         attribute,
