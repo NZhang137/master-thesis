@@ -169,7 +169,7 @@ def resolve_training_precision(precision: str) -> tuple[torch.dtype, str]:
 
 def load_tinyllama_with_lora(
     model_name: str,
-    precision: str = "auto",
+    precision: str = "bf16",
 ) -> tuple[Any, Any, str]:
     """Load a fresh TinyLlama model and attach a trainable LoRA adapter."""
     try:
@@ -233,7 +233,8 @@ def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.d
 
     The prompt prefix up to and including ``Assistant:`` is masked with
     ``-100`` so the loss is computed only on assistant response tokens.
-    Padding tokens are also ignored. If an example is longer than
+    The EOS token is appended to the response and left unmasked. Padding
+    tokens are also ignored. If an example is longer than
     ``max_length``, the prompt prefix is truncated from the left so that
     assistant response tokens remain supervised.
     """
@@ -245,6 +246,9 @@ def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.d
         pad_token_id = tokenizer.eos_token_id
     if pad_token_id is None:
         raise ValueError("Tokenizer must define pad_token_id or eos_token_id.")
+    eos_token_id = tokenizer.eos_token_id
+    if eos_token_id is None:
+        raise ValueError("Response-only SFT requires tokenizer.eos_token_id.")
 
     batch_input_ids: list[list[int]] = []
     batch_attention_mask: list[list[int]] = []
@@ -267,17 +271,25 @@ def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.d
                 "No assistant response tokens remain after tokenization. "
                 "Check the formatted training text."
             )
+        response_ids = response_ids + [eos_token_id]
 
         if len(prefix_ids) + len(response_ids) > max_length:
             # For response-only SFT, keep response tokens supervised and shorten
             # long prompts from the left instead of losing the assistant answer.
+            # Keep EOS supervised even when the response itself must be shortened.
             response_budget = min(len(response_ids), max_length - 1)
             prompt_budget = max_length - response_budget
             prefix_ids = prefix_ids[-prompt_budget:] if prompt_budget > 0 else []
-            response_ids = response_ids[:response_budget]
+            if len(response_ids) > response_budget:
+                response_ids = response_ids[: response_budget - 1] + [eos_token_id]
 
         input_row = prefix_ids + response_ids
         label_row = [-100] * len(prefix_ids) + response_ids
+        if not any(label != -100 for label in label_row):
+            raise ValueError(
+                "Response-only SFT produced a fully masked sequence. "
+                "Check max_length and formatted training text."
+            )
 
         batch_input_ids.append(input_row)
         batch_attention_mask.append([1] * len(input_row))
@@ -295,6 +307,16 @@ def tokenize_batch(tokenizer, texts: list[str], max_length: int, device: torch.d
     attention_mask = torch.tensor(batch_attention_mask, dtype=torch.long, device=device)
     labels = torch.tensor(batch_labels, dtype=torch.long, device=device)
     return input_ids, attention_mask, labels
+
+
+def validate_finite_loss(loss: torch.Tensor, context: str) -> None:
+    """Fail fast on NaN or Inf losses instead of writing unusable checkpoints."""
+    if not torch.isfinite(loss).all():
+        value = float(loss.detach().float().item())
+        raise FloatingPointError(
+            f"Non-finite loss detected during {context}: {value}. "
+            "Check masking, precision, and batch contents."
+        )
 
 
 def evaluate_lm_loss(
@@ -327,6 +349,7 @@ def evaluate_lm_loss(
                 attention_mask=attention_mask,
                 labels=labels,
             )
+            validate_finite_loss(outputs.loss, "evaluation")
             total_loss += float(outputs.loss.item()) * len(batch_texts)
             processed += len(batch_texts)
     model.train()
@@ -895,6 +918,7 @@ def train_with_monitoring(
                         labels=labels,
                     )
                     loss = outputs.loss
+                    validate_finite_loss(loss, "training")
                     loss_value = float(loss.item())
                     (loss / len(accumulation_starts)).backward()
                     recent_losses.append(loss_value)

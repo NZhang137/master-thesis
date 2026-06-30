@@ -48,7 +48,7 @@ DEFAULT_ARMORM_MODEL = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
 DEFAULT_CONFIG_PATH = "configs/tinyllama_helpsteer2_armorm.yaml"
 FIXED_GRADIENT_ACCUMULATION_STEPS = 1
 FIXED_MAX_GRAD_NORM = 1.0
-FIXED_PRECISION = "auto"
+FIXED_PRECISION = "bf16"
 
 
 def adapter_directory_name(attribute: str) -> str:
