@@ -233,3 +233,6 @@ STOP_CURRENT_ADAPTER
 results/tensorboard/
 results/tinyllama_helpsteer2_reward_monitoring/
 results/tinyllama_helpsteer2_geometry/
+results/helpsteer2_selection_overlap_matrix.csv
+results/helpsteer2_selection_overlap_matrix.json
+tmp_selection_overlap_check/

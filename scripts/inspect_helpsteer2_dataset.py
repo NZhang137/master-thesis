@@ -24,16 +24,21 @@ from src.helpsteer2_utils import (
     HELPSTEER2_ATTRIBUTES,
     HELPSTEER2_DATASET_NAME,
     HELPSTEER2_TEXT_COLUMNS,
-    LOW_OVERLAP_SELECTION_ORDER,
+    INDEPENDENT_SELECTION_RATINGS,
+    INDEPENDENT_SELECTION_SEED,
+    compute_prompt_overlap_report,
     inspect_helpsteer2_columns,
     load_helpsteer2_split,
-    make_low_overlap_attribute_training_texts,
+    make_independent_attribute_training_texts,
+    save_prompt_overlap_report,
     summarize_attribute_counts,
 )
 
 
 DEFAULT_CONFIG_PATH = "configs/tinyllama_helpsteer2_armorm.yaml"
 DEFAULT_OUTPUT_PATH = "results/helpsteer2_dataset_summary.json"
+DEFAULT_OVERLAP_CSV_PATH = "results/helpsteer2_selection_overlap_matrix.csv"
+DEFAULT_OVERLAP_JSON_PATH = "results/helpsteer2_selection_overlap_matrix.json"
 EXAMPLE_TEXT_COUNT = 3
 EXAMPLE_TEXT_MAX_CHARS = 500
 
@@ -70,6 +75,25 @@ def parse_args() -> argparse.Namespace:
         dest="output_path",
         default=DEFAULT_OUTPUT_PATH,
     )
+    parser.add_argument(
+        "--selection_seed",
+        "--selection-seed",
+        dest="selection_seed",
+        type=int,
+        default=INDEPENDENT_SELECTION_SEED,
+    )
+    parser.add_argument(
+        "--overlap_csv_path",
+        "--overlap-csv-path",
+        dest="overlap_csv_path",
+        default=DEFAULT_OVERLAP_CSV_PATH,
+    )
+    parser.add_argument(
+        "--overlap_json_path",
+        "--overlap-json-path",
+        dest="overlap_json_path",
+        default=DEFAULT_OVERLAP_JSON_PATH,
+    )
     return parser.parse_args()
 
 
@@ -96,6 +120,8 @@ def main() -> None:
 
     config_path = resolve_project_path(args.config_path)
     output_path = resolve_project_path(args.output_path)
+    overlap_csv_path = resolve_project_path(args.overlap_csv_path)
+    overlap_json_path = resolve_project_path(args.overlap_json_path)
     config = load_experiment_config(config_path)
     attributes = get_attribute_order(config)
     min_ratings = get_attribute_min_ratings(config)
@@ -132,12 +158,18 @@ def main() -> None:
         args.split,
         attribute_min_ratings=min_ratings,
     )
-    selected_texts, selection_summaries = make_low_overlap_attribute_training_texts(
+    selected_texts, selection_summaries = make_independent_attribute_training_texts(
         attributes=list(attributes),
         split=args.split,
         max_examples=max_examples,
-        attribute_min_ratings=min_ratings,
-        selection_order=LOW_OVERLAP_SELECTION_ORDER,
+        seed=args.selection_seed,
+        ratings=INDEPENDENT_SELECTION_RATINGS,
+    )
+    overlap_report = compute_prompt_overlap_report(selection_summaries, attributes)
+    save_prompt_overlap_report(
+        overlap_report,
+        csv_path=overlap_csv_path,
+        json_path=overlap_json_path,
     )
     attribute_summaries: dict[str, dict[str, object]] = {}
     print(f"Dataset: {dataset_name}")
@@ -146,11 +178,12 @@ def main() -> None:
     print(f"Columns: {', '.join(columns)}")
     print(f"Attributes: {', '.join(attributes)}\n")
 
+    print("Selection strategy: independent Top-N per attribute")
     print(
-        "Low-overlap selection order: "
-        + " -> ".join(LOW_OVERLAP_SELECTION_ORDER)
-        + "\n"
+        "Selection ratings: "
+        + " then ".join(str(rating) for rating in INDEPENDENT_SELECTION_RATINGS)
     )
+    print(f"Selection seed: {args.selection_seed}\n")
 
     for attribute in attributes:
         threshold = min_ratings[attribute]
@@ -165,10 +198,11 @@ def main() -> None:
             f"{rating}={rating_counts[rating]}" for rating in range(5)
         )
         print(
-            f"{attribute}: threshold >= {threshold}; "
+            f"{attribute}: eval threshold >= {threshold}; "
             f"ratings {{{rating_text}}}; "
             f"selected={len(texts)}; "
-            f"prior_use={selection_summaries[attribute]['prior_usage_counts']}"
+            f"selected_rating_counts="
+            f"{selection_summaries[attribute]['selected_rating_counts']}"
         )
         print("  example: " + preview_text(texts[0], 180).replace("\n", " "))
         attribute_summaries[attribute] = {
@@ -181,7 +215,7 @@ def main() -> None:
             ),
             "selected_example_count": len(texts),
             "max_examples": max_examples,
-            "low_overlap_selection": selection_summaries[attribute],
+            "training_selection": selection_summaries[attribute],
             "example_training_texts": [
                 preview_text(text) for text in texts[:EXAMPLE_TEXT_COUNT]
             ],
@@ -200,22 +234,28 @@ def main() -> None:
             name: list(vector) for name, vector in preferences.items()
         },
         "selection": {
-            "attribute_min_ratings": min_ratings,
-            "small_split_fallback": "highest observed rating",
+            "evaluation_attribute_min_ratings": min_ratings,
             "max_examples": max_examples,
-            "selection_order": list(LOW_OVERLAP_SELECTION_ORDER),
+            "selection_seed": args.selection_seed,
+            "ratings_considered": list(INDEPENDENT_SELECTION_RATINGS),
             "ordering": (
-                "descending rating buckets, then lowest prior use within "
-                "rating, then original row index"
+                "independent per attribute: sort each rating bucket by row "
+                "index, shuffle with the same seed, concatenate rating 4 then "
+                "rating 3, take Top-N; overlap allowed"
             ),
+            "overlap_csv_path": str(overlap_csv_path),
+            "overlap_json_path": str(overlap_json_path),
         },
         "attribute_summaries": attribute_summaries,
+        "prompt_overlap": overlap_report,
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as output_file:
         json.dump(summary, output_file, indent=2, ensure_ascii=True)
         output_file.write("\n")
     print(f"\nSaved dataset summary to {output_path}")
+    print(f"Saved prompt overlap CSV to {overlap_csv_path}")
+    print(f"Saved prompt overlap JSON to {overlap_json_path}")
 
 
 if __name__ == "__main__":

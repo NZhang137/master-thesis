@@ -7,11 +7,16 @@ deterministic source order for equal ratings.
 
 from __future__ import annotations
 
+import csv
+import json
 import math
+import random
 from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
+from hashlib import sha256
+from pathlib import Path
 
 
 HELPSTEER2_DATASET_NAME = "nvidia/HelpSteer2"
@@ -22,13 +27,8 @@ HELPSTEER2_ATTRIBUTES = (
     "complexity",
     "verbosity",
 )
-LOW_OVERLAP_SELECTION_ORDER = (
-    "complexity",
-    "verbosity",
-    "correctness",
-    "helpfulness",
-    "coherence",
-)
+INDEPENDENT_SELECTION_SEED = 1
+INDEPENDENT_SELECTION_RATINGS = (4, 3)
 HELPSTEER2_TEXT_COLUMNS = ("prompt", "response")
 DEFAULT_MIN_RATING = 3
 MIN_RATING = 0
@@ -47,6 +47,7 @@ class HelpSteer2ScoredRow:
     """One validated HelpSteer2 row prepared for deterministic selection."""
 
     index: int
+    prompt: str
     text: str
     ratings: dict[str, int]
 
@@ -243,11 +244,17 @@ def _collect_scored_rows(split: str) -> list[HelpSteer2ScoredRow]:
             attribute: _parse_rating(example[attribute], attribute)
             for attribute in HELPSTEER2_ATTRIBUTES
         }
+        prompt = str(example["prompt"] or "").strip()
         text = format_helpsteer2_text(example)
         if not text.strip():
             raise ValueError("Selected HelpSteer2 training text is empty.")
         scored_rows.append(
-            HelpSteer2ScoredRow(index=index, text=text, ratings=ratings)
+            HelpSteer2ScoredRow(
+                index=index,
+                prompt=prompt,
+                text=text,
+                ratings=ratings,
+            )
         )
     if not scored_rows:
         raise ValueError(f"HelpSteer2 split contains no examples: {split!r}.")
@@ -270,157 +277,227 @@ def _normalize_attribute_sequence(
     return tuple(normalized)
 
 
-def _order_low_overlap_candidates(
-    candidates: list[HelpSteer2ScoredRow],
+def _stable_prompt_hash(prompt: str) -> str:
+    """Return a deterministic compact identifier for one prompt string."""
+    return sha256(prompt.encode("utf-8")).hexdigest()
+
+
+def _shuffled_rating_bucket(
+    rows: list[HelpSteer2ScoredRow],
     *,
     attribute: str,
-    usage_counts: Mapping[int, int],
+    rating: int,
+    seed: int,
 ) -> list[HelpSteer2ScoredRow]:
-    """Order candidates by rating first, then by previous row usage.
-
-    This keeps the strongest rating bucket intact before falling back to lower
-    ratings. Within each rating bucket, rows with fewer previous selections are
-    preferred, and original dataset order is used as the deterministic tie-break.
-    """
-    ordered: list[HelpSteer2ScoredRow] = []
-    ratings = sorted(
-        {row.ratings[attribute] for row in candidates},
-        reverse=True,
+    """Return one rating bucket shuffled with a fixed seed."""
+    bucket = sorted(
+        (row for row in rows if row.ratings[attribute] == rating),
+        key=lambda row: row.index,
     )
-    for rating in ratings:
-        rating_rows = [
-            row for row in candidates if row.ratings[attribute] == rating
-        ]
-        usage_buckets = sorted({usage_counts[row.index] for row in rating_rows})
-        for usage_count in usage_buckets:
-            ordered.extend(
-                sorted(
-                    (
-                        row
-                        for row in rating_rows
-                        if usage_counts[row.index] == usage_count
-                    ),
-                    key=lambda row: row.index,
-                )
-            )
-    return ordered
+    shuffled = list(bucket)
+    random.Random(seed).shuffle(shuffled)
+    return shuffled
 
 
-def make_low_overlap_attribute_training_texts(
+def make_independent_attribute_training_texts(
     attributes: tuple[str, ...] | list[str] = HELPSTEER2_ATTRIBUTES,
     split: str = "train[:100]",
     max_examples: int | None = None,
-    attribute_min_ratings: Mapping[str, int] | None = None,
-    selection_order: tuple[str, ...] | list[str] = LOW_OVERLAP_SELECTION_ORDER,
+    seed: int = INDEPENDENT_SELECTION_SEED,
+    ratings: tuple[int, ...] | list[int] = INDEPENDENT_SELECTION_RATINGS,
 ) -> tuple[dict[str, list[str]], dict[str, dict[str, object]]]:
-    """Select training texts for all attributes with minimal row reuse.
+    """Select each attribute independently by its own rating buckets.
 
-    For each attribute, selection exhausts stronger rating buckets first
-    (for example rating 4 before rating 3). Inside one rating bucket, rows with
-    fewer previous selections are preferred before reusing already selected
-    rows. Original dataset order is the final deterministic tie-break.
+    For every requested attribute, rating buckets are considered in descending
+    preference order (by default 4, then 3). Each bucket is shuffled with the
+    same fixed seed, and examples are taken until ``max_examples`` is reached.
+    Attributes do not interact: no prior-use sorting and no cross-attribute
+    deduplication are applied, so overlap between attribute selections is
+    allowed and measured separately.
     """
     normalized_attributes = _normalize_attribute_sequence(
         list(attributes),
         label="attributes",
     )
-    normalized_order = _normalize_attribute_sequence(
-        list(selection_order),
-        label="selection_order",
-    )
-    unknown = [
-        attribute
-        for attribute in normalized_attributes
-        if attribute not in normalized_order
-    ]
-    if unknown:
-        raise ValueError(
-            "selection_order is missing requested attributes: "
-            + ", ".join(unknown)
-        )
-    thresholds = {
-        attribute: _resolve_selection_options(
-            attribute,
-            min_rating=None,
-            max_examples=max_examples,
-            attribute_min_ratings=attribute_min_ratings,
-        )[0]
-        for attribute in normalized_attributes
-    }
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise ValueError("seed must be an integer.")
+    normalized_ratings: list[int] = []
+    for rating in ratings:
+        if isinstance(rating, bool) or not isinstance(rating, int):
+            raise ValueError("ratings must contain only integers.")
+        if rating < MIN_RATING or rating > MAX_RATING:
+            raise ValueError(
+                f"ratings must be in [{MIN_RATING}, {MAX_RATING}]."
+            )
+        if rating not in normalized_ratings:
+            normalized_ratings.append(rating)
+    if not normalized_ratings:
+        raise ValueError("ratings must contain at least one rating.")
     limit = _resolve_selection_options(
         normalized_attributes[0],
         min_rating=None,
         max_examples=max_examples,
-        attribute_min_ratings=attribute_min_ratings,
+        attribute_min_ratings=None,
     )[1]
 
     scored_rows = _collect_scored_rows(split)
-    usage_counts = {row.index: 0 for row in scored_rows}
     texts_by_attribute: dict[str, list[str]] = {}
     summaries: dict[str, dict[str, object]] = {}
-    ordered_attributes = [
-        attribute for attribute in normalized_order if attribute in normalized_attributes
-    ]
 
-    for selection_index, attribute in enumerate(ordered_attributes, start=1):
-        threshold = thresholds[attribute]
-        candidates = [
-            row for row in scored_rows if row.ratings[attribute] >= threshold
-        ]
-        fallback_rating = None
-        if not candidates:
-            fallback_rating = max(row.ratings[attribute] for row in scored_rows)
-            candidates = [
-                row
-                for row in scored_rows
-                if row.ratings[attribute] == fallback_rating
-            ]
-
-        candidates = _order_low_overlap_candidates(
-            candidates,
-            attribute=attribute,
-            usage_counts=usage_counts,
-        )
-        selected = candidates if limit is None else candidates[:limit]
+    for attribute in normalized_attributes:
+        selected: list[HelpSteer2ScoredRow] = []
+        candidate_counts = {
+            rating: sum(1 for row in scored_rows if row.ratings[attribute] == rating)
+            for rating in normalized_ratings
+        }
+        for rating in normalized_ratings:
+            bucket = _shuffled_rating_bucket(
+                scored_rows,
+                attribute=attribute,
+                rating=rating,
+                seed=seed,
+            )
+            remaining = None if limit is None else limit - len(selected)
+            if remaining is not None and remaining <= 0:
+                break
+            selected.extend(bucket if remaining is None else bucket[:remaining])
         if not selected:
             raise ValueError(
                 f"No non-empty training texts were selected for {attribute}."
             )
+        if limit is not None and len(selected) < limit:
+            considered = ", ".join(str(rating) for rating in normalized_ratings)
+            raise ValueError(
+                f"Only selected {len(selected)} texts for {attribute!r}; "
+                f"need {limit}. Ratings considered: {considered}."
+            )
 
-        prior_usage_counts = Counter(usage_counts[row.index] for row in selected)
         rating_counts = Counter(row.ratings[attribute] for row in selected)
-        rating_prior_usage_counts = Counter(
-            (row.ratings[attribute], usage_counts[row.index]) for row in selected
-        )
-        for row in selected:
-            usage_counts[row.index] += 1
 
         texts_by_attribute[attribute] = [row.text for row in selected]
         summaries[attribute] = {
-            "selection_order_index": selection_index,
-            "min_rating": threshold,
-            "fallback_rating": fallback_rating,
-            "available_at_threshold": sum(
-                1 for row in scored_rows if row.ratings[attribute] >= threshold
-            ),
-            "candidate_count": len(candidates),
+            "selection_strategy": "independent_top_n_by_attribute_rating",
+            "seed": seed,
+            "ratings_considered": list(normalized_ratings),
+            "candidate_counts_by_rating": dict(sorted(candidate_counts.items())),
             "selected_example_count": len(selected),
             "max_examples": limit,
-            "prior_usage_counts": dict(sorted(prior_usage_counts.items())),
             "selected_rating_counts": dict(sorted(rating_counts.items())),
-            "selected_rating_prior_usage_counts": {
-                f"rating_{rating}_prior_use_{prior_use}": count
-                for (rating, prior_use), count in sorted(
-                    rating_prior_usage_counts.items()
-                )
-            },
+            "selected_row_indices": [row.index for row in selected],
+            "selected_prompt_hashes": [
+                _stable_prompt_hash(row.prompt) for row in selected
+            ],
             "ordering": (
-                "descending rating buckets, then lowest prior use within "
-                "rating, then original row index"
+                "independent per attribute: shuffle rating buckets with fixed "
+                "seed, take rating 4 before rating 3, allow overlap"
             ),
         }
 
     return texts_by_attribute, summaries
+
+
+def compute_prompt_overlap_report(
+    selection_summaries: Mapping[str, Mapping[str, object]],
+    attributes: tuple[str, ...] | list[str],
+) -> dict[str, object]:
+    """Compute absolute and percentage overlaps between selected prompt sets."""
+    normalized_attributes = _normalize_attribute_sequence(
+        list(attributes),
+        label="attributes",
+    )
+    prompt_sets: dict[str, set[str]] = {}
+    for attribute in normalized_attributes:
+        summary = selection_summaries[attribute]
+        prompt_hashes = summary.get("selected_prompt_hashes")
+        if not isinstance(prompt_hashes, list) or not all(
+            isinstance(value, str) for value in prompt_hashes
+        ):
+            raise ValueError(
+                f"Selection summary for {attribute!r} is missing prompt hashes."
+            )
+        prompt_sets[attribute] = set(prompt_hashes)
+
+    absolute_matrix: dict[str, dict[str, int]] = {}
+    percent_matrix: dict[str, dict[str, float]] = {}
+    pairs: list[dict[str, object]] = []
+    for attribute_a in normalized_attributes:
+        absolute_matrix[attribute_a] = {}
+        percent_matrix[attribute_a] = {}
+        prompts_a = prompt_sets[attribute_a]
+        for attribute_b in normalized_attributes:
+            prompts_b = prompt_sets[attribute_b]
+            overlap_count = len(prompts_a.intersection(prompts_b))
+            denominator = len(prompts_a)
+            overlap_percent = (
+                0.0 if denominator == 0 else 100.0 * overlap_count / denominator
+            )
+            absolute_matrix[attribute_a][attribute_b] = overlap_count
+            percent_matrix[attribute_a][attribute_b] = overlap_percent
+            pairs.append(
+                {
+                    "attribute_a": attribute_a,
+                    "attribute_b": attribute_b,
+                    "overlap_count": overlap_count,
+                    "overlap_percent": overlap_percent,
+                    "size_a": len(prompts_a),
+                    "size_b": len(prompts_b),
+                }
+            )
+
+    return {
+        "attributes": list(normalized_attributes),
+        "absolute_matrix": absolute_matrix,
+        "percent_matrix": percent_matrix,
+        "pairs": pairs,
+        "percent_denominator": "row attribute selected prompt set size",
+    }
+
+
+def save_prompt_overlap_report(
+    overlap_report: Mapping[str, object],
+    *,
+    csv_path: str | Path,
+    json_path: str | Path,
+) -> None:
+    """Save pairwise prompt overlap counts and percentages as CSV and JSON."""
+    csv_output_path = Path(csv_path)
+    json_output_path = Path(json_path)
+    csv_output_path.parent.mkdir(parents=True, exist_ok=True)
+    json_output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    pairs = overlap_report.get("pairs")
+    if not isinstance(pairs, list):
+        raise ValueError("overlap_report must contain a list under 'pairs'.")
+    with csv_output_path.open("w", encoding="utf-8", newline="") as output_file:
+        writer = csv.DictWriter(
+            output_file,
+            fieldnames=[
+                "attribute_a",
+                "attribute_b",
+                "overlap_count",
+                "overlap_percent",
+                "size_a",
+                "size_b",
+            ],
+        )
+        writer.writeheader()
+        for row in pairs:
+            if not isinstance(row, Mapping):
+                raise ValueError("overlap_report pairs must be mappings.")
+            writer.writerow(
+                {
+                    "attribute_a": row["attribute_a"],
+                    "attribute_b": row["attribute_b"],
+                    "overlap_count": row["overlap_count"],
+                    "overlap_percent": f"{float(row['overlap_percent']):.6f}",
+                    "size_a": row["size_a"],
+                    "size_b": row["size_b"],
+                }
+            )
+
+    with json_output_path.open("w", encoding="utf-8") as output_file:
+        json.dump(overlap_report, output_file, indent=2, ensure_ascii=True)
+        output_file.write("\n")
 
 
 def summarize_attribute_counts(

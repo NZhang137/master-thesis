@@ -29,9 +29,12 @@ from src.experiment_config import (
 )
 from src.helpsteer2_utils import (
     HELPSTEER2_ATTRIBUTES,
-    LOW_OVERLAP_SELECTION_ORDER,
+    INDEPENDENT_SELECTION_RATINGS,
+    INDEPENDENT_SELECTION_SEED,
+    compute_prompt_overlap_report,
     make_attribute_training_texts,
-    make_low_overlap_attribute_training_texts,
+    make_independent_attribute_training_texts,
+    save_prompt_overlap_report,
 )
 from src.tinyllama_training_utils import (
     ARMORM_HELPSTEER_OBJECTIVES,
@@ -46,6 +49,8 @@ from src.tinyllama_training_utils import (
 DEFAULT_MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 DEFAULT_ARMORM_MODEL = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
 DEFAULT_CONFIG_PATH = "configs/tinyllama_helpsteer2_armorm.yaml"
+DEFAULT_SELECTION_OVERLAP_CSV_PATH = "results/helpsteer2_selection_overlap_matrix.csv"
+DEFAULT_SELECTION_OVERLAP_JSON_PATH = "results/helpsteer2_selection_overlap_matrix.json"
 FIXED_GRADIENT_ACCUMULATION_STEPS = 1
 FIXED_MAX_GRAD_NORM = 1.0
 FIXED_PRECISION = "bf16"
@@ -138,29 +143,26 @@ def train_attribute_adapter(
 ) -> TrainingResult:
     """Load a fresh base model, train one specialist, and save its adapter."""
     print(f"\n=== TinyLlama HelpSteer2 {attribute} adapter ===")
-    print(f"Attribute selection threshold: rating >= {min_rating}")
+    print(f"Evaluation selection threshold: rating >= {min_rating}")
     if max_training_examples is not None:
         print(
             "Training text cap: "
-            f"{max_training_examples} examples after low-overlap selection"
+            f"{max_training_examples} independent Top-N examples"
         )
     print(f"Loading training split {split!r}")
     print(
         f"Selected {len(training_texts)} high-{attribute} training texts "
-        "with low-overlap selection."
-    )
-    print(
-        "Selection prior-use buckets: "
-        f"{selection_summary.get('prior_usage_counts', {})}"
+        "with independent per-attribute Top-N selection."
     )
     print(
         "Selected rating counts: "
         f"{selection_summary.get('selected_rating_counts', {})}"
     )
     print(
-        "Selected rating/prior-use buckets: "
-        f"{selection_summary.get('selected_rating_prior_usage_counts', {})}"
+        "Selection candidate counts by rating: "
+        f"{selection_summary.get('candidate_counts_by_rating', {})}"
     )
+    print(f"Selection seed: {selection_summary.get('seed')}")
     print(f"Loading evaluation split {eval_split!r}")
     eval_texts = make_attribute_training_texts(
         attribute,
@@ -340,6 +342,17 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Override the configured maximum number of selected training "
             "examples per attribute."
+        ),
+    )
+    parser.add_argument(
+        "--selection_seed",
+        "--selection-seed",
+        dest="selection_seed",
+        type=int,
+        default=INDEPENDENT_SELECTION_SEED,
+        help=(
+            "Deterministic seed for independent Top-N training selection. "
+            "The same seed is used for every attribute."
         ),
     )
     parser.add_argument(
@@ -540,6 +553,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Stop the full run when max_steps is reached for one adapter.",
     )
+    parser.add_argument(
+        "--selection_overlap_csv_path",
+        "--selection-overlap-csv-path",
+        dest="selection_overlap_csv_path",
+        default=DEFAULT_SELECTION_OVERLAP_CSV_PATH,
+    )
+    parser.add_argument(
+        "--selection_overlap_json_path",
+        "--selection-overlap-json-path",
+        dest="selection_overlap_json_path",
+        default=DEFAULT_SELECTION_OVERLAP_JSON_PATH,
+    )
     return parser.parse_args()
 
 
@@ -572,6 +597,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("max_length must be at least 2 and batch_size at least 1.")
     if args.max_training_examples is not None and args.max_training_examples < 1:
         raise ValueError("max_training_examples must be at least 1 when provided.")
+    if isinstance(args.selection_seed, bool):
+        raise ValueError("selection_seed must be an integer.")
     for name in ("logging_steps", "eval_steps", "save_steps", "reward_eval_steps"):
         if getattr(args, name) < 1:
             raise ValueError(f"{name} must be at least 1.")
@@ -615,36 +642,54 @@ def main() -> None:
     checkpoint_dir = resolve_project_path(args.checkpoint_dir)
     reward_prompts_path = resolve_project_path(args.reward_eval_prompts_path)
     reward_output_dir = resolve_project_path(args.reward_output_dir)
+    selection_overlap_csv_path = resolve_project_path(args.selection_overlap_csv_path)
+    selection_overlap_json_path = resolve_project_path(args.selection_overlap_json_path)
 
     print(f"Selected attributes: {', '.join(attributes)}")
+    print("Training selection strategy: independent Top-N per attribute.")
     print(
-        "Selection thresholds: "
-        + ", ".join(
-            f"{attribute}>={min_ratings[attribute]}" for attribute in attributes
-        )
+        "Training selection ratings: "
+        + " then ".join(str(rating) for rating in INDEPENDENT_SELECTION_RATINGS)
     )
+    print(f"Training selection seed: {args.selection_seed}")
     if max_training_examples is not None:
         print(
             "Training example cap: "
-            f"{max_training_examples} per attribute, using low-overlap selection"
+            f"{max_training_examples} per attribute"
         )
     print(
         "Training uses attribute-selected supervised HelpSteer2 texts. "
         "External reward monitoring, when enabled, is evaluation only."
     )
-    print(
-        "Low-overlap training selection order: "
-        + " -> ".join(LOW_OVERLAP_SELECTION_ORDER)
-    )
     training_texts_by_attribute, selection_summaries = (
-        make_low_overlap_attribute_training_texts(
+        make_independent_attribute_training_texts(
             attributes=list(configured_attributes),
             split=args.split,
             max_examples=max_training_examples,
-            attribute_min_ratings=min_ratings,
-            selection_order=LOW_OVERLAP_SELECTION_ORDER,
+            seed=args.selection_seed,
+            ratings=INDEPENDENT_SELECTION_RATINGS,
         )
     )
+    overlap_report = compute_prompt_overlap_report(
+        selection_summaries,
+        list(configured_attributes),
+    )
+    save_prompt_overlap_report(
+        overlap_report,
+        csv_path=selection_overlap_csv_path,
+        json_path=selection_overlap_json_path,
+    )
+    print(f"Saved selection overlap CSV to {selection_overlap_csv_path}")
+    print(f"Saved selection overlap JSON to {selection_overlap_json_path}")
+    print("Selection prompt overlap matrix (counts):")
+    for attribute in configured_attributes:
+        row = overlap_report["absolute_matrix"][attribute]
+        print(
+            f"  {attribute}: "
+            + ", ".join(
+                f"{other}={row[other]}" for other in configured_attributes
+            )
+        )
 
     for attribute in attributes:
         result = train_attribute_adapter(
