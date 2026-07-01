@@ -1,0 +1,99 @@
+{
+  "base_model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "attributes": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "adapter_paths": {
+    "helpfulness": "/content/master-thesis/adapters/tinyllama-helpsteer2-helpfulness-adapter",
+    "correctness": "/content/master-thesis/adapters/tinyllama-helpsteer2-correctness-adapter",
+    "coherence": "/content/master-thesis/adapters/tinyllama-helpsteer2-coherence-adapter",
+    "complexity": "/content/master-thesis/adapters/tinyllama-helpsteer2-complexity-adapter",
+    "verbosity": "/content/master-thesis/adapters/tinyllama-helpsteer2-verbosity-adapter"
+  },
+  "representation": "effective LoRA updates: delta_W = scaling * (B @ A)",
+  "primary_matrix": "R_cos",
+  "primary_matrix_reason": "scale invariant cosine relationship between effective LoRA task vectors",
+  "variant_matrix": "R_gram",
+  "variant_matrix_reason": "scale-sensitive Frobenius inner products between effective LoRA task vectors",
+  "cosine_output_csv": "/content/master-thesis/results/tinyllama_helpsteer2_geometry/tinyllama_helpsteer2_R_cos.csv",
+  "gram_output_csv": "/content/master-thesis/results/tinyllama_helpsteer2_geometry/tinyllama_helpsteer2_R_gram.csv",
+  "cosine_plot_png": "/content/master-thesis/results/tinyllama_helpsteer2_geometry/plots/tinyllama_helpsteer2_R_cos.png",
+  "gram_plot_png": "/content/master-thesis/results/tinyllama_helpsteer2_geometry/plots/tinyllama_helpsteer2_R_gram.png",
+  "compatibility_cosine_output_csv": null,
+  "summary_rows": [
+    {
+      "attribute": "helpfulness",
+      "adapter_path": "/content/master-thesis/adapters/tinyllama-helpsteer2-helpfulness-adapter",
+      "num_lora_modules": 154,
+      "lora_rank": 8,
+      "lora_alpha": 16,
+      "scaling": 2.0,
+      "effective_update_numel": 968884224,
+      "delta_norm": 5.368067754779241,
+      "delta_norm_squared": 28.81615141990064
+    },
+    {
+      "attribute": "correctness",
+      "adapter_path": "/content/master-thesis/adapters/tinyllama-helpsteer2-correctness-adapter",
+      "num_lora_modules": 154,
+      "lora_rank": 8,
+      "lora_alpha": 16,
+      "scaling": 2.0,
+      "effective_update_numel": 968884224,
+      "delta_norm": 5.375967260896043,
+      "delta_norm_squared": 28.901023990226097
+    },
+    {
+      "attribute": "coherence",
+      "adapter_path": "/content/master-thesis/adapters/tinyllama-helpsteer2-coherence-adapter",
+      "num_lora_modules": 154,
+      "lora_rank": 8,
+      "lora_alpha": 16,
+      "scaling": 2.0,
+      "effective_update_numel": 968884224,
+      "delta_norm": 5.3335748993001255,
+      "delta_norm_squared": 28.447021206444344
+    },
+    {
+      "attribute": "complexity",
+      "adapter_path": "/content/master-thesis/adapters/tinyllama-helpsteer2-complexity-adapter",
+      "num_lora_modules": 154,
+      "lora_rank": 8,
+      "lora_alpha": 16,
+      "scaling": 2.0,
+      "effective_update_numel": 968884224,
+      "delta_norm": 5.455840376578312,
+      "delta_norm_squared": 29.76619421470218
+    },
+    {
+      "attribute": "verbosity",
+      "adapter_path": "/content/master-thesis/adapters/tinyllama-helpsteer2-verbosity-adapter",
+      "num_lora_modules": 154,
+      "lora_rank": 8,
+      "lora_alpha": 16,
+      "scaling": 2.0,
+      "effective_update_numel": 968884224,
+      "delta_norm": 5.405549535292509,
+      "delta_norm_squared": 29.21996577850106
+    }
+  ],
+  "cosine_eigenvalues": [
+    0.6025784714673985,
+    0.6509539429077011,
+    0.6821421399195855,
+    0.7441392445992445,
+    2.3201862011060697
+  ],
+  "gram_eigenvalues": [
+    17.390664575078787,
+    18.978362297012698,
+    19.67484062626086,
+    21.770725022482882,
+    67.3357640889391
+  ],
+  "note": "TinyLlama, ArmoRM, tokenizer weights, and reward-model weights are not loaded."
+}
