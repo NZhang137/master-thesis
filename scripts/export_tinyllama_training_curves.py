@@ -13,7 +13,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOG_DIR = "results/tinyllama_helpsteer2_training_logs"
 DEFAULT_OUTPUT_DIR = "results/plots/tensorboard"
-DEFAULT_SMOOTHING = 0.5
+DEFAULT_SMOOTHING = 0.0
 DEFAULT_RAW_COLOR = "#ffffff"
 DEFAULT_SMOOTHED_COLOR = "#65717f"
 METRICS = ("train_loss", "eval_loss", "learning_rate", "grad_norm")
@@ -244,7 +244,7 @@ def save_individual_plot(
     smoothed_linewidth: float,
     grid_alpha: float,
 ) -> None:
-    """Save one TensorBoard-style raw and smoothed attribute/metric curve."""
+    """Save one TensorBoard-style attribute/metric curve."""
     steps, values = zip(*points)
     figure, axis = pyplot.subplots(figsize=(7.2, 4.4))
     apply_plot_theme(figure, axis, theme)
@@ -252,17 +252,18 @@ def save_individual_plot(
         steps,
         values,
         color=raw_color,
-        alpha=raw_alpha,
+        alpha=1.0 if smoothing == 0 else raw_alpha,
         linewidth=raw_linewidth,
         label=f"{attribute} raw",
     )
-    axis.plot(
-        steps,
-        smooth_values(list(values), smoothing),
-        color=smoothed_color,
-        linewidth=smoothed_linewidth,
-        label=f"{attribute} smoothed ({smoothing:g})",
-    )
+    if smoothing > 0:
+        axis.plot(
+            steps,
+            smooth_values(list(values), smoothing),
+            color=smoothed_color,
+            linewidth=smoothed_linewidth,
+            label=f"{attribute} smoothed ({smoothing:g})",
+        )
     axis.set_title(
         f"TinyLlama HelpSteer2: {attribute} {metric_label(metric)}",
         loc="left",
@@ -295,7 +296,7 @@ def save_combined_plot(
     smoothed_linewidth: float,
     grid_alpha: float,
 ) -> None:
-    """Save raw and smoothed comparison curves across available attributes."""
+    """Save comparison curves across available attributes."""
     figure, axis = pyplot.subplots(figsize=(8.2, 5.0))
     apply_plot_theme(figure, axis, theme)
     for attribute in ordered_attributes(series):
@@ -303,17 +304,18 @@ def save_combined_plot(
         (raw_line,) = axis.plot(
             steps,
             values,
-            alpha=raw_alpha,
+            alpha=1.0 if smoothing == 0 else raw_alpha,
             linewidth=raw_linewidth,
-            label="_nolegend_",
+            label=attribute if smoothing == 0 else "_nolegend_",
         )
-        axis.plot(
-            steps,
-            smooth_values(list(values), smoothing),
-            color=raw_line.get_color(),
-            linewidth=smoothed_linewidth,
-            label=f"{attribute} smoothed",
-        )
+        if smoothing > 0:
+            axis.plot(
+                steps,
+                smooth_values(list(values), smoothing),
+                color=raw_line.get_color(),
+                linewidth=smoothed_linewidth,
+                label=f"{attribute} smoothed",
+            )
     axis.set_title(f"TinyLlama HelpSteer2: All Attributes {metric_label(metric)}")
     axis.set_xlabel("Global Step")
     axis.set_ylabel(metric_label(metric))
