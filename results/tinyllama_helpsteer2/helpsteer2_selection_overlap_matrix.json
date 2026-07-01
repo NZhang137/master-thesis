@@ -1,0 +1,286 @@
+{
+  "attributes": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "absolute_matrix": {
+    "helpfulness": {
+      "helpfulness": 1918,
+      "correctness": 534,
+      "coherence": 385,
+      "complexity": 288,
+      "verbosity": 349
+    },
+    "correctness": {
+      "helpfulness": 534,
+      "correctness": 1914,
+      "coherence": 393,
+      "complexity": 317,
+      "verbosity": 367
+    },
+    "coherence": {
+      "helpfulness": 385,
+      "correctness": 393,
+      "coherence": 1911,
+      "complexity": 242,
+      "verbosity": 351
+    },
+    "complexity": {
+      "helpfulness": 288,
+      "correctness": 317,
+      "coherence": 242,
+      "complexity": 1347,
+      "verbosity": 352
+    },
+    "verbosity": {
+      "helpfulness": 349,
+      "correctness": 367,
+      "coherence": 351,
+      "complexity": 352,
+      "verbosity": 1892
+    }
+  },
+  "percent_matrix": {
+    "helpfulness": {
+      "helpfulness": 100.0,
+      "correctness": 27.841501564129302,
+      "coherence": 20.072992700729927,
+      "complexity": 15.015641293013555,
+      "verbosity": 18.196037539103234
+    },
+    "correctness": {
+      "helpfulness": 27.899686520376175,
+      "correctness": 100.0,
+      "coherence": 20.53291536050157,
+      "complexity": 16.562173458725184,
+      "verbosity": 19.174503657262278
+    },
+    "coherence": {
+      "helpfulness": 20.146520146520146,
+      "correctness": 20.56514913657771,
+      "coherence": 100.0,
+      "complexity": 12.663526949241234,
+      "verbosity": 18.367346938775512
+    },
+    "complexity": {
+      "helpfulness": 21.380846325167038,
+      "correctness": 23.533778767631773,
+      "coherence": 17.965850037119523,
+      "complexity": 100.0,
+      "verbosity": 26.13214550853749
+    },
+    "verbosity": {
+      "helpfulness": 18.446088794926006,
+      "correctness": 19.397463002114165,
+      "coherence": 18.551797040169134,
+      "complexity": 18.6046511627907,
+      "verbosity": 100.0
+    }
+  },
+  "pairs": [
+    {
+      "attribute_a": "helpfulness",
+      "attribute_b": "helpfulness",
+      "overlap_count": 1918,
+      "overlap_percent": 100.0,
+      "size_a": 1918,
+      "size_b": 1918
+    },
+    {
+      "attribute_a": "helpfulness",
+      "attribute_b": "correctness",
+      "overlap_count": 534,
+      "overlap_percent": 27.841501564129302,
+      "size_a": 1918,
+      "size_b": 1914
+    },
+    {
+      "attribute_a": "helpfulness",
+      "attribute_b": "coherence",
+      "overlap_count": 385,
+      "overlap_percent": 20.072992700729927,
+      "size_a": 1918,
+      "size_b": 1911
+    },
+    {
+      "attribute_a": "helpfulness",
+      "attribute_b": "complexity",
+      "overlap_count": 288,
+      "overlap_percent": 15.015641293013555,
+      "size_a": 1918,
+      "size_b": 1347
+    },
+    {
+      "attribute_a": "helpfulness",
+      "attribute_b": "verbosity",
+      "overlap_count": 349,
+      "overlap_percent": 18.196037539103234,
+      "size_a": 1918,
+      "size_b": 1892
+    },
+    {
+      "attribute_a": "correctness",
+      "attribute_b": "helpfulness",
+      "overlap_count": 534,
+      "overlap_percent": 27.899686520376175,
+      "size_a": 1914,
+      "size_b": 1918
+    },
+    {
+      "attribute_a": "correctness",
+      "attribute_b": "correctness",
+      "overlap_count": 1914,
+      "overlap_percent": 100.0,
+      "size_a": 1914,
+      "size_b": 1914
+    },
+    {
+      "attribute_a": "correctness",
+      "attribute_b": "coherence",
+      "overlap_count": 393,
+      "overlap_percent": 20.53291536050157,
+      "size_a": 1914,
+      "size_b": 1911
+    },
+    {
+      "attribute_a": "correctness",
+      "attribute_b": "complexity",
+      "overlap_count": 317,
+      "overlap_percent": 16.562173458725184,
+      "size_a": 1914,
+      "size_b": 1347
+    },
+    {
+      "attribute_a": "correctness",
+      "attribute_b": "verbosity",
+      "overlap_count": 367,
+      "overlap_percent": 19.174503657262278,
+      "size_a": 1914,
+      "size_b": 1892
+    },
+    {
+      "attribute_a": "coherence",
+      "attribute_b": "helpfulness",
+      "overlap_count": 385,
+      "overlap_percent": 20.146520146520146,
+      "size_a": 1911,
+      "size_b": 1918
+    },
+    {
+      "attribute_a": "coherence",
+      "attribute_b": "correctness",
+      "overlap_count": 393,
+      "overlap_percent": 20.56514913657771,
+      "size_a": 1911,
+      "size_b": 1914
+    },
+    {
+      "attribute_a": "coherence",
+      "attribute_b": "coherence",
+      "overlap_count": 1911,
+      "overlap_percent": 100.0,
+      "size_a": 1911,
+      "size_b": 1911
+    },
+    {
+      "attribute_a": "coherence",
+      "attribute_b": "complexity",
+      "overlap_count": 242,
+      "overlap_percent": 12.663526949241234,
+      "size_a": 1911,
+      "size_b": 1347
+    },
+    {
+      "attribute_a": "coherence",
+      "attribute_b": "verbosity",
+      "overlap_count": 351,
+      "overlap_percent": 18.367346938775512,
+      "size_a": 1911,
+      "size_b": 1892
+    },
+    {
+      "attribute_a": "complexity",
+      "attribute_b": "helpfulness",
+      "overlap_count": 288,
+      "overlap_percent": 21.380846325167038,
+      "size_a": 1347,
+      "size_b": 1918
+    },
+    {
+      "attribute_a": "complexity",
+      "attribute_b": "correctness",
+      "overlap_count": 317,
+      "overlap_percent": 23.533778767631773,
+      "size_a": 1347,
+      "size_b": 1914
+    },
+    {
+      "attribute_a": "complexity",
+      "attribute_b": "coherence",
+      "overlap_count": 242,
+      "overlap_percent": 17.965850037119523,
+      "size_a": 1347,
+      "size_b": 1911
+    },
+    {
+      "attribute_a": "complexity",
+      "attribute_b": "complexity",
+      "overlap_count": 1347,
+      "overlap_percent": 100.0,
+      "size_a": 1347,
+      "size_b": 1347
+    },
+    {
+      "attribute_a": "complexity",
+      "attribute_b": "verbosity",
+      "overlap_count": 352,
+      "overlap_percent": 26.13214550853749,
+      "size_a": 1347,
+      "size_b": 1892
+    },
+    {
+      "attribute_a": "verbosity",
+      "attribute_b": "helpfulness",
+      "overlap_count": 349,
+      "overlap_percent": 18.446088794926006,
+      "size_a": 1892,
+      "size_b": 1918
+    },
+    {
+      "attribute_a": "verbosity",
+      "attribute_b": "correctness",
+      "overlap_count": 367,
+      "overlap_percent": 19.397463002114165,
+      "size_a": 1892,
+      "size_b": 1914
+    },
+    {
+      "attribute_a": "verbosity",
+      "attribute_b": "coherence",
+      "overlap_count": 351,
+      "overlap_percent": 18.551797040169134,
+      "size_a": 1892,
+      "size_b": 1911
+    },
+    {
+      "attribute_a": "verbosity",
+      "attribute_b": "complexity",
+      "overlap_count": 352,
+      "overlap_percent": 18.6046511627907,
+      "size_a": 1892,
+      "size_b": 1347
+    },
+    {
+      "attribute_a": "verbosity",
+      "attribute_b": "verbosity",
+      "overlap_count": 1892,
+      "overlap_percent": 100.0,
+      "size_a": 1892,
+      "size_b": 1892
+    }
+  ],
+  "percent_denominator": "row attribute selected prompt set size"
+}
