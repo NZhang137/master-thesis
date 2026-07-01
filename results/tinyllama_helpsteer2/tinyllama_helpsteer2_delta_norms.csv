@@ -1,0 +1,6 @@
+attribute,adapter_path,num_lora_modules,lora_rank,lora_alpha,scaling,delta_norm,delta_norm_squared,relative_to_mean,percent_deviation_from_mean
+helpfulness,/content/master-thesis/adapters/tinyllama-helpsteer2-helpfulness-adapter,154,8,16.0,2.0,5.368067754779241,28.81615141990064,0.9963376126216943,-0.36623873783057365
+correctness,/content/master-thesis/adapters/tinyllama-helpsteer2-correctness-adapter,154,8,16.0,2.0,5.375967260896043,28.901023990226097,0.9978037966239914,-0.21962033760085165
+coherence,/content/master-thesis/adapters/tinyllama-helpsteer2-coherence-adapter,154,8,16.0,2.0,5.3335748993001255,28.447021206444344,0.9899355829062589,-1.0064417093741056
+complexity,/content/master-thesis/adapters/tinyllama-helpsteer2-complexity-adapter,154,8,16.0,2.0,5.455840376578312,29.76619421470218,1.0126286075293078,1.262860752930786
+verbosity,/content/master-thesis/adapters/tinyllama-helpsteer2-verbosity-adapter,154,8,16.0,2.0,5.405549535292509,29.21996577850106,1.003294400318748,0.3294400318748108
