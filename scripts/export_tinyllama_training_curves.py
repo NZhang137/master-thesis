@@ -25,6 +25,8 @@ ATTRIBUTE_ORDER = (
     "complexity",
     "verbosity",
 )
+TRAINING_LOG_PREFIX = "tinyllama_helpsteer2_"
+TRAINING_LOG_SUFFIX = "_training_log.csv"
 
 
 def resolve_project_path(value: str) -> Path:
@@ -108,13 +110,20 @@ def parse_args() -> argparse.Namespace:
 def attribute_from_filename(path: Path) -> str:
     """Derive an attribute name from the standard training-log filename."""
     name = path.stem
-    prefix = "tinyllama_helpsteer2_"
-    suffix = "_training_log"
-    if name.startswith(prefix):
-        name = name[len(prefix) :]
+    suffix = TRAINING_LOG_SUFFIX[: -len(".csv")]
+    if name.startswith(TRAINING_LOG_PREFIX):
+        name = name[len(TRAINING_LOG_PREFIX) :]
     if name.endswith(suffix):
         name = name[: -len(suffix)]
     return name.strip()
+
+
+def is_training_log_path(path: Path) -> bool:
+    """Return whether ``path`` is a raw per-attribute training log."""
+    return (
+        path.name.startswith(TRAINING_LOG_PREFIX)
+        and path.name.endswith(TRAINING_LOG_SUFFIX)
+    )
 
 
 def safe_slug(value: str) -> str:
@@ -172,6 +181,41 @@ def load_log_file(path: Path) -> tuple[str, dict[str, list[tuple[float, float]]]
     if not attribute:
         raise ValueError(f"Could not determine the attribute for {path}")
     return attribute, points
+
+
+def load_metric_export_file(
+    path: Path,
+) -> dict[str, dict[str, list[tuple[float, float]]]] | None:
+    """Load a long-form metric CSV previously exported by this script.
+
+    Supported files have columns such as ``attribute,global_step,eval_loss`` and
+    may contain one attribute or all attributes. Unsupported CSV files return
+    ``None`` so callers can skip them cleanly.
+    """
+    with path.open("r", encoding="utf-8", newline="") as input_file:
+        reader = csv.DictReader(input_file)
+        columns = reader.fieldnames or []
+        metric_columns = [metric for metric in METRICS if metric in columns]
+        if "attribute" not in columns or "global_step" not in columns:
+            return None
+        if len(metric_columns) != 1:
+            return None
+
+        metric = metric_columns[0]
+        collected: dict[str, dict[str, list[tuple[float, float]]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        for row in reader:
+            attribute = str(row.get("attribute", "")).strip()
+            if not attribute:
+                continue
+            step = parse_number(row.get("global_step"), label="global_step", path=path)
+            value = parse_number(row.get(metric), label=metric, path=path)
+            if step is None or value is None:
+                continue
+            collected[attribute][metric].append((step, value))
+
+    return {attribute: dict(metrics) for attribute, metrics in collected.items()}
 
 
 def merge_points(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
@@ -348,9 +392,9 @@ def main() -> None:
     output_dir = resolve_project_path(args.output_dir)
     if not log_dir.is_dir():
         raise FileNotFoundError(f"Training log directory not found: {log_dir}")
-    log_paths = sorted(log_dir.glob("*.csv"))
-    if not log_paths:
-        raise FileNotFoundError(f"No CSV training logs found in {log_dir}")
+    csv_paths = sorted(log_dir.glob("*.csv"))
+    if not csv_paths:
+        raise FileNotFoundError(f"No CSV files found in {log_dir}")
 
     try:
         import matplotlib
@@ -379,13 +423,25 @@ def main() -> None:
     collected: dict[str, dict[str, list[tuple[float, float]]]] = defaultdict(
         lambda: defaultdict(list)
     )
-    for log_path in log_paths:
-        attribute, metrics = load_log_file(log_path)
-        if not metrics:
-            print(f"[SKIP] No supported metric columns in {log_path.name}")
+    for csv_path in csv_paths:
+        if is_training_log_path(csv_path):
+            attribute, metrics = load_log_file(csv_path)
+            if not metrics:
+                print(f"[SKIP] No supported metric columns in {csv_path.name}")
+                continue
+            print(f"[INPUT] Raw training log: {csv_path.name}")
+            for metric, points in metrics.items():
+                collected[attribute][metric].extend(points)
             continue
-        for metric, points in metrics.items():
-            collected[attribute][metric].extend(points)
+
+        metric_export = load_metric_export_file(csv_path)
+        if metric_export is None:
+            print(f"[SKIP] Unsupported CSV input: {csv_path.name}")
+            continue
+        print(f"[INPUT] Metric CSV export: {csv_path.name}")
+        for attribute, metrics in metric_export.items():
+            for metric, points in metrics.items():
+                collected[attribute][metric].extend(points)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     saved: list[Path] = []
