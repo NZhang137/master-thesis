@@ -1,0 +1,7 @@
+R_cos is primary because it normalizes away adapter norm scale.
+R_gram is a useful variant when magnitude should remain visible.
+Cosine eigenvalues: [0.60257847, 0.65095394, 0.68214214, 0.74413924, 2.3201862]
+Gram eigenvalues: [17.39066458, 18.9783623, 19.67484063, 21.77072502, 67.33576409]
+Largest absolute off-diagonal cosine: 0.397138
+Most similar pair: helpfulness / correctness = 0.397138
+Least aligned pair: coherence / complexity = 0.298806
