@@ -348,7 +348,7 @@ def parse_args() -> argparse.Namespace:
         default=list(HELPSTEER2_ATTRIBUTES),
     )
     parser.add_argument(
-        "--num_epochs", "--num-epochs", dest="num_epochs", type=int, default=1
+        "--num_epochs", "--num-epochs", dest="num_epochs", type=int, default=3
     )
     parser.add_argument(
         "--learning_rate",
@@ -423,7 +423,7 @@ def parse_args() -> argparse.Namespace:
         default=10,
     )
     parser.add_argument(
-        "--eval_steps", "--eval-steps", dest="eval_steps", type=int, default=100
+        "--eval_steps", "--eval-steps", dest="eval_steps", type=int, default=10
     )
     parser.add_argument(
         "--save_steps", "--save-steps", dest="save_steps", type=int, default=500
