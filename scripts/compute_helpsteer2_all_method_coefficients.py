@@ -46,7 +46,16 @@ PREFERENCES = {
     "balanced": (0.2, 0.2, 0.2, 0.2, 0.2),
     "quality_focused": (0.15, 0.35, 0.25, 0.10, 0.15),
     "detailed_answer": (0.15, 0.15, 0.20, 0.25, 0.25),
-    "helpfulness_focused": (0.50, 0.15, 0.15, 0.10, 0.10),
+    "dominant_helpfulness": (0.5, 0.125, 0.125, 0.125, 0.125),
+    "dominant_correctness": (0.125, 0.5, 0.125, 0.125, 0.125),
+    "dominant_coherence": (0.125, 0.125, 0.5, 0.125, 0.125),
+    "dominant_complexity": (0.125, 0.125, 0.125, 0.5, 0.125),
+    "dominant_verbosity": (0.125, 0.125, 0.125, 0.125, 0.5),
+    "only_helpfulness": (1.0, 0.0, 0.0, 0.0, 0.0),
+    "only_correctness": (0.0, 1.0, 0.0, 0.0, 0.0),
+    "only_coherence": (0.0, 0.0, 1.0, 0.0, 0.0),
+    "only_complexity": (0.0, 0.0, 0.0, 1.0, 0.0),
+    "only_verbosity": (0.0, 0.0, 0.0, 0.0, 1.0),
 }
 
 VALIDATION_TOLERANCE = 1e-7
