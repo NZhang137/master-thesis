@@ -29,6 +29,7 @@ from src.experiment_config import (
 )
 from src.helpsteer2_utils import (
     HELPSTEER2_ATTRIBUTES,
+    INDEPENDENT_SELECTION_OTHER_MAX_RATING,
     INDEPENDENT_SELECTION_RATINGS,
     INDEPENDENT_SELECTION_SEED,
     compute_prompt_overlap_report,
@@ -655,6 +656,10 @@ def main() -> None:
     print(
         "Training selection ratings: "
         + " then ".join(str(rating) for rating in INDEPENDENT_SELECTION_RATINGS)
+    )
+    print(
+        "Training selection non-target rating cap: "
+        f"<= {INDEPENDENT_SELECTION_OTHER_MAX_RATING}"
     )
     print(f"Training selection seed: {args.selection_seed}")
     if max_training_examples is not None:

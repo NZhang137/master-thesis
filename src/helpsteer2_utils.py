@@ -29,6 +29,7 @@ HELPSTEER2_ATTRIBUTES = (
 )
 INDEPENDENT_SELECTION_SEED = 1
 INDEPENDENT_SELECTION_RATINGS = (4, 3)
+INDEPENDENT_SELECTION_OTHER_MAX_RATING = 2
 HELPSTEER2_TEXT_COLUMNS = ("prompt", "response")
 DEFAULT_MIN_RATING = 3
 MIN_RATING = 0
@@ -288,10 +289,20 @@ def _shuffled_rating_bucket(
     attribute: str,
     rating: int,
     seed: int,
+    other_max_rating: int = INDEPENDENT_SELECTION_OTHER_MAX_RATING,
 ) -> list[HelpSteer2ScoredRow]:
     """Return one rating bucket shuffled with a fixed seed."""
     bucket = sorted(
-        (row for row in rows if row.ratings[attribute] == rating),
+        (
+            row
+            for row in rows
+            if row.ratings[attribute] == rating
+            and all(
+                row.ratings[other_attribute] <= other_max_rating
+                for other_attribute in HELPSTEER2_ATTRIBUTES
+                if other_attribute != attribute
+            )
+        ),
         key=lambda row: row.index,
     )
     shuffled = list(bucket)
@@ -311,9 +322,10 @@ def make_independent_attribute_training_texts(
     For every requested attribute, rating buckets are considered in descending
     preference order (by default 4, then 3). Each bucket is shuffled with the
     same fixed seed, and examples are taken until ``max_examples`` is reached.
-    Attributes do not interact: no prior-use sorting and no cross-attribute
-    deduplication are applied, so overlap between attribute selections is
-    allowed and measured separately.
+    Rows are eligible only when all non-target HelpSteer2 attributes have
+    ratings <= 2. Attributes do not interact: no prior-use sorting and no
+    cross-attribute deduplication are applied, so overlap between attribute
+    selections is allowed and measured separately.
     """
     normalized_attributes = _normalize_attribute_sequence(
         list(attributes),
@@ -347,7 +359,14 @@ def make_independent_attribute_training_texts(
     for attribute in normalized_attributes:
         selected: list[HelpSteer2ScoredRow] = []
         candidate_counts = {
-            rating: sum(1 for row in scored_rows if row.ratings[attribute] == rating)
+            rating: len(
+                _shuffled_rating_bucket(
+                    scored_rows,
+                    attribute=attribute,
+                    rating=rating,
+                    seed=seed,
+                )
+            )
             for rating in normalized_ratings
         }
         for rating in normalized_ratings:
@@ -397,7 +416,8 @@ def make_independent_attribute_training_texts(
             ],
             "ordering": (
                 "independent per attribute: shuffle rating buckets with fixed "
-                "seed, take rating 4 before rating 3, allow overlap"
+                "seed, take rating 4 before rating 3, require non-target "
+                "ratings <= 2, allow overlap"
             ),
         }
 

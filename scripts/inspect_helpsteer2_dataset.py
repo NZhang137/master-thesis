@@ -24,6 +24,7 @@ from src.helpsteer2_utils import (
     HELPSTEER2_ATTRIBUTES,
     HELPSTEER2_DATASET_NAME,
     HELPSTEER2_TEXT_COLUMNS,
+    INDEPENDENT_SELECTION_OTHER_MAX_RATING,
     INDEPENDENT_SELECTION_RATINGS,
     INDEPENDENT_SELECTION_SEED,
     compute_prompt_overlap_report,
@@ -183,6 +184,10 @@ def main() -> None:
         "Selection ratings: "
         + " then ".join(str(rating) for rating in INDEPENDENT_SELECTION_RATINGS)
     )
+    print(
+        "Selection non-target rating cap: "
+        f"<= {INDEPENDENT_SELECTION_OTHER_MAX_RATING}"
+    )
     print(f"Selection seed: {args.selection_seed}\n")
 
     for attribute in attributes:
@@ -238,10 +243,12 @@ def main() -> None:
             "max_examples": max_examples,
             "selection_seed": args.selection_seed,
             "ratings_considered": list(INDEPENDENT_SELECTION_RATINGS),
+            "non_target_max_rating": INDEPENDENT_SELECTION_OTHER_MAX_RATING,
             "ordering": (
                 "independent per attribute: sort each rating bucket by row "
                 "index, shuffle with the same seed, concatenate rating 4 then "
-                "rating 3, take Top-N; overlap allowed"
+                "rating 3, require all non-target ratings <= 2, take Top-N; "
+                "overlap allowed"
             ),
             "overlap_csv_path": str(overlap_csv_path),
             "overlap_json_path": str(overlap_json_path),
