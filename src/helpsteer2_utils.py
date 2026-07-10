@@ -355,6 +355,7 @@ def make_independent_attribute_training_texts(
     scored_rows = _collect_scored_rows(split)
     texts_by_attribute: dict[str, list[str]] = {}
     summaries: dict[str, dict[str, object]] = {}
+    selection_shortages: list[str] = []
 
     for attribute in normalized_attributes:
         selected: list[HelpSteer2ScoredRow] = []
@@ -380,25 +381,19 @@ def make_independent_attribute_training_texts(
             if remaining is not None and remaining <= 0:
                 break
             selected.extend(bucket if remaining is None else bucket[:remaining])
-        if not selected:
-            raise ValueError(
-                f"No non-empty training texts were selected for {attribute}."
-            )
-        if limit is not None and len(selected) < limit:
-            considered = ", ".join(str(rating) for rating in normalized_ratings)
-            raise ValueError(
-                f"Only selected {len(selected)} texts for {attribute!r}; "
-                f"need {limit}. Ratings considered: {considered}."
-            )
 
         rating_counts = Counter(row.ratings[attribute] for row in selected)
-        mean_ratings = {
-            target_attribute: (
-                sum(row.ratings[target_attribute] for row in selected)
-                / len(selected)
-            )
-            for target_attribute in normalized_attributes
-        }
+        mean_ratings = (
+            {
+                target_attribute: (
+                    sum(row.ratings[target_attribute] for row in selected)
+                    / len(selected)
+                )
+                for target_attribute in normalized_attributes
+            }
+            if selected
+            else {}
+        )
 
         texts_by_attribute[attribute] = [row.text for row in selected]
         summaries[attribute] = {
@@ -420,6 +415,24 @@ def make_independent_attribute_training_texts(
                 "ratings <= 3, allow overlap"
             ),
         }
+        if limit is not None and len(selected) < limit:
+            counts_text = ", ".join(
+                f"rating {rating}={candidate_counts[rating]}"
+                for rating in normalized_ratings
+            )
+            selection_shortages.append(
+                f"{attribute}: selected {len(selected)} texts; "
+                f"need {limit}; eligible candidates after non-target <= "
+                f"{INDEPENDENT_SELECTION_OTHER_MAX_RATING}: {counts_text}"
+            )
+
+    if selection_shortages:
+        considered = ", ".join(str(rating) for rating in normalized_ratings)
+        raise ValueError(
+            "Not enough independent Top-N training texts for all attributes. "
+            f"Ratings considered: {considered}. Details:\n  "
+            + "\n  ".join(selection_shortages)
+        )
 
     return texts_by_attribute, summaries
 
