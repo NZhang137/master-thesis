@@ -27,7 +27,9 @@ from src.helpsteer2_utils import (
     INDEPENDENT_SELECTION_OTHER_MAX_RATING,
     INDEPENDENT_SELECTION_RATINGS,
     INDEPENDENT_SELECTION_SEED,
+    compute_rating_cap_matrices,
     compute_prompt_overlap_report,
+    format_rating_cap_matrices,
     inspect_helpsteer2_columns,
     load_helpsteer2_split,
     make_independent_attribute_training_texts,
@@ -159,6 +161,12 @@ def main() -> None:
         args.split,
         attribute_min_ratings=min_ratings,
     )
+    rating_cap_matrices = compute_rating_cap_matrices(
+        args.split,
+        attributes=attributes,
+    )
+    print(format_rating_cap_matrices(rating_cap_matrices))
+    print()
     selected_texts, selection_summaries = make_independent_attribute_training_texts(
         attributes=list(attributes),
         split=args.split,
@@ -253,6 +261,7 @@ def main() -> None:
             "overlap_csv_path": str(overlap_csv_path),
             "overlap_json_path": str(overlap_json_path),
         },
+        "rating_cap_matrices": rating_cap_matrices,
         "attribute_summaries": attribute_summaries,
         "prompt_overlap": overlap_report,
     }

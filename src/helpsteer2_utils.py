@@ -310,6 +310,89 @@ def _shuffled_rating_bucket(
     return shuffled
 
 
+def compute_rating_cap_matrices_from_rows(
+    rows: list[HelpSteer2ScoredRow],
+    attributes: tuple[str, ...] | list[str] = HELPSTEER2_ATTRIBUTES,
+) -> dict[str, dict[str, object]]:
+    """Count target-rating rows under every non-target rating cap.
+
+    For each target attribute, rows are target ratings 0..4 and columns are
+    "all other attributes <= cap" for caps 0..4.
+    """
+    normalized_attributes = _normalize_attribute_sequence(
+        list(attributes),
+        label="attributes",
+    )
+    ratings = list(range(MIN_RATING, MAX_RATING + 1))
+    matrices: dict[str, dict[str, object]] = {}
+    for attribute in normalized_attributes:
+        counts: list[list[int]] = []
+        for rating in ratings:
+            row_counts = []
+            for other_cap in ratings:
+                row_counts.append(
+                    sum(
+                        1
+                        for scored_row in rows
+                        if scored_row.ratings[attribute] == rating
+                        and all(
+                            scored_row.ratings[other_attribute] <= other_cap
+                            for other_attribute in normalized_attributes
+                            if other_attribute != attribute
+                        )
+                    )
+                )
+            counts.append(row_counts)
+        matrices[attribute] = {
+            "target_ratings": ratings,
+            "other_max_rating_caps": ratings,
+            "counts": counts,
+        }
+    return matrices
+
+
+def compute_rating_cap_matrices(
+    split: str = "train[:100]",
+    attributes: tuple[str, ...] | list[str] = HELPSTEER2_ATTRIBUTES,
+) -> dict[str, dict[str, object]]:
+    """Load one split and compute target-rating vs non-target-cap matrices."""
+    return compute_rating_cap_matrices_from_rows(
+        _collect_scored_rows(split),
+        attributes=attributes,
+    )
+
+
+def format_rating_cap_matrices(
+    matrices: Mapping[str, Mapping[str, object]],
+) -> str:
+    """Format target-rating/non-target-cap matrices for logs and errors."""
+    lines = [
+        "Rating-cap availability matrices "
+        "(rows: target rating, columns: all other ratings <= cap):"
+    ]
+    for attribute, matrix in matrices.items():
+        target_ratings = matrix.get("target_ratings")
+        other_caps = matrix.get("other_max_rating_caps")
+        counts = matrix.get("counts")
+        if not isinstance(target_ratings, list) or not isinstance(other_caps, list):
+            raise ValueError("rating-cap matrix is missing rating labels.")
+        if not isinstance(counts, list):
+            raise ValueError("rating-cap matrix is missing counts.")
+        lines.append(f"{attribute}:")
+        lines.append(
+            "  target\\other_cap "
+            + " ".join(f"<={int(cap)}" for cap in other_caps)
+        )
+        for rating, row in zip(target_ratings, counts):
+            if not isinstance(row, list):
+                raise ValueError("rating-cap matrix row must be a list.")
+            lines.append(
+                f"  rating={int(rating)} "
+                + " ".join(str(int(value)) for value in row)
+            )
+    return "\n".join(lines)
+
+
 def make_independent_attribute_training_texts(
     attributes: tuple[str, ...] | list[str] = HELPSTEER2_ATTRIBUTES,
     split: str = "train[:100]",
@@ -428,10 +511,16 @@ def make_independent_attribute_training_texts(
 
     if selection_shortages:
         considered = ", ".join(str(rating) for rating in normalized_ratings)
+        rating_cap_matrices = compute_rating_cap_matrices_from_rows(
+            scored_rows,
+            attributes=normalized_attributes,
+        )
         raise ValueError(
             "Not enough independent Top-N training texts for all attributes. "
             f"Ratings considered: {considered}. Details:\n  "
             + "\n  ".join(selection_shortages)
+            + "\n"
+            + format_rating_cap_matrices(rating_cap_matrices)
         )
 
     return texts_by_attribute, summaries
