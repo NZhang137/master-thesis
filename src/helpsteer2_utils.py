@@ -317,7 +317,9 @@ def compute_rating_cap_matrices_from_rows(
     """Count target-rating rows under every non-target rating cap.
 
     For each target attribute, rows are target ratings 0..4 and columns are
-    "all other attributes <= cap" for caps 0..4.
+    "all other attributes <= cap" for caps 0..4. For each cell, boundary
+    counts additionally report how often each non-target attribute is exactly
+    equal to the cap among the counted rows.
     """
     normalized_attributes = _normalize_attribute_sequence(
         list(attributes),
@@ -326,27 +328,45 @@ def compute_rating_cap_matrices_from_rows(
     ratings = list(range(MIN_RATING, MAX_RATING + 1))
     matrices: dict[str, dict[str, object]] = {}
     for attribute in normalized_attributes:
+        other_attributes = [
+            other_attribute
+            for other_attribute in normalized_attributes
+            if other_attribute != attribute
+        ]
         counts: list[list[int]] = []
+        other_equal_cap_counts: list[list[list[int]]] = []
         for rating in ratings:
             row_counts = []
+            row_equal_cap_counts = []
             for other_cap in ratings:
-                row_counts.append(
-                    sum(
-                        1
-                        for scored_row in rows
-                        if scored_row.ratings[attribute] == rating
-                        and all(
-                            scored_row.ratings[other_attribute] <= other_cap
-                            for other_attribute in normalized_attributes
-                            if other_attribute != attribute
-                        )
+                eligible_rows = [
+                    scored_row
+                    for scored_row in rows
+                    if scored_row.ratings[attribute] == rating
+                    and all(
+                        scored_row.ratings[other_attribute] <= other_cap
+                        for other_attribute in other_attributes
                     )
+                ]
+                row_counts.append(len(eligible_rows))
+                row_equal_cap_counts.append(
+                    [
+                        sum(
+                            1
+                            for scored_row in eligible_rows
+                            if scored_row.ratings[other_attribute] == other_cap
+                        )
+                        for other_attribute in other_attributes
+                    ]
                 )
             counts.append(row_counts)
+            other_equal_cap_counts.append(row_equal_cap_counts)
         matrices[attribute] = {
             "target_ratings": ratings,
             "other_max_rating_caps": ratings,
+            "other_attributes": other_attributes,
             "counts": counts,
+            "other_equal_cap_counts": other_equal_cap_counts,
         }
     return matrices
 
@@ -373,11 +393,19 @@ def format_rating_cap_matrices(
     for attribute, matrix in matrices.items():
         target_ratings = matrix.get("target_ratings")
         other_caps = matrix.get("other_max_rating_caps")
+        other_attributes = matrix.get("other_attributes")
         counts = matrix.get("counts")
+        other_equal_cap_counts = matrix.get("other_equal_cap_counts")
         if not isinstance(target_ratings, list) or not isinstance(other_caps, list):
             raise ValueError("rating-cap matrix is missing rating labels.")
+        if not isinstance(other_attributes, list) or not all(
+            isinstance(value, str) for value in other_attributes
+        ):
+            raise ValueError("rating-cap matrix is missing non-target attributes.")
         if not isinstance(counts, list):
             raise ValueError("rating-cap matrix is missing counts.")
+        if not isinstance(other_equal_cap_counts, list):
+            raise ValueError("rating-cap matrix is missing boundary counts.")
         lines.append(f"{attribute}:")
         lines.append(
             "  target\\other_cap "
@@ -389,6 +417,34 @@ def format_rating_cap_matrices(
             lines.append(
                 f"  rating={int(rating)} "
                 + " ".join(str(int(value)) for value in row)
+            )
+        lines.append(
+            f"{attribute} boundary counts "
+            f"(entry=count({', '.join(other_attributes)} exactly cap)):"
+        )
+        lines.append(
+            "  target\\other_cap "
+            + " ".join(f"<={int(cap)}" for cap in other_caps)
+        )
+        for rating, row, boundary_row in zip(
+            target_ratings,
+            counts,
+            other_equal_cap_counts,
+        ):
+            if not isinstance(row, list) or not isinstance(boundary_row, list):
+                raise ValueError("rating-cap boundary row must be a list.")
+            formatted_cells = []
+            for total_count, boundary_counts in zip(row, boundary_row):
+                if not isinstance(boundary_counts, list):
+                    raise ValueError("rating-cap boundary cell must be a list.")
+                formatted_cells.append(
+                    f"{int(total_count)}("
+                    + ",".join(str(int(value)) for value in boundary_counts)
+                    + ")"
+                )
+            lines.append(
+                f"  rating={int(rating)} "
+                + " ".join(formatted_cells)
             )
     return "\n".join(lines)
 
