@@ -58,7 +58,7 @@ FIXED_PRECISION = "bf16"
 
 def format_mean_rating(value: object) -> str:
     """Format an average HelpSteer2 rating compactly for log matrices."""
-    return f"{float(value):.3f}".rstrip("0").rstrip(".")
+    return f"{float(value):.2f}".rstrip("0").rstrip(".")
 
 
 def adapter_directory_name(attribute: str) -> str:
