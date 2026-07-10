@@ -56,6 +56,11 @@ FIXED_MAX_GRAD_NORM = 1.0
 FIXED_PRECISION = "bf16"
 
 
+def format_mean_rating(value: object) -> str:
+    """Format an average HelpSteer2 rating compactly for log matrices."""
+    return f"{float(value):.3f}".rstrip("0").rstrip(".")
+
+
 def adapter_directory_name(attribute: str) -> str:
     """Return the stable output directory name for one TinyLlama specialist."""
     return f"tinyllama-helpsteer2-{attribute}-adapter"
@@ -688,6 +693,16 @@ def main() -> None:
             f"  {attribute}: "
             + ", ".join(
                 f"{other}={row[other]}" for other in configured_attributes
+            )
+        )
+    print("Selection mean rating matrix (selected rows rated by each attribute):")
+    for attribute in configured_attributes:
+        row = selection_summaries[attribute]["selected_mean_ratings"]
+        print(
+            f"  {attribute}: "
+            + ", ".join(
+                f"{other}={format_mean_rating(row[other])}"
+                for other in configured_attributes
             )
         )
 

@@ -373,6 +373,13 @@ def make_independent_attribute_training_texts(
             )
 
         rating_counts = Counter(row.ratings[attribute] for row in selected)
+        mean_ratings = {
+            target_attribute: (
+                sum(row.ratings[target_attribute] for row in selected)
+                / len(selected)
+            )
+            for target_attribute in normalized_attributes
+        }
 
         texts_by_attribute[attribute] = [row.text for row in selected]
         summaries[attribute] = {
@@ -383,6 +390,7 @@ def make_independent_attribute_training_texts(
             "selected_example_count": len(selected),
             "max_examples": limit,
             "selected_rating_counts": dict(sorted(rating_counts.items())),
+            "selected_mean_ratings": mean_ratings,
             "selected_row_indices": [row.index for row in selected],
             "selected_prompt_hashes": [
                 _stable_prompt_hash(row.prompt) for row in selected
