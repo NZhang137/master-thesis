@@ -247,7 +247,7 @@ def main() -> None:
             "ordering": (
                 "independent per attribute: sort each rating bucket by row "
                 "index, shuffle with the same seed, concatenate rating 4 then "
-                "rating 3, require all non-target ratings <= 2, take Top-N; "
+                "rating 3, require all non-target ratings <= 3, take Top-N; "
                 "overlap allowed"
             ),
             "overlap_csv_path": str(overlap_csv_path),

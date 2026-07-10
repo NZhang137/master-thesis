@@ -29,7 +29,7 @@ HELPSTEER2_ATTRIBUTES = (
 )
 INDEPENDENT_SELECTION_SEED = 1
 INDEPENDENT_SELECTION_RATINGS = (4, 3)
-INDEPENDENT_SELECTION_OTHER_MAX_RATING = 2
+INDEPENDENT_SELECTION_OTHER_MAX_RATING = 3
 HELPSTEER2_TEXT_COLUMNS = ("prompt", "response")
 DEFAULT_MIN_RATING = 3
 MIN_RATING = 0
@@ -323,7 +323,7 @@ def make_independent_attribute_training_texts(
     preference order (by default 4, then 3). Each bucket is shuffled with the
     same fixed seed, and examples are taken until ``max_examples`` is reached.
     Rows are eligible only when all non-target HelpSteer2 attributes have
-    ratings <= 2. Attributes do not interact: no prior-use sorting and no
+    ratings <= 3. Attributes do not interact: no prior-use sorting and no
     cross-attribute deduplication are applied, so overlap between attribute
     selections is allowed and measured separately.
     """
@@ -417,7 +417,7 @@ def make_independent_attribute_training_texts(
             "ordering": (
                 "independent per attribute: shuffle rating buckets with fixed "
                 "seed, take rating 4 before rating 3, require non-target "
-                "ratings <= 2, allow overlap"
+                "ratings <= 3, allow overlap"
             ),
         }
 
