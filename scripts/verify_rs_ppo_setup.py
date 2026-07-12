@@ -4,6 +4,10 @@ The script is intentionally conservative: it performs no training and exits
 with code 0 only when every selected check passes. GPU/model stages are
 explicitly marked SKIP when prerequisites are missing, which still blocks
 training for the selected stage.
+
+Negative sanity test for maintainers: if `src.coefficient_portfolio.m1_plus`
+is temporarily changed to always return p, G1 must FAIL. That confirms the
+verifier is testing the production portfolio implementation, not a local copy.
 """
 
 from __future__ import annotations
@@ -26,6 +30,12 @@ import numpy as np
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.coefficient_portfolio import (  # noqa: E402 - project root is set above.
+    floor_lp,
+    paired_rank_delta,
+    run_portfolio,
+)
 
 REPORT_PATH = PROJECT_ROOT / "results" / "verify_rs_ppo_setup" / "report.json"
 NOTEBOOK_PATH = PROJECT_ROOT / "notebooks" / "08_rs_ppo_armorm_circular_colab.ipynb"
@@ -91,11 +101,125 @@ def notebook_config() -> dict[str, Any]:
     raise RuntimeError("Could not find literal CONFIG dict in notebook.")
 
 
-def write_report(results: list[CheckResult]) -> None:
+def notebook_code_cell_containing(*needles: str) -> str:
+    """Return the first code cell containing all given strings."""
+    for cell in notebook_cells():
+        if cell.get("cell_type") != "code":
+            continue
+        src = cell.get("source", "")
+        text = "".join(src) if isinstance(src, list) else str(src)
+        if all(needle in text for needle in needles):
+            return text
+    raise RuntimeError(f"Could not find notebook code cell containing: {needles}")
+
+
+def parse_notebook_code(text: str) -> ast.Module:
+    """Parse a notebook code cell after removing Colab shell/magic lines."""
+    filtered = "\n".join(
+        line for line in text.splitlines()
+        if not line.lstrip().startswith(("%", "!"))
+    )
+    return ast.parse(filtered)
+
+
+class _DummyDateTime:
+    """Minimal datetime stand-in for evaluating the preregistration dict."""
+
+    @classmethod
+    def now(cls, _tz: object) -> "_DummyDateTime":
+        return cls()
+
+    def isoformat(self) -> str:
+        return "STATIC_VERIFIER_TIMESTAMP"
+
+
+class _DummyTimezone:
+    """Minimal timezone stand-in for evaluating the preregistration dict."""
+
+    utc = object()
+
+
+def extract_preregistration_dict() -> dict[str, Any]:
+    """Evaluate only the notebook's pre_registration dict expression."""
+    text = notebook_code_cell_containing("pre_registration =", "PREREGISTRATION_PATH")
+    tree = parse_notebook_code(text)
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "pre_registration"
+                    for target in node.targets)
+        ):
+            expr = ast.Expression(node.value)
+            ast.fix_missing_locations(expr)
+            safe_locals = {
+                "CONFIG": notebook_config(),
+                "datetime": _DummyDateTime,
+                "timezone": _DummyTimezone,
+            }
+            value = eval(compile(expr, "<notebook-pre-registration>", "eval"), {"__builtins__": {}}, safe_locals)
+            if not isinstance(value, dict):
+                raise TypeError("pre_registration did not evaluate to a dict.")
+            return value
+    raise RuntimeError("Could not extract pre_registration dict from notebook.")
+
+
+def collect_subscript_keys(node: ast.AST, variable_name: str) -> set[str]:
+    """Collect string keys from expressions like variable_name['key']."""
+    keys: set[str] = set()
+    for child in ast.walk(node):
+        if not isinstance(child, ast.Subscript):
+            continue
+        if not isinstance(child.value, ast.Name) or child.value.id != variable_name:
+            continue
+        slice_node = child.slice
+        if isinstance(slice_node, ast.Constant) and isinstance(slice_node.value, str):
+            keys.add(slice_node.value)
+    return keys
+
+
+def merge_decision_keys_and_raw_delta_check() -> tuple[set[str], bool]:
+    """Return merge decision keys and whether raw paired per-prompt delta is used."""
+    text = notebook_code_cell_containing("MERGE_RESULTS_PATH", "primary_success")
+    tree = parse_notebook_code(text)
+    decision_keys: set[str] = set()
+    raw_delta_seen = False
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            target_names = {target.id for target in node.targets if isinstance(target, ast.Name)}
+            if target_names & {"n_sig", "q_sig"}:
+                decision_keys.update(collect_subscript_keys(node.value, "r"))
+            if "per_prompt" in target_names:
+                value = node.value
+                if (
+                    isinstance(value, ast.BinOp)
+                    and isinstance(value.op, ast.MatMult)
+                    and isinstance(value.right, ast.Name)
+                    and value.right.id == "p_vec"
+                    and isinstance(value.left, ast.BinOp)
+                    and isinstance(value.left.op, ast.Sub)
+                    and isinstance(value.left.left, ast.Name)
+                    and value.left.left.id == "heads_l"
+                    and isinstance(value.left.right, ast.Name)
+                    and value.left.right.id == "heads_p"
+                ):
+                    raw_delta_seen = True
+    return decision_keys, raw_delta_seen
+
+
+def write_report(results: list[CheckResult], requested_stages: list[str]) -> None:
     """Write report.json."""
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    run_stages = sorted({result.stage for result in results})
+    all_stages = sorted(STAGE_CHECKS)
     payload = {
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "stages": {
+            "requested": requested_stages,
+            "run": run_stages,
+            "not_run": [stage for stage in all_stages if stage not in run_stages],
+            "gpu_free": ["0", "1"],
+            "gpu_required": ["2", "3"],
+        },
         "results": [asdict(result) for result in results],
         "summary": {
             "pass": sum(result.status == "PASS" for result in results),
@@ -316,23 +440,48 @@ def check_s5_firewall() -> tuple[str, dict[str, Any]]:
 
 
 def check_s6_preregistration_consistency() -> tuple[str, dict[str, Any]]:
-    """S6: decision metrics must be named in preregistration source."""
-    source = notebook_source()
-    required = {
-        "delta_U_p_mean_decision": "Delta U_p",
-        "ci_excludes_zero_decision": "bootstrap 95% CI",
-        "wall_a_threshold": "wall_A_R2_threshold",
-        "wall_a_rule": "Wall A stands iff max R2 over the quality axes < threshold.",
-    }
-    missing = [name for name, needle in required.items() if needle not in source]
-    if missing:
-        raise AssertionError(f"Preregistration source is missing: {missing}")
-    merge_required = ["delta_U_p_mean", "ci_excludes_zero", "WALL_A_R2_THRESHOLD"]
-    missing_merge = [needle for needle in merge_required if needle not in source]
-    if missing_merge:
-        raise AssertionError(f"Notebook decision code is missing expected names: {missing_merge}")
-    return "Decision metrics are named in the preregistration source.", {
-        "required_preregistration_terms": required,
+    """S6: preregistered metrics must match the actual decision code."""
+    prereg = extract_preregistration_dict()
+    primary = prereg.get("primary", {})
+    metric = str(primary.get("metric", ""))
+    success = str(primary.get("success", ""))
+    decision_keys, raw_delta_seen = merge_decision_keys_and_raw_delta_check()
+
+    required_keys = {"delta_U_p_mean", "ci_excludes_zero"}
+    if not required_keys.issubset(decision_keys):
+        raise AssertionError(
+            f"Merge decision keys {sorted(decision_keys)} do not include {sorted(required_keys)}."
+        )
+    if not raw_delta_seen:
+        raise AssertionError("Merge code does not compute per_prompt as (heads_l - heads_p) @ p_vec.")
+
+    metric_upper = metric.upper()
+    required_metric_terms = ["PAIRED", "PER-PROMPT", "NATIVE ARMORM REWARD SCALE"]
+    missing_terms = [term for term in required_metric_terms if term not in metric_upper]
+    if missing_terms:
+        raise AssertionError(
+            "Pre-registration primary.metric does not describe the actual raw paired scale; "
+            f"missing terms: {missing_terms}. metric={metric!r}"
+        )
+    if "BOOTSTRAP 95% CI" not in success.upper():
+        raise AssertionError(f"Pre-registration primary.success does not name bootstrap 95% CI: {success!r}")
+
+    config_threshold = float(notebook_config()["WALL_A_R2_THRESHOLD"])
+    prereg_threshold = float(prereg["secondary_non_circular"]["wall_A_R2_threshold"])
+    if abs(config_threshold - prereg_threshold) > 1e-12:
+        raise AssertionError(
+            "Wall-A threshold mismatch: "
+            f"CONFIG={config_threshold}, preregistration={prereg_threshold}"
+        )
+    expected_rule = "Wall A stands iff max R2 over the quality axes < threshold."
+    if prereg["secondary_non_circular"].get("wall_A_rule") != expected_rule:
+        raise AssertionError("Wall-A rule in preregistration does not match the frozen rule.")
+
+    return "Pre-registration metric, decision keys, raw paired scale, and Wall-A threshold match.", {
+        "decision_keys": sorted(decision_keys),
+        "primary_metric": metric,
+        "primary_success": success,
+        "wall_A_R2_threshold": config_threshold,
     }
 
 
@@ -366,225 +515,14 @@ def check_s7_equal_n() -> tuple[str, dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-PI0 = lambda m: np.eye(m) - np.ones((m, m)) / m
-
-
-def floor_lp(R: np.ndarray, tol: float = 1e-9) -> tuple[float, bool]:
-    """max_{1^T v = 0, ||v||_1 <= 1} min_i (Rv)_i."""
-    from scipy.optimize import linprog
-
-    n = R.shape[0]
-    c = np.zeros(2 * n + 1)
-    c[-1] = -1.0
-    A_ub, b_ub = [], []
-    for i in range(n):
-        row = np.zeros(2 * n + 1)
-        row[:n] = -R[i]
-        row[n:2 * n] = R[i]
-        row[-1] = 1.0
-        A_ub.append(row)
-        b_ub.append(0.0)
-    row = np.zeros(2 * n + 1)
-    row[:2 * n] = 1.0
-    A_ub.append(row)
-    b_ub.append(1.0)
-    A_eq = np.asarray([np.r_[np.ones(n), -np.ones(n), 0.0]])
-    lp = linprog(
-        c,
-        A_ub=np.asarray(A_ub),
-        b_ub=np.asarray(b_ub),
-        A_eq=A_eq,
-        b_eq=np.asarray([0.0]),
-        bounds=[(0.0, None)] * (2 * n) + [(None, None)],
-        method="highs",
-    )
-    if not lp.success:
-        raise AssertionError(lp.message)
-    value = float(-lp.fun)
-    return value, bool(value <= tol)
-
-
-def improvements(p: np.ndarray, R: np.ndarray, lam: np.ndarray) -> np.ndarray:
-    """Return R(lam-p)."""
-    return R @ (np.asarray(lam, float) - np.asarray(p, float))
-
-
-def line_search_into_floor(p: np.ndarray, R: np.ndarray, d: np.ndarray, tol: float = 1e-10) -> float:
-    """Largest t >= 0 such that p+t*d remains in the floor and simplex."""
-    p = np.asarray(p, float)
-    d = np.asarray(d, float)
-    if abs(float(d.sum())) > 1e-8:
-        raise AssertionError("direction must lie in simplex tangent space")
-    if np.any(R @ d < -tol) or np.linalg.norm(d) < tol:
-        return 0.0
-    ts = [np.inf] + [-p[i] / d[i] for i in range(len(p)) if d[i] < -tol]
-    t = float(min(ts))
-    return 0.0 if not np.isfinite(t) else max(0.0, t)
-
-
-def m1_plus(p: np.ndarray, R: np.ndarray, rho: float) -> np.ndarray:
-    """Scalar-safe M1+ mapping."""
-    from scipy.optimize import minimize
-
-    p = np.asarray(p, float)
-    n = len(p)
-    obj = lambda x: -(p @ R @ x - rho * (x - p) @ R @ (x - p))
-    jac = lambda x: -(R @ p - 2 * rho * R @ (x - p))
-    res = minimize(
-        obj,
-        p.copy(),
-        jac=jac,
-        method="SLSQP",
-        bounds=[(0.0, 1.0)] * n,
-        constraints=[{"type": "eq", "fun": lambda x: x.sum() - 1.0, "jac": lambda x: np.ones(n)}],
-        options={"maxiter": 500, "ftol": 1e-12},
-    )
-    if not res.success:
-        raise AssertionError(res.message)
-    x = np.clip(res.x, 0.0, None)
-    return x / x.sum()
-
-
-def c1_plus_plus(p: np.ndarray, R: np.ndarray, c: float, eps: float) -> tuple[np.ndarray, float]:
-    """C1++ with trust region."""
-    from scipy.optimize import minimize
-
-    p = np.asarray(p, float)
-    n = len(p)
-    radius2 = (c ** 2) * max(float(p @ R @ p), eps)
-    obj = lambda z: -z[-1]
-    jac = lambda z: np.r_[np.zeros(n), -1.0]
-    cons = [
-        {"type": "eq", "fun": lambda z: z[:n].sum() - 1.0, "jac": lambda z: np.r_[np.ones(n), 0.0]},
-        {"type": "ineq", "fun": lambda z: R @ (z[:n] - p) - z[-1],
-         "jac": lambda z: np.hstack([R, -np.ones((n, 1))])},
-        {"type": "ineq", "fun": lambda z: radius2 - (z[:n] - p) @ R @ (z[:n] - p),
-         "jac": lambda z: np.r_[-2 * R @ (z[:n] - p), 0.0]},
-    ]
-    res = minimize(
-        obj,
-        np.r_[p, 0.0],
-        jac=jac,
-        method="SLSQP",
-        constraints=cons,
-        bounds=[(0.0, 1.0)] * n + [(None, None)],
-        options={"maxiter": 800, "ftol": 1e-12},
-    )
-    if not res.success:
-        return p.copy(), 0.0
-    lam = np.clip(res.x[:n], 0.0, None)
-    lam = lam / lam.sum()
-    t_star = float(min(improvements(p, R, lam)))
-    if t_star < -1e-8:
-        return p.copy(), 0.0
-    return lam, max(t_star, 0.0)
-
-
-def m1_plus_plus(p: np.ndarray, R: np.ndarray) -> tuple[np.ndarray, float]:
-    """M1++ min-norm direction followed by line search."""
-    from scipy.optimize import minimize
-
-    p = np.asarray(p, float)
-    n = len(p)
-    obj = lambda a: float(np.dot(R @ a, R @ a))
-    jac = lambda a: 2 * R.T @ (R @ a)
-    res = minimize(
-        obj,
-        np.ones(n) / n,
-        jac=jac,
-        method="SLSQP",
-        bounds=[(0.0, 1.0)] * n,
-        constraints=[{"type": "eq", "fun": lambda a: a.sum() - 1.0, "jac": lambda a: np.ones(n)}],
-        options={"maxiter": 500, "ftol": 1e-14},
-    )
-    if not res.success:
-        return p.copy(), 0.0
-    d = PI0(n) @ (R @ res.x)
-    t = line_search_into_floor(p, R, d)
-    return (p + t * d if t > 0 else p.copy()), t
-
-
-def p2_plus_plus(p: np.ndarray, R: np.ndarray) -> tuple[np.ndarray, float, int]:
-    """P2++ PCGrad surgery followed by line search."""
-    p = np.asarray(p, float)
-    n = len(p)
-    G = [R[:, i].astype(float).copy() for i in range(n)]
-    pairs = sorted(
-        [(i, j) for i in range(n) for j in range(n) if i != j],
-        key=lambda ij: float(R[:, ij[0]] @ R[:, ij[1]]),
-    )
-    fired = 0
-    for i, j in pairs:
-        dot = float(G[i] @ G[j])
-        if dot < 0:
-            G[i] = G[i] - (dot / float(G[j] @ G[j])) * G[j]
-            fired += 1
-    d = PI0(n) @ sum(p[i] * G[i] for i in range(n))
-    t = line_search_into_floor(p, R, d)
-    return (p + t * d if t > 0 else p.copy()), t, fired
-
-
-def p3_plus_plus(p: np.ndarray, R: np.ndarray, n_starts: int = 8) -> tuple[np.ndarray, float, bool]:
-    """P3++ conflict-energy minimization in the floor."""
-    from scipy.optimize import minimize
-
-    p = np.asarray(p, float)
-    n = len(p)
-    Rm = np.maximum(0.0, -R.copy())
-    np.fill_diagonal(Rm, 0.0)
-    if not np.any(Rm > 0):
-        return p.copy(), 0.0, True
-    cons = [
-        {"type": "eq", "fun": lambda x: x.sum() - 1.0, "jac": lambda x: np.ones(n)},
-        {"type": "ineq", "fun": lambda x: R @ (x - p), "jac": lambda x: R},
-    ]
-    obj = lambda x: float(x @ Rm @ x)
-    rng = np.random.default_rng(137)
-    best, best_val = p.copy(), obj(p)
-    for x0 in [p.copy()] + [rng.dirichlet(np.ones(n)) for _ in range(n_starts - 1)]:
-        res = minimize(
-            obj,
-            x0,
-            jac=lambda x: 2 * Rm @ x,
-            method="SLSQP",
-            constraints=cons,
-            bounds=[(0.0, 1.0)] * n,
-            options={"maxiter": 500, "ftol": 1e-12},
-        )
-        if res.success:
-            x = np.clip(res.x, 0.0, None)
-            x = x / x.sum()
-            if np.all(improvements(p, R, x) >= -1e-7) and obj(x) < best_val - 1e-12:
-                best, best_val = x, obj(x)
-    return best, best_val, False
-
-
-def run_portfolio(p: np.ndarray, R: np.ndarray) -> dict[str, dict[str, Any]]:
-    """Run all five methods on a synthetic geometry."""
-    lam_m1p = m1_plus(p, R, rho=0.5)
-    lam_c1, t_c1 = c1_plus_plus(p, R, c=0.5, eps=1e-8)
-    lam_m1pp, t_m1 = m1_plus_plus(p, R)
-    lam_p2, t_p2, fired = p2_plus_plus(p, R)
-    lam_p3, c_val, indiff = p3_plus_plus(p, R)
-    methods = {
-        "M1+": (lam_m1p, {"scalar_gain": float(p @ R @ (lam_m1p - p))}),
-        "C1++": (lam_c1, {"t_star": t_c1}),
-        "M1++": (lam_m1pp, {"t_star": t_m1}),
-        "P2++": (lam_p2, {"t_star": t_p2, "surgeries_fired": fired}),
-        "P3++": (lam_p3, {"conflict_energy": c_val, "indifferent_C_is_zero": indiff}),
+def portfolio_cfg() -> dict[str, float]:
+    """Read portfolio hyperparameters from the notebook CONFIG."""
+    config = notebook_config()
+    return {
+        "M1PLUS_RHO": float(config["M1PLUS_RHO"]),
+        "C1PP_C": float(config["C1PP_C"]),
+        "C1PP_EPS": float(config["C1PP_EPS"]),
     }
-    out = {}
-    for name, (lam, extra) in methods.items():
-        delta = improvements(p, R, lam)
-        out[name] = {
-            "lambda": lam,
-            "returns_p": bool(np.allclose(lam, p, atol=1e-6)),
-            "vector_safe": bool(np.all(delta >= -1e-7)),
-            "scalar_gain": float(p @ R @ (lam - p)),
-            "min_improvement": float(delta.min()),
-            **extra,
-        }
-    return out
 
 
 def conflict_free_R(n: int = 5) -> np.ndarray:
@@ -602,14 +540,25 @@ def test_preference() -> np.ndarray:
     return np.asarray([0.5, 0.125, 0.125, 0.125, 0.125], dtype=float)
 
 
+def portfolio_for(p: np.ndarray, R: np.ndarray) -> dict[str, dict[str, Any]]:
+    """Run the production portfolio using notebook hyperparameters."""
+    return run_portfolio(p, R, portfolio_cfg())
+
+
+def scalar_gain(p: np.ndarray, R: np.ndarray, row: dict[str, Any]) -> float:
+    """Compute p^T R(lambda-p) from a portfolio row."""
+    lam = np.asarray(row["lam"], dtype=float)
+    return float(np.asarray(p, dtype=float) @ np.asarray(R, dtype=float) @ (lam - np.asarray(p, dtype=float)))
+
+
 def check_g1_conflict_free_floor() -> tuple[str, dict[str, Any]]:
     """G1: conflict-free R has collapsed floor; vector-safe methods return p."""
     R = conflict_free_R()
     p = test_preference()
-    value, collapsed = floor_lp(R)
+    value, collapsed = floor_lp(R, tol=1e-9)
     if abs(value) > 1e-8 or not collapsed:
         raise AssertionError(f"Expected collapsed floor with LP value 0, got {value}.")
-    portfolio = run_portfolio(p, R)
+    portfolio = portfolio_for(p, R)
     for name in ("C1++", "M1++", "P2++", "P3++"):
         if not portfolio[name]["returns_p"]:
             raise AssertionError(f"{name} should return p in collapsed floor: {portfolio[name]}")
@@ -617,10 +566,10 @@ def check_g1_conflict_free_floor() -> tuple[str, dict[str, Any]]:
         raise AssertionError("M1+ should move on the scalar objective in this test.")
     if portfolio["M1+"]["vector_safe"]:
         raise AssertionError("M1+ should not be vector-safe in this conflict-free test.")
-    return "Conflict-free R collapses the floor; vector-safe methods return p; M1+ moves.", {
+    return "Production portfolio: conflict-free R collapses floor; vector-safe methods return p; M1+ moves.", {
         "floor_lp_value": value,
         "m1plus": {
-            "scalar_gain": portfolio["M1+"]["scalar_gain"],
+            "scalar_gain_pT_R_dlam": portfolio["M1+"]["scalar_gain_pT_R_dlam"],
             "min_improvement": portfolio["M1+"]["min_improvement"],
         },
     }
@@ -631,7 +580,7 @@ def check_g2_negative_offdiag_not_sufficient() -> tuple[str, dict[str, Any]]:
     R = negative_offdiag_collapsed_R()
     eig = np.linalg.eigvalsh(R)
     offdiag = R[~np.eye(R.shape[0], dtype=bool)]
-    value, collapsed = floor_lp(R)
+    value, collapsed = floor_lp(R, tol=1e-9)
     if not np.all(eig >= -1e-10):
         raise AssertionError(f"Synthetic R is not PSD: {eig}")
     if not np.any(offdiag < 0):
@@ -650,7 +599,7 @@ def check_g3_vector_safe_methods() -> tuple[str, dict[str, Any]]:
     cases = {"conflict_free": conflict_free_R(), "negative_collapsed": negative_offdiag_collapsed_R()}
     details: dict[str, Any] = {}
     for case, R in cases.items():
-        portfolio = run_portfolio(p, R)
+        portfolio = portfolio_for(p, R)
         details[case] = {}
         for name in ("C1++", "M1++", "P2++", "P3++"):
             min_imp = portfolio[name]["min_improvement"]
@@ -665,28 +614,17 @@ def check_g4_vector_implies_scalar() -> tuple[str, dict[str, Any]]:
     p = test_preference()
     details: dict[str, Any] = {}
     for case, R in {"conflict_free": conflict_free_R(), "negative_collapsed": negative_offdiag_collapsed_R()}.items():
-        portfolio = run_portfolio(p, R)
+        portfolio = portfolio_for(p, R)
         details[case] = {}
         for name, row in portfolio.items():
-            if row["vector_safe"] and row["scalar_gain"] < -1e-8:
+            gain = scalar_gain(p, R, row)
+            if row["vector_safe"] and gain < -1e-8:
                 raise AssertionError(f"{case}/{name}: vector-safe but scalar gain negative.")
             details[case][name] = {
                 "vector_safe": row["vector_safe"],
-                "scalar_gain": row["scalar_gain"],
+                "scalar_gain": gain,
             }
     return "Every vector-safe synthetic lambda is scalar-safe.", details
-
-
-def paired_rank_delta(heads_p: np.ndarray, heads_l: np.ndarray, p_vec: np.ndarray) -> np.ndarray:
-    """Rank-normalized paired per-prompt delta."""
-    from scipy.stats import rankdata
-
-    n = heads_p.shape[0]
-    deltas = np.zeros(n)
-    for j in range(heads_p.shape[1]):
-        pooled = rankdata(np.r_[heads_p[:, j], heads_l[:, j]]) / (2 * n)
-        deltas += p_vec[j] * (pooled[n:] - pooled[:n])
-    return deltas
 
 
 def check_g5_paired_rank_shape() -> tuple[str, dict[str, Any]]:
@@ -700,6 +638,27 @@ def check_g5_paired_rank_shape() -> tuple[str, dict[str, Any]]:
     if delta.shape != (n_prompts,):
         raise AssertionError(f"Expected shape {(n_prompts,)}, got {delta.shape}")
     return "paired_rank_delta returns one value per prompt.", {"shape": list(delta.shape)}
+
+
+def check_g6_no_duplicate_portfolio() -> tuple[str, dict[str, Any]]:
+    """G6: portfolio functions must only be defined in src/coefficient_portfolio.py."""
+    needles = tuple(f"def {name}(" for name in ("m1_plus", "c1_plus_plus", "run_portfolio", "floor_lp"))
+    allowed = (PROJECT_ROOT / "src" / "coefficient_portfolio.py").resolve()
+    hits: list[dict[str, Any]] = []
+    for path in PROJECT_ROOT.rglob("*"):
+        if not path.is_file() or path.suffix not in {".py", ".ipynb"}:
+            continue
+        parts = set(path.parts)
+        if ".git" in parts or "__pycache__" in parts:
+            continue
+        text = read_text(path)
+        for line_no, line in enumerate(text.splitlines(), start=1):
+            if any(needle in line for needle in needles):
+                hits.append({"path": str(path.relative_to(PROJECT_ROOT)), "line": line_no, "text": line.strip()})
+    duplicates = [hit for hit in hits if (PROJECT_ROOT / hit["path"]).resolve() != allowed]
+    if duplicates:
+        raise AssertionError(f"Duplicate portfolio definitions found outside src/coefficient_portfolio.py: {duplicates}")
+    return "No duplicate portfolio definitions outside src/coefficient_portfolio.py.", {"hits": hits}
 
 
 # ---------------------------------------------------------------------------
@@ -984,6 +943,7 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("G3", check_g3_vector_safe_methods),
         ("G4", check_g4_vector_implies_scalar),
         ("G5", check_g5_paired_rank_shape),
+        ("G6", check_g6_no_duplicate_portfolio),
     ],
     "2": [
         ("A1", check_a1_armorm_head_indices),
@@ -1003,7 +963,12 @@ def selected_stages(stage: str) -> list[str]:
     """Resolve stage argument to stages to run."""
     if stage == "all":
         return ["0", "1", "2", "3"]
-    return [stage]
+    stages = [part.strip() for part in stage.split(",") if part.strip()]
+    valid = set(STAGE_CHECKS)
+    invalid = [part for part in stages if part not in valid]
+    if invalid or not stages:
+        raise ValueError(f"Invalid --stage value {stage!r}; use comma-separated stages from {sorted(valid)} or 'all'.")
+    return stages
 
 
 def parse_args() -> argparse.Namespace:
@@ -1011,9 +976,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Verify RS-PPO setup before training.")
     parser.add_argument(
         "--stage",
-        choices=["0", "1", "2", "3", "all"],
-        default="0",
-        help="Verification stage. Stage 0 and 1 are GPU-free.",
+        default="0,1",
+        help="Verification stage(s), e.g. 0, 1, 0,1, 2, 3, or all. Stage 0 and 1 are GPU-free.",
     )
     return parser.parse_args()
 
@@ -1022,10 +986,14 @@ def main() -> None:
     """Run selected checks and exit nonzero unless every selected check passes."""
     args = parse_args()
     results: list[CheckResult] = []
-    for stage in selected_stages(args.stage):
+    stages = selected_stages(args.stage)
+    if stages == ["0"]:
+        print("WARNING: Stage 1 (GPU-free) was not run -- the geometry/portfolio checks are the ones "
+              "that catch silent math errors. Run with --stage 1 or use the default --stage 0,1.")
+    for stage in stages:
         for check_id, fn in STAGE_CHECKS[stage]:
             run_check(results, check_id, stage, fn)
-    write_report(results)
+    write_report(results, stages)
     print_table(results)
     if any(result.status != "PASS" for result in results):
         print("\nDO NOT TRAIN -- fix the failing checks first.")

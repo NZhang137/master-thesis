@@ -1,5 +1,5 @@
 {
-  "created_at_utc": "2026-07-12T14:22:35.095710+00:00",
+  "created_at_utc": "2026-07-12T21:12:07.065675+00:00",
   "results": [
     {
       "check_id": "S1",
@@ -26,7 +26,7 @@
           "verbosity"
         ]
       },
-      "elapsed_s": 0.0115509033203125,
+      "elapsed_s": 0.012860536575317383,
       "message": "Axis order is shared by train script, HelpSteer2 utils, and notebook.",
       "stage": "0",
       "status": "PASS"
@@ -36,7 +36,7 @@
       "details": {
         "occurrences": 0
       },
-      "elapsed_s": 0.00018453598022460938,
+      "elapsed_s": 0.0002651214599609375,
       "message": "No policy.save_pretrained( call found.",
       "stage": "0",
       "status": "PASS"
@@ -47,7 +47,7 @@
         "armorm_calls": 1,
         "policy_calls": 1
       },
-      "elapsed_s": 0.006215095520019531,
+      "elapsed_s": 0.007637739181518555,
       "message": "Policy has no device_map; ArmoRM loader keeps device_map.",
       "stage": "0",
       "status": "PASS"
@@ -60,7 +60,7 @@
         "out_dir": "results/verify_rs_ppo_setup/_tmp_rs_runs",
         "total_ppo_steps": 19
       },
-      "elapsed_s": 0.00480961799621582,
+      "elapsed_s": 0.006396055221557617,
       "message": "apply_overrides writes and exposes out_dir/batch_size/steps/prompts.",
       "stage": "0",
       "status": "PASS"
@@ -86,7 +86,7 @@
         ],
         "warning": "CIRCULAR ArmoRM PPO acknowledged: PPO reward model and evaluation model are both ArmoRM. This retires RQ2 proxy-validity claims. Valid use is only upper-bound, R-minus, Wall-A/R2, and LMC diagnostics."
       },
-      "elapsed_s": 0.005219697952270508,
+      "elapsed_s": 0.008192300796508789,
       "message": "Firewall blocks unacknowledged ArmoRM and retires RQ2 when acknowledged.",
       "stage": "0",
       "status": "PASS"
@@ -94,15 +94,17 @@
     {
       "check_id": "S6",
       "details": {
-        "required_preregistration_terms": {
-          "ci_excludes_zero_decision": "bootstrap 95% CI",
-          "delta_U_p_mean_decision": "Delta U_p",
-          "wall_a_rule": "Wall A stands iff max R2 over the quality axes < threshold.",
-          "wall_a_threshold": "wall_A_R2_threshold"
-        }
+        "decision_keys": [
+          "ci_excludes_zero",
+          "delta_U_p_mean",
+          "preference"
+        ],
+        "primary_metric": "Delta U_p = mean over the 80 held-out prompts of p^T ( r(theta(lambda*_M1+), prompt) - r(theta(p), prompt) ) -- the PAIRED per-prompt difference on the native ArmoRM reward scale (raw ArmoRM head values)",
+        "primary_success": "mean Delta U_p > 0 with bootstrap 95% CI (2000 resamples) excluding 0",
+        "wall_A_R2_threshold": 0.3
       },
-      "elapsed_s": 0.0005085468292236328,
-      "message": "Decision metrics are named in the preregistration source.",
+      "elapsed_s": 0.007993936538696289,
+      "message": "Pre-registration metric, decision keys, raw paired scale, and Wall-A threshold match.",
       "stage": "0",
       "status": "PASS"
     },
@@ -113,15 +115,179 @@
         "total_ppo_steps": 200,
         "train_seed": 911
       },
-      "elapsed_s": 0.004634857177734375,
+      "elapsed_s": 0.008279085159301758,
       "message": "prompt_seed, train_seed, and total_ppo_steps are global scalar settings.",
       "stage": "0",
       "status": "PASS"
+    },
+    {
+      "check_id": "G1",
+      "details": {
+        "floor_lp_value": -0.0,
+        "m1plus": {
+          "min_improvement": -0.05250000000000009,
+          "scalar_gain_pT_R_dlam": 0.07874999999999992
+        }
+      },
+      "elapsed_s": 0.011210441589355469,
+      "message": "Production portfolio: conflict-free R collapses floor; vector-safe methods return p; M1+ moves.",
+      "stage": "1",
+      "status": "PASS"
+    },
+    {
+      "check_id": "G2",
+      "details": {
+        "floor_lp_value": -0.0,
+        "min_eigenvalue": 0.6000000000000001
+      },
+      "elapsed_s": 0.002878904342651367,
+      "message": "PSD R has negative off-diagonals, but floor remains collapsed; LP is the criterion.",
+      "stage": "1",
+      "status": "PASS"
+    },
+    {
+      "check_id": "G3",
+      "details": {
+        "conflict_free": {
+          "C1++": 0.0,
+          "M1++": 0.0,
+          "P2++": 0.0,
+          "P3++": 0.0
+        },
+        "negative_collapsed": {
+          "C1++": 0.0,
+          "M1++": 0.0,
+          "P2++": 0.0,
+          "P3++": 0.0
+        }
+      },
+      "elapsed_s": 0.008293390274047852,
+      "message": "C1++/M1++/P2++/P3++ satisfy R(lambda-p)>=0 in synthetic cases.",
+      "stage": "1",
+      "status": "PASS"
+    },
+    {
+      "check_id": "G4",
+      "details": {
+        "conflict_free": {
+          "C1++": {
+            "scalar_gain": 0.0,
+            "vector_safe": true
+          },
+          "M1+": {
+            "scalar_gain": 0.07874999999999992,
+            "vector_safe": false
+          },
+          "M1++": {
+            "scalar_gain": 0.0,
+            "vector_safe": true
+          },
+          "P2++": {
+            "scalar_gain": 0.0,
+            "vector_safe": true
+          },
+          "P3++": {
+            "scalar_gain": 0.0,
+            "vector_safe": true
+          }
+        },
+        "negative_collapsed": {
+          "C1++": {
+            "scalar_gain": 0.0,
+            "vector_safe": true
+          },
+          "M1+": {
+            "scalar_gain": 0.12374999999999997,
+            "vector_safe": false
+          },
+          "M1++": {
+            "scalar_gain": 0.0,
+            "vector_safe": true
+          },
+          "P2++": {
+            "scalar_gain": 0.0,
+            "vector_safe": true
+          },
+          "P3++": {
+            "scalar_gain": 0.0,
+            "vector_safe": true
+          }
+        }
+      },
+      "elapsed_s": 0.008237600326538086,
+      "message": "Every vector-safe synthetic lambda is scalar-safe.",
+      "stage": "1",
+      "status": "PASS"
+    },
+    {
+      "check_id": "G5",
+      "details": {
+        "shape": [
+          13
+        ]
+      },
+      "elapsed_s": 0.0005383491516113281,
+      "message": "paired_rank_delta returns one value per prompt.",
+      "stage": "1",
+      "status": "PASS"
+    },
+    {
+      "check_id": "G6",
+      "details": {
+        "hits": [
+          {
+            "line": 18,
+            "path": "src\\coefficient_portfolio.py",
+            "text": "def floor_lp(R: np.ndarray, tol: float = 1e-9) -> tuple[float, bool]:"
+          },
+          {
+            "line": 82,
+            "path": "src\\coefficient_portfolio.py",
+            "text": "def m1_plus(p: np.ndarray, R: np.ndarray, rho: float) -> np.ndarray:"
+          },
+          {
+            "line": 107,
+            "path": "src\\coefficient_portfolio.py",
+            "text": "def c1_plus_plus("
+          },
+          {
+            "line": 246,
+            "path": "src\\coefficient_portfolio.py",
+            "text": "def run_portfolio(p: np.ndarray, R: np.ndarray, cfg: dict[str, Any]) -> dict[str, dict[str, Any]]:"
+          }
+        ]
+      },
+      "elapsed_s": 0.1273965835571289,
+      "message": "No duplicate portfolio definitions outside src/coefficient_portfolio.py.",
+      "stage": "1",
+      "status": "PASS"
     }
   ],
+  "stages": {
+    "gpu_free": [
+      "0",
+      "1"
+    ],
+    "gpu_required": [
+      "2",
+      "3"
+    ],
+    "not_run": [
+      "2",
+      "3"
+    ],
+    "requested": [
+      "0",
+      "1"
+    ],
+    "run": [
+      "0",
+      "1"
+    ]
+  },
   "summary": {
     "fail": 0,
-    "pass": 7,
+    "pass": 13,
     "skip": 0
   }
 }
