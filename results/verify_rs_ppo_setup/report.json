@@ -1,0 +1,127 @@
+{
+  "created_at_utc": "2026-07-12T14:22:35.095710+00:00",
+  "results": [
+    {
+      "check_id": "S1",
+      "details": {
+        "HELPSTEER2_ATTRIBUTES": [
+          "helpfulness",
+          "correctness",
+          "coherence",
+          "complexity",
+          "verbosity"
+        ],
+        "notebook.CONFIG.ATTRIBUTES": [
+          "helpfulness",
+          "correctness",
+          "coherence",
+          "complexity",
+          "verbosity"
+        ],
+        "train_rs_ppo.ATTRIBUTES": [
+          "helpfulness",
+          "correctness",
+          "coherence",
+          "complexity",
+          "verbosity"
+        ]
+      },
+      "elapsed_s": 0.0115509033203125,
+      "message": "Axis order is shared by train script, HelpSteer2 utils, and notebook.",
+      "stage": "0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "S2",
+      "details": {
+        "occurrences": 0
+      },
+      "elapsed_s": 0.00018453598022460938,
+      "message": "No policy.save_pretrained( call found.",
+      "stage": "0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "S3",
+      "details": {
+        "armorm_calls": 1,
+        "policy_calls": 1
+      },
+      "elapsed_s": 0.006215095520019531,
+      "message": "Policy has no device_map; ArmoRM loader keeps device_map.",
+      "stage": "0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "S4",
+      "details": {
+        "batch_size": 17,
+        "n_prompts": 23,
+        "out_dir": "results/verify_rs_ppo_setup/_tmp_rs_runs",
+        "total_ppo_steps": 19
+      },
+      "elapsed_s": 0.00480961799621582,
+      "message": "apply_overrides writes and exposes out_dir/batch_size/steps/prompts.",
+      "stage": "0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "S5",
+      "details": {
+        "axis": "helpfulness",
+        "circularity_acknowledged": true,
+        "invalid_claims": [
+          "proxy validity",
+          "generalization beyond this reward model"
+        ],
+        "retired_research_questions": [
+          "RQ2 (proxy validity)"
+        ],
+        "reward_model": "RLHFlow/ArmoRM-Llama3-8B-v0.1",
+        "valid_claims": [
+          "upper bound",
+          "R-minus",
+          "wall A (R2)",
+          "LMC"
+        ],
+        "warning": "CIRCULAR ArmoRM PPO acknowledged: PPO reward model and evaluation model are both ArmoRM. This retires RQ2 proxy-validity claims. Valid use is only upper-bound, R-minus, Wall-A/R2, and LMC diagnostics."
+      },
+      "elapsed_s": 0.005219697952270508,
+      "message": "Firewall blocks unacknowledged ArmoRM and retires RQ2 when acknowledged.",
+      "stage": "0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "S6",
+      "details": {
+        "required_preregistration_terms": {
+          "ci_excludes_zero_decision": "bootstrap 95% CI",
+          "delta_U_p_mean_decision": "Delta U_p",
+          "wall_a_rule": "Wall A stands iff max R2 over the quality axes < threshold.",
+          "wall_a_threshold": "wall_A_R2_threshold"
+        }
+      },
+      "elapsed_s": 0.0005085468292236328,
+      "message": "Decision metrics are named in the preregistration source.",
+      "stage": "0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "S7",
+      "details": {
+        "prompt_seed": 137,
+        "total_ppo_steps": 200,
+        "train_seed": 911
+      },
+      "elapsed_s": 0.004634857177734375,
+      "message": "prompt_seed, train_seed, and total_ppo_steps are global scalar settings.",
+      "stage": "0",
+      "status": "PASS"
+    }
+  ],
+  "summary": {
+    "fail": 0,
+    "pass": 7,
+    "skip": 0
+  }
+}

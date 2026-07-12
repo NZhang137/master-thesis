@@ -53,11 +53,19 @@ Usage (one axis per invocation to keep runs independent):
 import argparse
 import json
 import random
+import sys
 import warnings
 from pathlib import Path
 
 import numpy as np
 import torch
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.helpsteer2_utils import HELPSTEER2_ATTRIBUTES
 
 # ----------------------------------------------------------------------------
 # Configuration -- RS Table 1 defaults. Do not tune (Betreuer: Training = Nebensache).
@@ -65,7 +73,10 @@ import torch
 
 BASE_MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 ARMORM_MODEL = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
-ATTRIBUTES = ("helpfulness", "correctness", "coherence", "complexity", "verbosity")
+ATTRIBUTES = tuple(HELPSTEER2_ATTRIBUTES)
+assert ATTRIBUTES == tuple(HELPSTEER2_ATTRIBUTES), (
+    f"axis order drift: {ATTRIBUTES} vs {HELPSTEER2_ATTRIBUTES}"
+)
 
 # NOTE: no positional indices here on purpose. The head index is resolved BY NAME
 # from the model's own config.id2label at load time -- never trust a hard-coded
