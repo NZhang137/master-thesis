@@ -1,5 +1,5 @@
 {
-  "created_at_utc": "2026-07-12T21:12:07.065675+00:00",
+  "created_at_utc": "2026-07-12T21:56:41.089135+00:00",
   "results": [
     {
       "check_id": "S1",
@@ -26,7 +26,7 @@
           "verbosity"
         ]
       },
-      "elapsed_s": 0.012860536575317383,
+      "elapsed_s": 0.009644746780395508,
       "message": "Axis order is shared by train script, HelpSteer2 utils, and notebook.",
       "stage": "0",
       "status": "PASS"
@@ -36,7 +36,7 @@
       "details": {
         "occurrences": 0
       },
-      "elapsed_s": 0.0002651214599609375,
+      "elapsed_s": 0.00019502639770507812,
       "message": "No policy.save_pretrained( call found.",
       "stage": "0",
       "status": "PASS"
@@ -47,7 +47,7 @@
         "armorm_calls": 1,
         "policy_calls": 1
       },
-      "elapsed_s": 0.007637739181518555,
+      "elapsed_s": 0.005361795425415039,
       "message": "Policy has no device_map; ArmoRM loader keeps device_map.",
       "stage": "0",
       "status": "PASS"
@@ -60,7 +60,7 @@
         "out_dir": "results/verify_rs_ppo_setup/_tmp_rs_runs",
         "total_ppo_steps": 19
       },
-      "elapsed_s": 0.006396055221557617,
+      "elapsed_s": 0.005423307418823242,
       "message": "apply_overrides writes and exposes out_dir/batch_size/steps/prompts.",
       "stage": "0",
       "status": "PASS"
@@ -86,7 +86,7 @@
         ],
         "warning": "CIRCULAR ArmoRM PPO acknowledged: PPO reward model and evaluation model are both ArmoRM. This retires RQ2 proxy-validity claims. Valid use is only upper-bound, R-minus, Wall-A/R2, and LMC diagnostics."
       },
-      "elapsed_s": 0.008192300796508789,
+      "elapsed_s": 0.00535273551940918,
       "message": "Firewall blocks unacknowledged ArmoRM and retires RQ2 when acknowledged.",
       "stage": "0",
       "status": "PASS"
@@ -94,17 +94,18 @@
     {
       "check_id": "S6",
       "details": {
-        "decision_keys": [
-          "ci_excludes_zero",
-          "delta_U_p_mean",
-          "preference"
-        ],
+        "nb09": {
+          "addendum_uses_primary_metric": true,
+          "primary_metric_from_nb08": true,
+          "raw_delta_seen": true,
+          "verdict_uses_holm_count": true
+        },
         "primary_metric": "Delta U_p = mean over the 80 held-out prompts of p^T ( r(theta(lambda*_M1+), prompt) - r(theta(p), prompt) ) -- the PAIRED per-prompt difference on the native ArmoRM reward scale (raw ArmoRM head values)",
         "primary_success": "mean Delta U_p > 0 with bootstrap 95% CI (2000 resamples) excluding 0",
         "wall_A_R2_threshold": 0.3
       },
-      "elapsed_s": 0.007993936538696289,
-      "message": "Pre-registration metric, decision keys, raw paired scale, and Wall-A threshold match.",
+      "elapsed_s": 0.006618499755859375,
+      "message": "NB08 preregistration, NB09 addendum, raw paired scale, Holm verdict, and Wall-A threshold match.",
       "stage": "0",
       "status": "PASS"
     },
@@ -115,8 +116,21 @@
         "total_ppo_steps": 200,
         "train_seed": 911
       },
-      "elapsed_s": 0.008279085159301758,
+      "elapsed_s": 0.0051288604736328125,
       "message": "prompt_seed, train_seed, and total_ppo_steps are global scalar settings.",
+      "stage": "0",
+      "status": "PASS"
+    },
+    {
+      "check_id": "S8",
+      "details": {
+        "forbidden": [
+          "RUN_FINAL_MERGE",
+          "MERGE_RESULTS_PATH"
+        ]
+      },
+      "elapsed_s": 0.0003974437713623047,
+      "message": "Notebook 08 no longer contains RUN_FINAL_MERGE or MERGE_RESULTS_PATH.",
       "stage": "0",
       "status": "PASS"
     },
@@ -129,7 +143,7 @@
           "scalar_gain_pT_R_dlam": 0.07874999999999992
         }
       },
-      "elapsed_s": 0.011210441589355469,
+      "elapsed_s": 0.004774332046508789,
       "message": "Production portfolio: conflict-free R collapses floor; vector-safe methods return p; M1+ moves.",
       "stage": "1",
       "status": "PASS"
@@ -140,7 +154,7 @@
         "floor_lp_value": -0.0,
         "min_eigenvalue": 0.6000000000000001
       },
-      "elapsed_s": 0.002878904342651367,
+      "elapsed_s": 0.002357959747314453,
       "message": "PSD R has negative off-diagonals, but floor remains collapsed; LP is the criterion.",
       "stage": "1",
       "status": "PASS"
@@ -161,7 +175,7 @@
           "P3++": 0.0
         }
       },
-      "elapsed_s": 0.008293390274047852,
+      "elapsed_s": 0.006750583648681641,
       "message": "C1++/M1++/P2++/P3++ satisfy R(lambda-p)>=0 in synthetic cases.",
       "stage": "1",
       "status": "PASS"
@@ -214,7 +228,7 @@
           }
         }
       },
-      "elapsed_s": 0.008237600326538086,
+      "elapsed_s": 0.005093574523925781,
       "message": "Every vector-safe synthetic lambda is scalar-safe.",
       "stage": "1",
       "status": "PASS"
@@ -226,7 +240,7 @@
           13
         ]
       },
-      "elapsed_s": 0.0005383491516113281,
+      "elapsed_s": 0.000385284423828125,
       "message": "paired_rank_delta returns one value per prompt.",
       "stage": "1",
       "status": "PASS"
@@ -241,24 +255,45 @@
             "text": "def floor_lp(R: np.ndarray, tol: float = 1e-9) -> tuple[float, bool]:"
           },
           {
-            "line": 82,
+            "line": 145,
             "path": "src\\coefficient_portfolio.py",
             "text": "def m1_plus(p: np.ndarray, R: np.ndarray, rho: float) -> np.ndarray:"
           },
           {
-            "line": 107,
+            "line": 170,
             "path": "src\\coefficient_portfolio.py",
             "text": "def c1_plus_plus("
           },
           {
-            "line": 246,
+            "line": 309,
             "path": "src\\coefficient_portfolio.py",
             "text": "def run_portfolio(p: np.ndarray, R: np.ndarray, cfg: dict[str, Any]) -> dict[str, dict[str, Any]]:"
+          },
+          {
+            "line": 72,
+            "path": "src\\merge.py",
+            "text": "def effective_deltas(adapter_paths: dict[str, Path]) -> dict[str, dict[str, Any]]:"
+          },
+          {
+            "line": 176,
+            "path": "src\\merge.py",
+            "text": "def merge_theta("
           }
         ]
       },
-      "elapsed_s": 0.1273965835571289,
-      "message": "No duplicate portfolio definitions outside src/coefficient_portfolio.py.",
+      "elapsed_s": 0.10512995719909668,
+      "message": "No duplicate portfolio or merge definitions outside the shared src modules.",
+      "stage": "1",
+      "status": "PASS"
+    },
+    {
+      "check_id": "G7",
+      "details": {
+        "exact_relative_error": 0.0,
+        "peft_linear_relative_error": 1.9374287128448486
+      },
+      "elapsed_s": 0.0003619194030761719,
+      "message": "Synthetic LoRA exact sum is linear and PEFT-linear control shows cross-term error.",
       "stage": "1",
       "status": "PASS"
     }
@@ -287,7 +322,7 @@
   },
   "summary": {
     "fail": 0,
-    "pass": 13,
+    "pass": 15,
     "skip": 0
   }
 }
