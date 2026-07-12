@@ -610,7 +610,7 @@ def run_ppo(
         target_modules=CFG["lora_target_modules"], task_type="CAUSAL_LM")
     policy = AutoModelForCausalLMWithValueHead.from_pretrained(
         str(sft_path), peft_config=peft_cfg,
-        torch_dtype=torch.bfloat16, device_map="auto")
+        torch_dtype=torch.bfloat16)
 
     ppo_cfg = PPOConfig(
         learning_rate=CFG["learning_rate"],
@@ -676,8 +676,24 @@ def run_ppo(
     plateau = detect_reward_plateau(log)
     print(f"[ppo:{axis}] plateau check: {plateau['interpretation']}")
 
-    # checkpoint selection: end-of-run adapter, judged by the reward/KL trace only.
-    policy.save_pretrained(str(out / "adapter"))
+    # checkpoint selection: end-of-run LoRA adapter, judged by the reward/KL trace only.
+    # The TRL wrapper also owns a PPO value head; it is infrastructure, not delta_i.
+    adapter_dir = out / "adapter"
+    policy.pretrained_model.save_pretrained(str(adapter_dir))
+    if hasattr(policy, "v_head"):
+        torch.save(policy.v_head.state_dict(), out / "value_head.pt")
+
+    safetensors_path = adapter_dir / "adapter_model.safetensors"
+    bin_path = adapter_dir / "adapter_model.bin"
+    if safetensors_path.exists():
+        from safetensors.torch import load_file
+        adapter_state = load_file(str(safetensors_path))
+    elif bin_path.exists():
+        adapter_state = torch.load(bin_path, map_location="cpu")
+    else:
+        raise FileNotFoundError(f"No adapter weights found in {adapter_dir}")
+    bad = [k for k in adapter_state if "lora_" not in k]
+    assert not bad, f"non-LoRA keys in adapter: {bad[:5]}"
     (out / "ppo_log.json").write_text(json.dumps(
         {
             "axis": axis,
