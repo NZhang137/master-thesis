@@ -5,33 +5,53 @@ RS-faithful specialist training: theta_SFT -> N independent PPO runs (one per pr
 Follows Rame et al. 2023 (Rewarded Soups), Appendix D / Table 1, adapted TinyLlama-1.1B.
 Betreuer-Leitplanke: Training ist Nebensache -> RS-Defaults 1:1, KEIN Tuning.
 
-Pipeline (Handoff v6 §1.4):
+Pipeline (Handoff v7):
   Phase 1: SFT on HelpSteer2 -> theta_SFT  (shared init, RS's "Alpaca step")
   Phase 2: N independent PPO runs from theta_SFT, reward R_i from a HELD-OUT RM.
            A deliberately circular ArmoRM reward path exists only when
            --circular_armorm_acknowledged is passed. That path is invalid for
            RQ2 proxy validity and is meant only as an upper-bound experiment.
-  Phase 3: extract delta_i = theta_i - theta_SFT -> R = D^T D  (separate notebook/cells)
+  Phase 3: extract delta_i = theta_i - theta_SFT -> R = D^T D  (notebook)
 
 Integrity rules (hard):
   - ArmoRM is blocked by default. If used with explicit acknowledgement, the
     run must be reported as circular and RQ2 proxy-validity claims are retired.
-  - Checkpointing by held-out RM reward / KL, never by ArmoRM.
+  - Checkpointing by reward/KL trace, never by a later eval metric.
   - Equal-N analogue: identical PPO steps, prompt set, and seed schedule across axes.
 
 RS Table-1 defaults (text-to-text):
   PPO (TRL), LoRA alpha=16 dropout=0.05, Adam lr=1.41e-5, batch 128,
   KL coeff 0.2 (dialog-task value), output length uniform 16..32 tokens, 1 epoch.
 
-Usage (Colab, one axis per invocation to keep runs independent):
-  python train_rs_ppo.py --phase sft
-  python train_rs_ppo.py --phase ppo --axis helpfulness
-  python train_rs_ppo.py --phase ppo --axis <axis2>          # pilot: m=2 first!
+FIXES vs. the first draft (audit findings):
+  [F1] CLI args for out_dir/batch_size/total_ppo_steps/n_prompts/4bit.
+       The notebook previously mutated CFG in-process and then launched training
+       via subprocess -> every mutation was silently lost and the adapters were
+       written to the wrong directory. CFG is now settable from the command line
+       AND via apply_overrides() for in-process calls.
+  [F2] ArmoRM objective indices are VERIFIED against config.id2label, never assumed.
+       (This is the exact bug class that produced the QRM verbosity == 0 disaster.)
+  [F3] Batched reward scoring is validated against single-example scoring; the
+       padding side is resolved empirically and falls back to batch_size=1.
+       Attention masks are built from true lengths, not by comparing to pad_id
+       (pad_token == eos_token would otherwise mask real <|eot_id|> tokens).
+  [F4] `pad_token_id or eos_token_id` falsy bug fixed (pad_token_id == 0 is valid).
+  [F5] Head sanity must run on ACTUAL policy generations, not on dataset responses:
+       generate_responses() is exposed so the notebook can score the distribution
+       the reward model will really see during PPO.
+  [F6] Reward-plateau detection: the upper-bound argument requires a SHORT horizon
+       (delta ~ eta * grad r). If the reward curve flattens, Assumption 1 is broken
+       again and the Best-Case claim loses its basis. Logged as `reward_plateaued`.
+
+Usage (one axis per invocation to keep runs independent):
+  python train_rs_ppo.py --phase sft --out_dir results/.../rs_runs
+  python train_rs_ppo.py --phase ppo --axis helpfulness \
+      --reward_model RLHFlow/ArmoRM-Llama3-8B-v0.1 --circular_armorm_acknowledged \
+      --out_dir results/.../rs_runs --batch_size 64 --total_ppo_steps 200
 """
 
 import argparse
 import json
-import os
 import random
 import warnings
 from pathlib import Path
@@ -46,24 +66,27 @@ import torch
 BASE_MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 ARMORM_MODEL = "RLHFlow/ArmoRM-Llama3-8B-v0.1"
 ATTRIBUTES = ("helpfulness", "correctness", "coherence", "complexity", "verbosity")
-ARMORM_HELPSTEER_OBJECTIVES = {
-    "helpfulness": (0, "helpsteer-helpfulness"),
-    "correctness": (1, "helpsteer-correctness"),
-    "coherence": (2, "helpsteer-coherence"),
-    "complexity": (3, "helpsteer-complexity"),
-    "verbosity": (4, "helpsteer-verbosity"),
+
+# NOTE: no positional indices here on purpose. The head index is resolved BY NAME
+# from the model's own config.id2label at load time -- never trust a hard-coded
+# reward-head index (this is how QRM's verbosity head silently returned zeros).
+ARMORM_HELPSTEER_OBJECTIVE_NAMES = {
+    "helpfulness": "helpsteer-helpfulness",
+    "correctness": "helpsteer-correctness",
+    "coherence": "helpsteer-coherence",
+    "complexity": "helpsteer-complexity",
+    "verbosity": "helpsteer-verbosity",
 }
+
 CIRCULARITY_WARNING = (
     "CIRCULAR ArmoRM PPO acknowledged: PPO reward model and evaluation model "
     "are both ArmoRM. This retires RQ2 proxy-validity claims. Valid use is only "
     "upper-bound, R-minus, Wall-A/R2, and LMC diagnostics."
 )
 
-# >>> DECISION REQUIRED (Phase 0, Step 1): held-out RM, one per axis or multi-head.
-# Must NOT be ArmoRM. Fill in after the pre-check (held-out-RM correlation on HelpSteer2).
-# RS analogue: different open-source RMs from HF, used as black-box scoring pipelines.
+# >>> Held-out RMs (the non-circular path). Must NOT be ArmoRM.
 HELD_OUT_RM = {
-    "helpfulness": "<HF_ID_OF_HELD_OUT_RM_OR_HEAD>",   # e.g. an OASST-style RM
+    "helpfulness": "<HF_ID_OF_HELD_OUT_RM_OR_HEAD>",
     "correctness": "<HF_ID_OF_HELD_OUT_RM_OR_HEAD>",
     "coherence": "<HF_ID_OF_HELD_OUT_RM_OR_HEAD>",
     "complexity": "<HF_ID_OF_HELD_OUT_RM_OR_HEAD>",
@@ -79,8 +102,7 @@ CFG = dict(
                          "gate_proj", "up_proj", "down_proj"],
     # --- PPO (RS Table 1) ---
     learning_rate=1.41e-5,
-    batch_size=64,          # RS: 128; halve for Colab VRAM (RS themselves halved from
-                            # their reference for the same reason). If A100: use 128.
+    batch_size=64,          # RS: 128; halve for Colab VRAM. If A100-80GB: use 128.
     mini_batch_size=8,
     ppo_epochs=1,           # RS: 1-2; fixed at 1 for ALL axes (Equal-N analogue)
     init_kl_coef=0.2,       # RS: 0.2 for dialog-style tasks (0.05 only for summarization)
@@ -88,20 +110,44 @@ CFG = dict(
     output_min_len=16,
     output_max_len=32,
     # --- Equal-N analogue: identical across ALL axes, frozen before any run ---
-    total_ppo_steps=200,    # pilot-scale; same number for every axis, никогда per-axis tuned
+    total_ppo_steps=200,    # pilot-scale; same number for every axis, never per-axis tuned
     prompt_seed=137,        # same prompt subsample for every axis
     train_seed=911,         # same train seed schedule for every axis
     n_prompts=2005,         # mirror the frozen N from the SFT recipe
+    # --- Plateau detection (audit fix [F6]) ---
+    plateau_window=50,      # steps used to estimate the tail slope of the reward curve
+    plateau_slope_eps=0.02, # |slope| * window < eps * std(reward)  =>  plateaued
     # --- SFT phase ---
     sft_epochs=1,
     sft_lr=2e-5,
     sft_batch_size=16,
-    # --- paths ---
+    # --- paths / reward model ---
     out_dir="rs_runs",
     armorm_model=ARMORM_MODEL,
     armorm_load_in_4bit=True,
     armorm_reward_batch_size=8,
 )
+
+# Keys that may be overridden from the CLI or from the notebook (audit fix [F1]).
+OVERRIDABLE = (
+    "out_dir", "batch_size", "mini_batch_size", "total_ppo_steps", "n_prompts",
+    "armorm_model", "armorm_load_in_4bit", "armorm_reward_batch_size",
+    "learning_rate", "init_kl_coef", "ppo_epochs",
+    "output_min_len", "output_max_len", "prompt_seed", "train_seed",
+    "plateau_window", "plateau_slope_eps",
+)
+
+
+def apply_overrides(**kwargs) -> dict:
+    """Set CFG entries from the notebook (in-process) or the CLI. -- audit fix [F1]"""
+    for key, value in kwargs.items():
+        if value is None:
+            continue
+        if key not in OVERRIDABLE:
+            raise KeyError(f"{key!r} is not overridable; allowed: {OVERRIDABLE}")
+        CFG[key] = value
+    return CFG
+
 
 # ----------------------------------------------------------------------------
 
@@ -110,17 +156,17 @@ def set_all_seeds(seed: int):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 
-def load_helpsteer2_prompts(n: int, seed: int):
+def load_helpsteer2_prompts(n: int, seed: int, split: str = "train"):
     """Same prompt subsample for every axis (Equal-N analogue)."""
     from datasets import load_dataset
-    ds = load_dataset("nvidia/HelpSteer2", split="train")
+    ds = load_dataset("nvidia/HelpSteer2", split=split)
     rng = np.random.default_rng(seed)
     idx = rng.choice(len(ds), size=min(n, len(ds)), replace=False)
-    prompts = [ds[int(i)]["prompt"] for i in idx]
-    return prompts
+    return [ds[int(i)]["prompt"] for i in idx]
 
 
 def is_armorm_model(model_id: str) -> bool:
@@ -161,23 +207,44 @@ def check_reward_firewall(
     }
 
 
-class ArmoRMHeadScorer:
-    """Frozen ArmoRM scorer returning one HelpSteer2 head per text pair."""
+# ----------------------------------------------------------------------------
+# Frozen ArmoRM head scorer -- verified indices, validated batching
+# ----------------------------------------------------------------------------
 
-    def __init__(self, axis: str, model_id: str = ARMORM_MODEL):
+class ArmoRMHeadScorer:
+    """Frozen ArmoRM scorer returning ONE verified HelpSteer2 head per text pair.
+
+    Audit fixes baked in:
+      [F2] objective index resolved from config.id2label, never hard-coded
+      [F3] padding side resolved empirically; batched == single is asserted
+      [F4] no `pad_token_id or eos_token_id` falsy bug
+    """
+
+    def __init__(self, axis: str, model_id: str | None = None):
         from transformers import (
             AutoModelForSequenceClassification,
             AutoTokenizer,
             BitsAndBytesConfig,
         )
 
-        if axis not in ARMORM_HELPSTEER_OBJECTIVES:
+        model_id = model_id or CFG["armorm_model"]
+        if axis not in ARMORM_HELPSTEER_OBJECTIVE_NAMES:
             raise ValueError(f"No ArmoRM HelpSteer head configured for {axis!r}.")
         self.axis = axis
-        self.objective_index, self.objective_name = ARMORM_HELPSTEER_OBJECTIVES[axis]
+        self.model_id = model_id
+        self.objective_name = ARMORM_HELPSTEER_OBJECTIVE_NAMES[axis]
+
         self.tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=True)
+        # [F4] explicit None check -- pad_token_id == 0 is a VALID id and would be
+        # swallowed by `pad_token_id or eos_token_id`.
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+        pad_id = self.tokenizer.pad_token_id
+        if pad_id is None:
+            pad_id = self.tokenizer.eos_token_id
+        assert pad_id is not None, "tokenizer has neither pad nor eos token id"
+        self.pad_id = int(pad_id)
+
         quantization_config = None
         if CFG.get("armorm_load_in_4bit", True):
             quantization_config = BitsAndBytesConfig(
@@ -195,57 +262,252 @@ class ArmoRMHeadScorer:
         )
         self.model.requires_grad_(False)
         self.model.eval()
+        self.device = next(self.model.parameters()).device
 
-    def _format(self, prompt: str, response: str) -> torch.Tensor:
+        self.id2label = self._read_id2label()
+        self.objective_index = self._name_to_index(self.objective_name)
+        print(f"[armorm] axis={self.axis} -> {self.objective_name!r} "
+              f"verified at index {self.objective_index}")
+
+        # padding side is decided empirically by validate_batching()
+        self.padding_side = "right"
+        self.batching_validated = False
+
+    # ---- [F2] index verification -------------------------------------------
+
+    def _read_id2label(self) -> dict[int, str]:
+        raw = getattr(self.model.config, "id2label", None) or {}
+        labels = {int(k): str(v) for k, v in raw.items()}
+        if not labels:
+            raise RuntimeError(
+                "ArmoRM config exposes no id2label; cannot verify the reward-head "
+                "index. Refusing to guess -- a hard-coded index is exactly how the "
+                "QRM verbosity head silently returned zeros."
+            )
+        return labels
+
+    def _name_to_index(self, name: str) -> int:
+        matches = [i for i, label in self.id2label.items() if label == name]
+        if not matches:
+            raise RuntimeError(
+                f"Objective {name!r} not found in ArmoRM id2label. "
+                f"Available: {sorted(self.id2label.items())}"
+            )
+        return int(matches[0])
+
+    def helpsteer_indices(self) -> list[int]:
+        """Verified indices of the five HelpSteer2 heads, in ATTRIBUTES order."""
+        return [self._name_to_index(ARMORM_HELPSTEER_OBJECTIVE_NAMES[a])
+                for a in ATTRIBUTES]
+
+    # ---- scoring ------------------------------------------------------------
+
+    def _encode(self, prompt: str, response: str) -> torch.Tensor:
         messages = [
             {"role": "user", "content": prompt},
             {"role": "assistant", "content": response},
         ]
         if getattr(self.tokenizer, "chat_template", None):
-            return self.tokenizer.apply_chat_template(messages, return_tensors="pt")
-        text = f"Human: {prompt}\n\nAssistant: {response}"
-        return self.tokenizer(text, return_tensors="pt", truncation=True).input_ids
+            ids = self.tokenizer.apply_chat_template(messages, return_tensors="pt")
+        else:
+            text = f"Human: {prompt}\n\nAssistant: {response}"
+            ids = self.tokenizer(text, return_tensors="pt", truncation=True,
+                                 max_length=4096).input_ids
+        return ids.squeeze(0)
 
-    def score_batch(self, prompts: list[str], responses: list[str]) -> list[torch.Tensor]:
+    def _forward_rewards(self, encoded: list[torch.Tensor], padding_side: str) -> torch.Tensor:
+        """Pad a list of id-tensors and return the full reward matrix [B, n_obj].
+
+        [F3] The attention mask is built from TRUE LENGTHS. Building it as
+        `(padded != pad_id)` is wrong whenever pad_token == eos_token, because the
+        Llama-3 chat template contains real <|eot_id|> tokens *inside* the
+        sequence -- those would be masked away.
+        """
+        lengths = [int(e.shape[0]) for e in encoded]
+        max_len = max(lengths)
+        batch = len(encoded)
+        input_ids = torch.full((batch, max_len), self.pad_id, dtype=torch.long)
+        attention_mask = torch.zeros((batch, max_len), dtype=torch.long)
+        for k, (ids, length) in enumerate(zip(encoded, lengths)):
+            if padding_side == "right":
+                input_ids[k, :length] = ids
+                attention_mask[k, :length] = 1
+            else:  # left padding
+                input_ids[k, max_len - length:] = ids
+                attention_mask[k, max_len - length:] = 1
+
+        inputs = {
+            "input_ids": input_ids.to(self.device),
+            "attention_mask": attention_mask.to(self.device),
+        }
+        with torch.inference_mode():
+            outputs = self.model(**inputs)
+        rewards = getattr(outputs, "rewards", None)
+        if rewards is None:
+            raise RuntimeError("ArmoRM output has no .rewards tensor.")
+        tensor = torch.as_tensor(rewards).detach().float()
+        if tensor.ndim == 1:
+            tensor = tensor.unsqueeze(0)
+        return tensor.cpu()
+
+    def validate_batching(self, pairs: list[tuple[str, str]], atol: float = 1e-3) -> dict:
+        """[F3] Resolve the padding side empirically and prove batched == single.
+
+        ArmoRM pools at the last non-padding token. Whether right- or left-padding
+        reads the correct token is an empirical property of the custom modelling
+        code, not something to assume. We score a probe batch one-by-one (which is
+        unambiguous) and compare against both padding sides. If neither matches we
+        force batch_size=1 rather than silently produce garbage rewards.
+        """
+        probe = pairs[: min(8, len(pairs))]
+        assert len(probe) >= 2, "need at least 2 probe pairs to validate batching"
+        encoded = [self._encode(p, r) for p, r in probe]
+
+        singles = torch.cat([self._forward_rewards([e], "right") for e in encoded], dim=0)
+
+        report: dict = {"atol": atol, "n_probe": len(probe)}
+        for side in ("right", "left"):
+            batched = self._forward_rewards(encoded, side)
+            diff = float((batched - singles).abs().max())
+            report[f"max_abs_diff_{side}"] = diff
+            if diff <= atol:
+                self.padding_side = side
+                self.batching_validated = True
+                report["resolved_padding_side"] = side
+                report["fallback_to_batch_size_1"] = False
+                print(f"[armorm] batched scoring validated with {side} padding "
+                      f"(max|diff|={diff:.2e})")
+                return report
+
+        # Neither side reproduces single-example scores -> do not gamble.
+        CFG["armorm_reward_batch_size"] = 1
+        self.padding_side = "right"
+        self.batching_validated = True   # batch of 1 is trivially valid
+        report["resolved_padding_side"] = None
+        report["fallback_to_batch_size_1"] = True
+        warnings.warn(
+            "ArmoRM batched scoring does not reproduce single-example scores with "
+            "either padding side. Falling back to batch_size=1 (slower but correct).",
+            RuntimeWarning,
+        )
+        print("[armorm] WARNING: falling back to reward batch_size=1")
+        return report
+
+    def _score_matrix(self, prompts: list[str], responses: list[str]) -> np.ndarray:
         if len(prompts) != len(responses):
             raise ValueError("prompts and responses must have the same length.")
-        rewards = []
-        reward_device = next(self.model.parameters()).device
-        batch_size = int(CFG.get("armorm_reward_batch_size", 8))
-        for start in range(0, len(prompts), batch_size):
-            stop = min(start + batch_size, len(prompts))
-            encoded = []
-            for prompt, response in zip(prompts[start:stop], responses[start:stop]):
-                encoded.append(self._format(prompt, response).squeeze(0))
-            padded = torch.nn.utils.rnn.pad_sequence(
-                encoded,
-                batch_first=True,
-                padding_value=self.tokenizer.pad_token_id or self.tokenizer.eos_token_id,
+        if not self.batching_validated:
+            raise RuntimeError(
+                "Refusing to score before validate_batching() has run. "
+                "Call scorer.validate_batching(probe_pairs) first."
             )
-            pad_id = self.tokenizer.pad_token_id or self.tokenizer.eos_token_id
-            attention_mask = (padded != pad_id).long()
-            inputs = {
-                "input_ids": padded.to(reward_device),
-                "attention_mask": attention_mask.to(reward_device),
-            }
-            with torch.inference_mode():
-                outputs = self.model(**inputs)
-            head_rewards = getattr(outputs, "rewards", None)
-            if head_rewards is None:
-                raise RuntimeError("ArmoRM output has no .rewards tensor.")
-            tensor = torch.as_tensor(head_rewards).detach().float()
-            if tensor.ndim == 1:
-                tensor = tensor.unsqueeze(0)
-            if tensor.shape[1] <= self.objective_index:
-                raise RuntimeError(
-                    f"ArmoRM returned only {tensor.shape[1]} heads; "
-                    f"needed index {self.objective_index}."
-                )
-            rewards.extend(
-                torch.tensor(value, dtype=torch.float32)
-                for value in tensor[:, self.objective_index].cpu().tolist()
-            )
-        return rewards
+        chunks = []
+        bs = int(CFG.get("armorm_reward_batch_size", 8))
+        for start in range(0, len(prompts), bs):
+            stop = min(start + bs, len(prompts))
+            encoded = [self._encode(p, r)
+                       for p, r in zip(prompts[start:stop], responses[start:stop])]
+            chunks.append(self._forward_rewards(encoded, self.padding_side).numpy())
+        return np.concatenate(chunks, axis=0).astype(np.float64)
+
+    def score_batch(self, prompts: list[str], responses: list[str]) -> list[torch.Tensor]:
+        """Scalar reward for THIS axis (PPO signal)."""
+        matrix = self._score_matrix(prompts, responses)
+        column = matrix[:, self.objective_index]
+        return [torch.tensor(float(v), dtype=torch.float32) for v in column]
+
+    def score_all_heads(self, prompts: list[str], responses: list[str]) -> np.ndarray:
+        """Full [N, 5] HelpSteer2 head matrix (head sanity / Wall-A reward collection)."""
+        matrix = self._score_matrix(prompts, responses)
+        return matrix[:, self.helpsteer_indices()]
+
+
+# ----------------------------------------------------------------------------
+# [F5] Generation helper -- head sanity must see the PPO distribution
+# ----------------------------------------------------------------------------
+
+def generate_responses(model_path: str, prompts: list[str], seed: int,
+                       batch_size: int = 8,
+                       max_new_tokens: int | None = None) -> list[str]:
+    """Generate with the SAME config PPO uses (uniform 16..32 new tokens).
+
+    Head sanity on HelpSteer2 *reference* responses is the wrong distribution: the
+    reward model will only ever see short TinyLlama rollouts. A head can vary nicely
+    on human text and collapse on 16-32-token model output -- that is precisely the
+    QRM verbosity failure, one level deeper.
+    """
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    set_all_seeds(seed)
+    tok = AutoTokenizer.from_pretrained(model_path)
+    if tok.pad_token is None:
+        tok.pad_token = tok.eos_token
+    tok.padding_side = "left"  # correct side for decoder-only generation
+    model = AutoModelForCausalLM.from_pretrained(
+        model_path, torch_dtype=torch.bfloat16, device_map="auto")
+    model.eval()
+
+    responses: list[str] = []
+    for start in range(0, len(prompts), batch_size):
+        chunk = prompts[start:start + batch_size]
+        texts = [tok.apply_chat_template([{"role": "user", "content": p}],
+                                         tokenize=False, add_generation_prompt=True)
+                 for p in chunk]
+        enc = tok(texts, return_tensors="pt", padding=True).to(model.device)
+        n_new = max_new_tokens or random.randint(CFG["output_min_len"],
+                                                 CFG["output_max_len"])
+        with torch.inference_mode():
+            out = model.generate(**enc, max_new_tokens=n_new, do_sample=True,
+                                 top_k=0, top_p=1.0, pad_token_id=tok.eos_token_id)
+        gen = out[:, enc["input_ids"].shape[1]:]
+        responses.extend(tok.batch_decode(gen, skip_special_tokens=True))
+        print(f"[gen] {min(start + batch_size, len(prompts))}/{len(prompts)}")
+    del model
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    return responses
+
+
+# ----------------------------------------------------------------------------
+# [F6] Plateau detection -- the upper-bound argument needs a SHORT horizon
+# ----------------------------------------------------------------------------
+
+def detect_reward_plateau(log: list[dict]) -> dict:
+    """If the reward curve flattens, PPO has converged and delta != eta * grad r.
+
+    That breaks Assumption 1 again and with it the Best-Case ("upper bound")
+    reading of this experiment. Recorded so the thesis claim can be checked
+    instead of assumed.
+    """
+    window = int(CFG["plateau_window"])
+    rewards = np.asarray([row["mean_reward"] for row in log], dtype=np.float64)
+    if len(rewards) < max(10, window):
+        return {"reward_plateaued": None,
+                "reason": "too few steps to judge",
+                "n_steps": int(len(rewards))}
+    tail = rewards[-window:]
+    steps = np.arange(len(tail), dtype=np.float64)
+    slope = float(np.polyfit(steps, tail, 1)[0])
+    scale = float(rewards.std())
+    if scale == 0.0:
+        scale = 1.0
+    drift = abs(slope) * window
+    threshold = CFG["plateau_slope_eps"] * scale
+    plateaued = bool(drift < threshold)
+    return {
+        "reward_plateaued": plateaued,
+        "tail_window": window,
+        "tail_slope_per_step": slope,
+        "tail_drift_over_window": drift,
+        "reward_std_full_run": scale,
+        "threshold": threshold,
+        "interpretation": (
+            "PLATEAUED -> converged; Assumption 1 (delta ~ eta*grad r) is broken and "
+            "the upper-bound / Best-Case reading no longer holds."
+            if plateaued else
+            "still ascending -> short-horizon regime intact; upper-bound reading holds."
+        ),
+    }
 
 
 # ----------------------------------------------------------------------------
@@ -253,15 +515,14 @@ class ArmoRMHeadScorer:
 # ----------------------------------------------------------------------------
 
 def run_sft():
-    """TinyLlama + SFT on HelpSteer2 responses -> theta_SFT (full pipeline shared init).
+    """TinyLlama + SFT on HelpSteer2 responses -> theta_SFT (shared init).
 
     Deliberately minimal: generic instruction-SFT on HelpSteer2 (prompt -> response),
     NO attribute filtering here -- theta_SFT must be axis-neutral, specialization
     happens only in the PPO phase (RS-faithful).
     """
     from datasets import load_dataset
-    from transformers import (AutoModelForCausalLM, AutoTokenizer,
-                              TrainingArguments)
+    from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
     from trl import SFTTrainer
     from peft import LoraConfig
 
@@ -277,7 +538,6 @@ def run_sft():
     ds = load_dataset("nvidia/HelpSteer2", split="train")
 
     def fmt(ex):
-        # TinyLlama chat template, response supervised
         msgs = [{"role": "user", "content": ex["prompt"]},
                 {"role": "assistant", "content": ex["response"]}]
         return {"text": tok.apply_chat_template(msgs, tokenize=False)}
@@ -301,12 +561,13 @@ def run_sft():
                          dataset_text_field="text", max_seq_length=1024)
     trainer.train()
 
-    # merge LoRA into the base so theta_SFT is a plain checkpoint =
-    # the single shared init all PPO runs start from (and the KL reference)
+    # merge LoRA into the base so theta_SFT is a plain checkpoint = the single
+    # shared init all PPO runs start from (and the KL reference).
     merged = trainer.model.merge_and_unload()
     merged.save_pretrained(str(out / "merged"))
     tok.save_pretrained(str(out / "merged"))
-    print(f"[sft] theta_SFT saved to {out/'merged'}")
+    print(f"[sft] theta_SFT saved to {out / 'merged'}")
+    return str(out / "merged")
 
 
 # ----------------------------------------------------------------------------
@@ -319,7 +580,7 @@ def run_ppo(
     circular_armorm_acknowledged: bool = False,
 ):
     from transformers import AutoTokenizer, pipeline
-    from trl import (AutoModelForCausalLMWithValueHead, PPOConfig, PPOTrainer)
+    from trl import AutoModelForCausalLMWithValueHead, PPOConfig, PPOTrainer
     from peft import LoraConfig
 
     assert axis in ATTRIBUTES, f"unknown axis {axis}; choose one of {ATTRIBUTES}"
@@ -327,14 +588,14 @@ def run_ppo(
     assert rm_id, f"no reward model configured for axis {axis}"
     assert "<HF_ID" not in rm_id, "Phase-0 decision missing: set the reward model id"
     firewall = check_reward_firewall(
-        axis,
-        rm_id,
-        circular_armorm_acknowledged=circular_armorm_acknowledged,
-    )
+        axis, rm_id, circular_armorm_acknowledged=circular_armorm_acknowledged)
 
     set_all_seeds(CFG["train_seed"])   # identical seed schedule across axes
     sft_path = Path(CFG["out_dir"]) / "theta_sft" / "merged"
-    assert sft_path.exists(), "run --phase sft first (theta_SFT is the shared init)"
+    assert sft_path.exists(), (
+        f"theta_SFT not found at {sft_path}. Run --phase sft first with the SAME "
+        f"--out_dir. (This is the path bug that used to bite after five PPO runs.)"
+    )
     out = Path(CFG["out_dir"]) / f"ppo_{axis}"
     out.mkdir(parents=True, exist_ok=True)
 
@@ -360,15 +621,20 @@ def run_ppo(
         seed=CFG["train_seed"])
     trainer = PPOTrainer(config=ppo_cfg, model=policy, tokenizer=tok)
 
-    # Held-out RM as a black-box scoring pipeline. In the explicitly
-    # acknowledged circular mode, this becomes a frozen ArmoRM head scorer.
+    prompts = load_helpsteer2_prompts(CFG["n_prompts"], CFG["prompt_seed"])
+
+    # Reward pipeline. In acknowledged circular mode this is a frozen ArmoRM head.
+    batching_report = None
     if is_armorm_model(rm_id):
         reward_pipe = ArmoRMHeadScorer(axis=axis, model_id=rm_id)
+        # [F3] prove batched == single BEFORE a single PPO step is taken.
+        probe_pairs = [(p, "This is a short probe response used to validate the scorer.")
+                       for p in prompts[:8]]
+        batching_report = reward_pipe.validate_batching(probe_pairs)
     else:
         reward_pipe = pipeline("text-classification", model=rm_id,
                                device_map="auto", torch_dtype=torch.bfloat16)
 
-    prompts = load_helpsteer2_prompts(CFG["n_prompts"], CFG["prompt_seed"])
     gen_kwargs = dict(do_sample=True, top_k=0, top_p=1.0,
                       pad_token_id=tok.eos_token_id)
 
@@ -397,16 +663,20 @@ def run_ppo(
 
         stats = trainer.step(q_tensors, r_tensors, rewards)
         step += 1
+        values = [float(r.item()) for r in rewards]
         log.append({"step": step,
-                    "mean_reward": float(np.mean([r.item() for r in rewards])),
+                    "mean_reward": float(np.mean(values)),
+                    "reward_std": float(np.std(values)),
                     "kl": float(stats.get("objective/kl", float("nan")))})
         if step % 10 == 0:
             print(f"[ppo:{axis}] step {step}/{CFG['total_ppo_steps']} "
                   f"reward={log[-1]['mean_reward']:.4f} kl={log[-1]['kl']:.3f}")
 
-    # checkpoint selection: end-of-run adapter, chosen by held-out-RM/KL trace
-    # (NEVER by ArmoRM). Only the LoRA adapter is saved -> delta_i is exactly
-    # this adapter's effective update relative to theta_SFT.
+    # [F6] horizon diagnostic -- decides whether the upper-bound reading survives
+    plateau = detect_reward_plateau(log)
+    print(f"[ppo:{axis}] plateau check: {plateau['interpretation']}")
+
+    # checkpoint selection: end-of-run adapter, judged by the reward/KL trace only.
     policy.save_pretrained(str(out / "adapter"))
     (out / "ppo_log.json").write_text(json.dumps(
         {
@@ -414,36 +684,60 @@ def run_ppo(
             "rm": rm_id,
             "config": CFG,
             "firewall": firewall,
+            "armorm_batching_report": batching_report,
+            "armorm_objective_index": getattr(reward_pipe, "objective_index", None),
+            "armorm_objective_name": getattr(reward_pipe, "objective_name", None),
+            "plateau": plateau,
             "log": log,
         },
-        indent=2,
-    ))
-    print(f"[ppo:{axis}] adapter saved to {out/'adapter'}; log written.")
+        indent=2, default=str), encoding="utf-8")
+    print(f"[ppo:{axis}] adapter saved to {out / 'adapter'}; log written.")
+    return {"adapter": str(out / "adapter"), "plateau": plateau,
+            "batching": batching_report}
 
 
 # ----------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def _build_argparser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
     ap.add_argument("--phase", choices=["sft", "ppo"], required=True)
     ap.add_argument("--axis", default=None, help="required for --phase ppo")
-    ap.add_argument(
-        "--reward_model",
-        default=None,
-        help="Reward model id for PPO. Use ArmoRM only with --circular_armorm_acknowledged.",
+    ap.add_argument("--reward_model", default=None,
+                    help="Reward model id. ArmoRM only with --circular_armorm_acknowledged.")
+    ap.add_argument("--circular_armorm_acknowledged", action="store_true",
+                    help="Explicitly acknowledge circular PPO against ArmoRM.")
+    # [F1] overrides that used to be silently lost across the subprocess boundary
+    ap.add_argument("--out_dir", default=None)
+    ap.add_argument("--batch_size", type=int, default=None)
+    ap.add_argument("--mini_batch_size", type=int, default=None)
+    ap.add_argument("--total_ppo_steps", type=int, default=None)
+    ap.add_argument("--n_prompts", type=int, default=None)
+    ap.add_argument("--armorm_model", default=None)
+    ap.add_argument("--armorm_reward_batch_size", type=int, default=None)
+    ap.add_argument("--armorm_load_in_4bit", type=lambda s: s.lower() == "true",
+                    default=None)
+    return ap
+
+
+if __name__ == "__main__":
+    args = _build_argparser().parse_args()
+    apply_overrides(
+        out_dir=args.out_dir,
+        batch_size=args.batch_size,
+        mini_batch_size=args.mini_batch_size,
+        total_ppo_steps=args.total_ppo_steps,
+        n_prompts=args.n_prompts,
+        armorm_model=args.armorm_model,
+        armorm_reward_batch_size=args.armorm_reward_batch_size,
+        armorm_load_in_4bit=args.armorm_load_in_4bit,
     )
-    ap.add_argument(
-        "--circular_armorm_acknowledged",
-        action="store_true",
-        help="Explicitly acknowledge circular PPO against ArmoRM.",
-    )
-    a = ap.parse_args()
-    if a.phase == "sft":
+    print(f"[cfg] out_dir={CFG['out_dir']} batch_size={CFG['batch_size']} "
+          f"total_ppo_steps={CFG['total_ppo_steps']} n_prompts={CFG['n_prompts']} "
+          f"armorm_4bit={CFG['armorm_load_in_4bit']}")
+    if args.phase == "sft":
         run_sft()
     else:
-        assert a.axis, "--axis required for ppo phase"
-        run_ppo(
-            a.axis,
-            reward_model_id=a.reward_model,
-            circular_armorm_acknowledged=a.circular_armorm_acknowledged,
-        )
+        assert args.axis, "--axis required for ppo phase"
+        run_ppo(args.axis,
+                reward_model_id=args.reward_model,
+                circular_armorm_acknowledged=args.circular_armorm_acknowledged)
