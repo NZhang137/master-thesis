@@ -5,9 +5,13 @@ with code 0 only when every selected check passes. GPU/model stages are
 explicitly marked SKIP when prerequisites are missing, which still blocks
 training for the selected stage.
 
-Negative sanity test for maintainers: if `src.coefficient_portfolio.m1_plus`
-is temporarily changed to always return p, G1 must FAIL. That confirms the
-verifier is testing the production portfolio implementation, not a local copy.
+Negative sanity tests for maintainers:
+- if `src.coefficient_portfolio.m1_plus` is temporarily changed to always return
+  p, G1 must FAIL;
+- if `src.merge.combine_effective_deltas` is temporarily changed to use PEFT's
+  sqrt-weight "linear" factor formula, G7 must FAIL.
+These checks confirm the verifier is testing production implementations, not
+local copies.
 """
 
 from __future__ import annotations
@@ -36,9 +40,18 @@ from src.coefficient_portfolio import (  # noqa: E402 - project root is set abov
     paired_rank_delta,
     run_portfolio,
 )
+from src.merge import (  # noqa: E402 - project root is set above.
+    combine_effective_deltas,
+    effective_deltas,
+    merge_delta_norm_check,
+    merge_theta,
+    resolve_base_module,
+)
+from src.preferences import PREFERENCES  # noqa: E402 - project root is set above.
 
 REPORT_PATH = PROJECT_ROOT / "results" / "verify_rs_ppo_setup" / "report.json"
 NOTEBOOK_PATH = PROJECT_ROOT / "notebooks" / "08_rs_ppo_armorm_circular_colab.ipynb"
+NOTEBOOK_09_PATH = PROJECT_ROOT / "notebooks" / "09_final_merge_test_colab.ipynb"
 TRAIN_SCRIPT_PATH = PROJECT_ROOT / "scripts" / "train_rs_ppo.py"
 
 
@@ -59,24 +72,24 @@ def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def notebook_cells() -> list[dict[str, Any]]:
+def notebook_cells(path: Path = NOTEBOOK_PATH) -> list[dict[str, Any]]:
     """Load notebook cells."""
-    nb = json.loads(read_text(NOTEBOOK_PATH))
+    nb = json.loads(read_text(path))
     return list(nb.get("cells", []))
 
 
-def notebook_source() -> str:
+def notebook_source(path: Path = NOTEBOOK_PATH) -> str:
     """Return all notebook source text concatenated."""
     chunks: list[str] = []
-    for cell in notebook_cells():
+    for cell in notebook_cells(path):
         src = cell.get("source", "")
         chunks.append("".join(src) if isinstance(src, list) else str(src))
     return "\n".join(chunks)
 
 
-def notebook_config() -> dict[str, Any]:
+def notebook_config(path: Path = NOTEBOOK_PATH, variable_name: str = "CONFIG") -> dict[str, Any]:
     """Extract the literal CONFIG dict from the notebook setup cell."""
-    for cell in notebook_cells():
+    for cell in notebook_cells(path):
         if cell.get("cell_type") != "code":
             continue
         src = cell.get("source", "")
@@ -92,18 +105,18 @@ def notebook_config() -> dict[str, Any]:
         for node in tree.body:
             if (
                 isinstance(node, ast.Assign)
-                and any(isinstance(t, ast.Name) and t.id == "CONFIG" for t in node.targets)
+                and any(isinstance(t, ast.Name) and t.id == variable_name for t in node.targets)
             ):
                 value = ast.literal_eval(node.value)
                 if not isinstance(value, dict):
-                    raise TypeError("Notebook CONFIG is not a dict.")
+                    raise TypeError(f"Notebook {variable_name} is not a dict.")
                 return value
-    raise RuntimeError("Could not find literal CONFIG dict in notebook.")
+    raise RuntimeError(f"Could not find literal {variable_name} dict in notebook {path}.")
 
 
-def notebook_code_cell_containing(*needles: str) -> str:
+def notebook_code_cell_containing(*needles: str, path: Path = NOTEBOOK_PATH) -> str:
     """Return the first code cell containing all given strings."""
-    for cell in notebook_cells():
+    for cell in notebook_cells(path):
         if cell.get("cell_type") != "code":
             continue
         src = cell.get("source", "")
@@ -177,17 +190,14 @@ def collect_subscript_keys(node: ast.AST, variable_name: str) -> set[str]:
     return keys
 
 
-def merge_decision_keys_and_raw_delta_check() -> tuple[set[str], bool]:
-    """Return merge decision keys and whether raw paired per-prompt delta is used."""
-    text = notebook_code_cell_containing("MERGE_RESULTS_PATH", "primary_success")
+def raw_delta_check(path: Path) -> bool:
+    """Return whether a notebook computes per_prompt as (heads_l - heads_p) @ p_vec."""
+    text = notebook_code_cell_containing("per_prompt =", "delta_U_p_mean", path=path)
     tree = parse_notebook_code(text)
-    decision_keys: set[str] = set()
     raw_delta_seen = False
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign):
             target_names = {target.id for target in node.targets if isinstance(target, ast.Name)}
-            if target_names & {"n_sig", "q_sig"}:
-                decision_keys.update(collect_subscript_keys(node.value, "r"))
             if "per_prompt" in target_names:
                 value = node.value
                 if (
@@ -203,7 +213,64 @@ def merge_decision_keys_and_raw_delta_check() -> tuple[set[str], bool]:
                     and value.left.right.id == "heads_p"
                 ):
                     raw_delta_seen = True
-    return decision_keys, raw_delta_seen
+    return raw_delta_seen
+
+
+def nb09_metric_and_holm_check() -> dict[str, Any]:
+    """Validate NB09 metric provenance and Holm-corrected verdict wiring."""
+    prereg_text = notebook_code_cell_containing("PREREG_ADDENDUM_PATH", "PRIMARY_METRIC", path=NOTEBOOK_09_PATH)
+    prereg_tree = parse_notebook_code(prereg_text)
+    primary_from_nb08 = False
+    addendum_uses_primary = False
+    for node in ast.walk(prereg_tree):
+        if isinstance(node, ast.Assign):
+            targets = {target.id for target in node.targets if isinstance(target, ast.Name)}
+            if "PRIMARY_METRIC" in targets:
+                source = ast.unparse(node.value)
+                primary_from_nb08 = "nb08_prereg['primary']['metric']" in source
+        if isinstance(node, ast.Dict):
+            for key, value in zip(node.keys, node.values):
+                if isinstance(key, ast.Constant) and key.value == "metric":
+                    addendum_uses_primary = isinstance(value, ast.Name) and value.id == "PRIMARY_METRIC"
+
+    analysis_text = notebook_code_cell_containing(
+        "n_quality_significant_after_holm",
+        "upper_bound_verdict",
+        path=NOTEBOOK_09_PATH,
+    )
+    analysis_tree = parse_notebook_code(analysis_text)
+    verdict_uses_holm_count = False
+    raw_quality_count_drives_verdict = False
+    for node in ast.walk(analysis_tree):
+        if isinstance(node, ast.If):
+            cond = ast.unparse(node.test)
+            assigns_verdict = any(
+                isinstance(child, ast.Assign)
+                and any(isinstance(target, ast.Name) and target.id == "upper_bound_verdict"
+                        for target in child.targets)
+                for child in node.body + node.orelse
+            )
+            if assigns_verdict:
+                if "n_quality_significant_after_holm" in cond:
+                    verdict_uses_holm_count = True
+                if "q_sig" in cond or "n_quality_significant" in cond and "after_holm" not in cond:
+                    raw_quality_count_drives_verdict = True
+
+    raw_delta_seen = raw_delta_check(NOTEBOOK_09_PATH)
+    if not primary_from_nb08:
+        raise AssertionError("NB09 PRIMARY_METRIC is not sourced from NB08 preregistration primary.metric.")
+    if not addendum_uses_primary:
+        raise AssertionError("NB09 preregistration addendum does not write PRIMARY_METRIC as its metric.")
+    if not raw_delta_seen:
+        raise AssertionError("NB09 analysis does not compute per_prompt as (heads_l - heads_p) @ p_vec.")
+    if not verdict_uses_holm_count or raw_quality_count_drives_verdict:
+        raise AssertionError("NB09 upper_bound_verdict is not driven by the Holm-corrected quality count.")
+    return {
+        "primary_metric_from_nb08": primary_from_nb08,
+        "addendum_uses_primary_metric": addendum_uses_primary,
+        "raw_delta_seen": raw_delta_seen,
+        "verdict_uses_holm_count": verdict_uses_holm_count,
+    }
 
 
 def write_report(results: list[CheckResult], requested_stages: list[str]) -> None:
@@ -440,20 +507,11 @@ def check_s5_firewall() -> tuple[str, dict[str, Any]]:
 
 
 def check_s6_preregistration_consistency() -> tuple[str, dict[str, Any]]:
-    """S6: preregistered metrics must match the actual decision code."""
+    """S6: preregistered metrics must match the NB09 decision code."""
     prereg = extract_preregistration_dict()
     primary = prereg.get("primary", {})
     metric = str(primary.get("metric", ""))
     success = str(primary.get("success", ""))
-    decision_keys, raw_delta_seen = merge_decision_keys_and_raw_delta_check()
-
-    required_keys = {"delta_U_p_mean", "ci_excludes_zero"}
-    if not required_keys.issubset(decision_keys):
-        raise AssertionError(
-            f"Merge decision keys {sorted(decision_keys)} do not include {sorted(required_keys)}."
-        )
-    if not raw_delta_seen:
-        raise AssertionError("Merge code does not compute per_prompt as (heads_l - heads_p) @ p_vec.")
 
     metric_upper = metric.upper()
     required_metric_terms = ["PAIRED", "PER-PROMPT", "NATIVE ARMORM REWARD SCALE"]
@@ -477,11 +535,24 @@ def check_s6_preregistration_consistency() -> tuple[str, dict[str, Any]]:
     if prereg["secondary_non_circular"].get("wall_A_rule") != expected_rule:
         raise AssertionError("Wall-A rule in preregistration does not match the frozen rule.")
 
-    return "Pre-registration metric, decision keys, raw paired scale, and Wall-A threshold match.", {
-        "decision_keys": sorted(decision_keys),
+    nb09 = nb09_metric_and_holm_check()
+    return "NB08 preregistration, NB09 addendum, raw paired scale, Holm verdict, and Wall-A threshold match.", {
         "primary_metric": metric,
         "primary_success": success,
         "wall_A_R2_threshold": config_threshold,
+        "nb09": nb09,
+    }
+
+
+def check_s8_notebook08_no_primary_endpoint() -> tuple[str, dict[str, Any]]:
+    """S8: Notebook 08 must no longer contain the binding primary endpoint."""
+    source = notebook_source(NOTEBOOK_PATH)
+    forbidden = ["RUN_FINAL_MERGE", "MERGE_RESULTS_PATH"]
+    found = [needle for needle in forbidden if needle in source]
+    if found:
+        raise AssertionError(f"Notebook 08 still contains primary-endpoint markers: {found}")
+    return "Notebook 08 no longer contains RUN_FINAL_MERGE or MERGE_RESULTS_PATH.", {
+        "forbidden": forbidden,
     }
 
 
@@ -641,9 +712,21 @@ def check_g5_paired_rank_shape() -> tuple[str, dict[str, Any]]:
 
 
 def check_g6_no_duplicate_portfolio() -> tuple[str, dict[str, Any]]:
-    """G6: portfolio functions must only be defined in src/coefficient_portfolio.py."""
-    needles = tuple(f"def {name}(" for name in ("m1_plus", "c1_plus_plus", "run_portfolio", "floor_lp"))
-    allowed = (PROJECT_ROOT / "src" / "coefficient_portfolio.py").resolve()
+    """G6: portfolio and merge functions must only be defined in src modules."""
+    names = (
+        "m1_plus",
+        "c1_plus_plus",
+        "run_portfolio",
+        "floor_lp",
+        "merge_theta",
+        "effective_deltas",
+        "score_lambda",
+    )
+    needles = tuple(f"def {name}(" for name in names)
+    allowed_roots = {
+        (PROJECT_ROOT / "src" / "coefficient_portfolio.py").resolve(),
+        (PROJECT_ROOT / "src" / "merge.py").resolve(),
+    }
     hits: list[dict[str, Any]] = []
     for path in PROJECT_ROOT.rglob("*"):
         if not path.is_file() or path.suffix not in {".py", ".ipynb"}:
@@ -655,10 +738,53 @@ def check_g6_no_duplicate_portfolio() -> tuple[str, dict[str, Any]]:
         for line_no, line in enumerate(text.splitlines(), start=1):
             if any(needle in line for needle in needles):
                 hits.append({"path": str(path.relative_to(PROJECT_ROOT)), "line": line_no, "text": line.strip()})
-    duplicates = [hit for hit in hits if (PROJECT_ROOT / hit["path"]).resolve() != allowed]
+    duplicates = [hit for hit in hits if (PROJECT_ROOT / hit["path"]).resolve() not in allowed_roots]
     if duplicates:
-        raise AssertionError(f"Duplicate portfolio definitions found outside src/coefficient_portfolio.py: {duplicates}")
-    return "No duplicate portfolio definitions outside src/coefficient_portfolio.py.", {"hits": hits}
+        raise AssertionError(f"Duplicate portfolio/merge definitions found outside src/: {duplicates}")
+    return "No duplicate portfolio or merge definitions outside the shared src modules.", {"hits": hits}
+
+
+def check_g7_synthetic_lora_linearity() -> tuple[str, dict[str, Any]]:
+    """G7: exact effective-delta combination is linear; PEFT linear is not."""
+    rng = np.random.default_rng(137)
+    n_adapters = 5
+    rank = 8
+    out_dim = 17
+    in_dim = 13
+    scaling = 2.0
+    weights = np.asarray([0.15, 0.35, 0.25, 0.10, 0.15], dtype=np.float64)
+    deltas: dict[str, dict[str, np.ndarray]] = {}
+    lora_as: list[np.ndarray] = []
+    lora_bs: list[np.ndarray] = []
+    for i in range(n_adapters):
+        a = rng.normal(size=(rank, in_dim)).astype(np.float32)
+        b = rng.normal(size=(out_dim, rank)).astype(np.float32)
+        lora_as.append(a)
+        lora_bs.append(b)
+        deltas[f"a{i}"] = {"layer": scaling * (b @ a)}
+
+    combined = combine_effective_deltas(weights, deltas)["layer"]
+    exact = np.zeros_like(combined, dtype=np.float32)
+    for i, weight in enumerate(weights):
+        exact += float(weight) * deltas[f"a{i}"]["layer"]
+    rel_error = float(np.linalg.norm(combined - exact) / np.linalg.norm(exact))
+    if rel_error >= 1e-6:
+        raise AssertionError(f"Exact merge path is not linear enough: relative error {rel_error}")
+
+    a_linear = np.zeros_like(lora_as[0], dtype=np.float32)
+    b_linear = np.zeros_like(lora_bs[0], dtype=np.float32)
+    for weight, a, b in zip(weights, lora_as, lora_bs):
+        factor = math.sqrt(float(weight) * scaling)
+        a_linear += factor * a
+        b_linear += factor * b
+    peft_linear = b_linear @ a_linear
+    peft_rel_error = float(np.linalg.norm(peft_linear - exact) / np.linalg.norm(exact))
+    if peft_rel_error <= 0.1:
+        raise AssertionError(f"Synthetic PEFT-linear control was not wrong enough: {peft_rel_error}")
+    return "Synthetic LoRA exact sum is linear and PEFT-linear control shows cross-term error.", {
+        "exact_relative_error": rel_error,
+        "peft_linear_relative_error": peft_rel_error,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -805,32 +931,6 @@ def check_a4_armorm_axis_discriminance() -> tuple[str, dict[str, Any]]:
     }
 
 
-def merge_theta(
-    lmbda: np.ndarray,
-    adapter_paths: dict[str, Path],
-    base_path: Path,
-):
-    """Merge weighted LoRA adapters into theta_SFT and return the dense model."""
-    from peft import PeftModel
-    from transformers import AutoModelForCausalLM
-    import torch
-
-    model = AutoModelForCausalLM.from_pretrained(str(base_path), torch_dtype=torch.bfloat16, device_map="auto")
-    names = list(adapter_paths.keys())
-    peft_model = PeftModel.from_pretrained(model, str(adapter_paths[names[0]]), adapter_name=names[0])
-    for name in names[1:]:
-        peft_model.load_adapter(str(adapter_paths[name]), adapter_name=name)
-    peft_model.add_weighted_adapter(
-        adapters=names,
-        weights=[float(x) for x in lmbda],
-        adapter_name="merged",
-        combination_type="linear",
-    )
-    peft_model.set_adapter("merged")
-    merged = peft_model.merge_and_unload()
-    merged.eval()
-    return merged
-
 
 def stage3_paths() -> tuple[Path, dict[str, Path]]:
     """Resolve theta_SFT and PPO adapter paths."""
@@ -927,6 +1027,38 @@ def check_m3_different_lambdas_change_weights() -> tuple[str, dict[str, Any]]:
     return "Different lambda values produce different merged weights.", {"max_diff": diff}
 
 
+def check_m4_real_adapter_effective_merge() -> tuple[str, dict[str, Any]]:
+    """M4: real interior merge equals sum_i lambda_i delta_i on weights."""
+    torch = require_cuda()
+    from transformers import AutoModelForCausalLM
+
+    sft_path, adapter_paths = stage3_paths()
+    lmbda = np.asarray(PREFERENCES["dominant_complexity"], dtype=np.float64)
+    rel_error = merge_delta_norm_check(lmbda, adapter_paths)
+    if rel_error >= 1e-4:
+        raise AssertionError(f"merge_delta_norm_check failed on real adapters: {rel_error}")
+
+    merged = merge_theta(lmbda, adapter_paths, sft_path)
+    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.bfloat16, device_map="auto")
+    expected = combine_effective_deltas(lmbda, effective_deltas(adapter_paths))
+    max_abs = 0.0
+    with torch.inference_mode():
+        for module_name, expected_delta in expected.items():
+            merged_module = resolve_base_module(merged, module_name)
+            base_module = resolve_base_module(base, module_name)
+            actual_delta = merged_module.weight.detach().float() - base_module.weight.detach().float()
+            diff = actual_delta - expected_delta.to(device=actual_delta.device, dtype=torch.float32)
+            max_abs = max(max_abs, float(diff.abs().max().detach().cpu()))
+    del merged, base
+    torch.cuda.empty_cache()
+    if max_abs >= 1e-3:
+        raise AssertionError(f"Merged model weights do not match effective delta sum: max_abs={max_abs}")
+    return "Real dominant_complexity merge matches sum_i lambda_i delta_i.", {
+        "merge_delta_norm_rel_error": rel_error,
+        "max_abs_weight_error": max_abs,
+    }
+
+
 STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] | None]]]]] = {
     "0": [
         ("S1", check_s1_axis_order),
@@ -936,6 +1068,7 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("S5", check_s5_firewall),
         ("S6", check_s6_preregistration_consistency),
         ("S7", check_s7_equal_n),
+        ("S8", check_s8_notebook08_no_primary_endpoint),
     ],
     "1": [
         ("G1", check_g1_conflict_free_floor),
@@ -944,6 +1077,7 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("G4", check_g4_vector_implies_scalar),
         ("G5", check_g5_paired_rank_shape),
         ("G6", check_g6_no_duplicate_portfolio),
+        ("G7", check_g7_synthetic_lora_linearity),
     ],
     "2": [
         ("A1", check_a1_armorm_head_indices),
@@ -955,15 +1089,21 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("M1", check_m1_vertex_merge_reproduces_adapter),
         ("M2", check_m2_zero_merge_is_base),
         ("M3", check_m3_different_lambdas_change_weights),
+        ("M4", check_m4_real_adapter_effective_merge),
     ],
 }
 
 
-def selected_stages(stage: str) -> list[str]:
+def selected_stages(stage: str | list[str] | None) -> list[str]:
     """Resolve stage argument to stages to run."""
-    if stage == "all":
+    if stage is None:
+        return ["0", "1"]
+    raw = stage if isinstance(stage, list) else [stage]
+    if any(item == "all" for item in raw):
         return ["0", "1", "2", "3"]
-    stages = [part.strip() for part in stage.split(",") if part.strip()]
+    stages: list[str] = []
+    for item in raw:
+        stages.extend(part.strip() for part in item.split(",") if part.strip())
     valid = set(STAGE_CHECKS)
     invalid = [part for part in stages if part not in valid]
     if invalid or not stages:
@@ -976,7 +1116,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Verify RS-PPO setup before training.")
     parser.add_argument(
         "--stage",
-        default="0,1",
+        action="append",
+        default=None,
         help="Verification stage(s), e.g. 0, 1, 0,1, 2, 3, or all. Stage 0 and 1 are GPU-free.",
     )
     return parser.parse_args()

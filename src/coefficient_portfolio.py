@@ -16,7 +16,12 @@ from scipy.stats import rankdata
 
 
 def floor_lp(R: np.ndarray, tol: float = 1e-9) -> tuple[float, bool]:
-    """Return max_{1^T v = 0, ||v||_1 <= 1} min_i (Rv)_i and collapse flag."""
+    """Return the global floor-existence LP value and collapse flag.
+
+    This p-agnostic test asks whether any simplex-tangent direction can improve
+    all objectives. It ignores the current preference boundary. Use
+    `floor_lp_at_p` for the per-preference certificate.
+    """
     matrix = np.asarray(R, dtype=float)
     n = matrix.shape[0]
     c = np.zeros(2 * n + 1)
@@ -36,6 +41,64 @@ def floor_lp(R: np.ndarray, tol: float = 1e-9) -> tuple[float, bool]:
     row[:2 * n] = 1.0
     a_ub.append(row)
     b_ub.append(1.0)
+
+    a_eq = np.asarray([np.r_[np.ones(n), -np.ones(n), 0.0]])
+    lp = linprog(
+        c,
+        A_ub=np.asarray(a_ub),
+        b_ub=np.asarray(b_ub),
+        A_eq=a_eq,
+        b_eq=np.asarray([0.0]),
+        bounds=[(0.0, None)] * (2 * n) + [(None, None)],
+        method="highs",
+    )
+    assert lp.success, lp.message
+    value = float(-lp.fun)
+    return value, bool(value <= tol)
+
+
+def floor_lp_at_p(R: np.ndarray, p: np.ndarray, tol: float = 1e-9) -> tuple[float, bool]:
+    """Return the p-aware floor LP value and collapse flag.
+
+    Solves max t subject to (Rv)_i >= t, 1^T v = 0, v >= -p, and ||v||_1 <= 1.
+    The extra v >= -p constraint is essential for boundary preferences such as
+    one-hot "only_*" points; the global floor LP is not a valid certificate
+    there.
+    """
+    matrix = np.asarray(R, dtype=float)
+    pref = np.asarray(p, dtype=float)
+    n = matrix.shape[0]
+    if matrix.shape != (n, n):
+        raise ValueError("R must be square.")
+    if pref.shape != (n,):
+        raise ValueError(f"p must have shape {(n,)}, got {pref.shape}.")
+    if np.any(pref < -1e-12) or not np.isclose(pref.sum(), 1.0):
+        raise ValueError("p must lie on the simplex.")
+
+    c = np.zeros(2 * n + 1)
+    c[-1] = -1.0
+    a_ub: list[np.ndarray] = []
+    b_ub: list[float] = []
+
+    for i in range(n):
+        row = np.zeros(2 * n + 1)
+        row[:n] = -matrix[i]
+        row[n:2 * n] = matrix[i]
+        row[-1] = 1.0
+        a_ub.append(row)
+        b_ub.append(0.0)
+
+    row = np.zeros(2 * n + 1)
+    row[:2 * n] = 1.0
+    a_ub.append(row)
+    b_ub.append(1.0)
+
+    for i in range(n):
+        row = np.zeros(2 * n + 1)
+        row[i] = -1.0
+        row[n + i] = 1.0
+        a_ub.append(row)
+        b_ub.append(float(pref[i]))
 
     a_eq = np.asarray([np.r_[np.ones(n), -np.ones(n), 0.0]])
     lp = linprog(
