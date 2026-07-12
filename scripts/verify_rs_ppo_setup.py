@@ -253,6 +253,7 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
     analysis_reports_unweighted_delta_m = False
     analysis_reports_weighted_delta_m = False
     holm_uses_testable_rows = False
+    analysis_checks_scoring_status = False
     for node in ast.walk(analysis_tree):
         if isinstance(node, ast.If):
             cond = ast.unparse(node.test)
@@ -283,6 +284,11 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
             text = ast.unparse(node)
             if "row['testable']" in text and "row['preference'] in family" in text:
                 holm_uses_testable_rows = True
+    analysis_source = ast.unparse(analysis_tree)
+    analysis_checks_scoring_status = all(
+        needle in analysis_source
+        for needle in ("SCORING_STATUS_PATH", "n_gen_per_prompt", "merge_dtype", "CONFIG_09['MERGE_DTYPE']")
+    )
 
     raw_delta_seen = raw_delta_check(NOTEBOOK_09_PATH)
     if not primary_from_nb08:
@@ -299,6 +305,8 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
         raise AssertionError("NB09 analysis does not report both Delta m% variants with distinct names.")
     if not holm_uses_testable_rows:
         raise AssertionError("NB09 Holm correction does not appear to exclude no-movement rows.")
+    if not analysis_checks_scoring_status:
+        raise AssertionError("NB09 analysis does not gate heads_by_lambda.npz on scoring status provenance.")
     return {
         "primary_metric_from_nb08": primary_from_nb08,
         "addendum_uses_primary_metric": addendum_uses_primary,
@@ -306,6 +314,7 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
         "verdict_uses_holm_count": verdict_uses_holm_count,
         "delta_m_secondary_metric": "delta_m_percent_unweighted_gain",
         "holm_moving_preferences_only": holm_uses_testable_rows,
+        "heads_by_lambda_scoring_status_gate": analysis_checks_scoring_status,
     }
 
 

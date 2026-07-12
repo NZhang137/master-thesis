@@ -1,5 +1,5 @@
 {
-  "created_at_utc": "2026-07-12T23:16:40.996514+00:00",
+  "created_at_utc": "2026-07-12T23:26:38.050626+00:00",
   "results": [
     {
       "check_id": "S1",
@@ -26,7 +26,7 @@
           "verbosity"
         ]
       },
-      "elapsed_s": 0.006102561950683594,
+      "elapsed_s": 0.013944387435913086,
       "message": "Axis order is shared by train script, HelpSteer2 utils, and notebook.",
       "stage": "0",
       "status": "PASS"
@@ -47,7 +47,7 @@
         "armorm_calls": 1,
         "policy_calls": 1
       },
-      "elapsed_s": 0.006456851959228516,
+      "elapsed_s": 0.0065038204193115234,
       "message": "Policy has no device_map; ArmoRM loader keeps device_map.",
       "stage": "0",
       "status": "PASS"
@@ -60,7 +60,7 @@
         "out_dir": "results/verify_rs_ppo_setup/_tmp_rs_runs",
         "total_ppo_steps": 19
       },
-      "elapsed_s": 0.005001068115234375,
+      "elapsed_s": 0.004013538360595703,
       "message": "apply_overrides writes and exposes out_dir/batch_size/steps/prompts.",
       "stage": "0",
       "status": "PASS"
@@ -86,7 +86,7 @@
         ],
         "warning": "CIRCULAR ArmoRM PPO acknowledged: PPO reward model and evaluation model are both ArmoRM. This retires RQ2 proxy-validity claims. Valid use is only upper-bound, R-minus, Wall-A/R2, and LMC diagnostics."
       },
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.005259990692138672,
       "message": "Firewall blocks unacknowledged ArmoRM and retires RQ2 when acknowledged.",
       "stage": "0",
       "status": "PASS"
@@ -97,6 +97,7 @@
         "nb09": {
           "addendum_uses_primary_metric": true,
           "delta_m_secondary_metric": "delta_m_percent_unweighted_gain",
+          "heads_by_lambda_scoring_status_gate": true,
           "holm_moving_preferences_only": true,
           "primary_metric_from_nb08": true,
           "raw_delta_seen": true,
@@ -106,7 +107,7 @@
         "primary_success": "mean Delta U_p > 0 with bootstrap 95% CI (2000 resamples) excluding 0",
         "wall_A_R2_threshold": 0.3
       },
-      "elapsed_s": 0.007825851440429688,
+      "elapsed_s": 0.01009678840637207,
       "message": "NB08 preregistration, NB09 addendum, raw paired scale, Holm verdict, and Wall-A threshold match.",
       "stage": "0",
       "status": "PASS"
@@ -118,7 +119,7 @@
         "total_ppo_steps": 200,
         "train_seed": 911
       },
-      "elapsed_s": 0.008855581283569336,
+      "elapsed_s": 0.006031036376953125,
       "message": "prompt_seed, train_seed, and total_ppo_steps are global scalar settings.",
       "stage": "0",
       "status": "PASS"
@@ -145,7 +146,7 @@
           "scalar_gain_pT_R_dlam": 0.07875000000000003
         }
       },
-      "elapsed_s": 0.0049686431884765625,
+      "elapsed_s": 0.006930112838745117,
       "message": "Production portfolio: conflict-free R collapses floor; vector-safe methods return p; M1+ moves.",
       "stage": "1",
       "status": "PASS"
@@ -156,7 +157,7 @@
         "floor_lp_value": -0.0,
         "min_eigenvalue": 0.6000000000000001
       },
-      "elapsed_s": 0.002003192901611328,
+      "elapsed_s": 0.001999378204345703,
       "message": "PSD R has negative off-diagonals, but floor remains collapsed; LP is the criterion.",
       "stage": "1",
       "status": "PASS"
@@ -177,7 +178,7 @@
           "P3++": 0.0
         }
       },
-      "elapsed_s": 0.006814002990722656,
+      "elapsed_s": 0.008294105529785156,
       "message": "C1++/M1++/P2++/P3++ satisfy R(lambda-p)>=0 in synthetic cases.",
       "stage": "1",
       "status": "PASS"
@@ -230,7 +231,7 @@
           }
         }
       },
-      "elapsed_s": 0.0031321048736572266,
+      "elapsed_s": 0.006737232208251953,
       "message": "Every vector-safe synthetic lambda is scalar-safe.",
       "stage": "1",
       "status": "PASS"
@@ -242,7 +243,7 @@
           13
         ]
       },
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.0010097026824951172,
       "message": "paired_rank_delta returns one value per prompt.",
       "stage": "1",
       "status": "PASS"
@@ -298,7 +299,7 @@
           }
         ]
       },
-      "elapsed_s": 0.11636948585510254,
+      "elapsed_s": 0.12140440940856934,
       "message": "No duplicate portfolio or merge definitions outside the shared src modules.",
       "stage": "1",
       "status": "PASS"
@@ -315,7 +316,7 @@
           "a2": 0.0
         }
       },
-      "elapsed_s": 3.3322935104370117,
+      "elapsed_s": 4.548069715499878,
       "message": "Toy PEFT end-to-end merge matches independent oracle; PEFT-linear control fails.",
       "stage": "1",
       "status": "PASS"
@@ -327,7 +328,7 @@
         "bf16_noise_over_true_displacement": 0.03011915940519991,
         "lambda_l2": 0.12247448713915887
       },
-      "elapsed_s": 0.21413207054138184,
+      "elapsed_s": 0.3166341781616211,
       "message": "Toy bf16 storage diagnostic recorded; no pass/fail threshold on toy scales.",
       "stage": "1",
       "status": "PASS"
