@@ -8,6 +8,12 @@ where each LoRA task vector is the effective update
 
     delta_i,l = (lora_alpha_i,l / r_i,l) * B_i,l @ A_i,l.
 
+Evaluation merges default to float32 storage. The final endpoint compares
+theta(lambda*) against theta(p), and that displacement can be much smaller than
+the base weights. Storing the merged weights in bf16 can therefore inject
+rounding noise comparable to the signal. Training may still use bf16, but
+measurement merges should keep fp32 unless a verifier check proves otherwise.
+
 Do not use PEFT `add_weighted_adapter(..., combination_type="linear")` for this
 experiment. In PEFT 0.10.0 that path combines factors as
 
@@ -173,6 +179,28 @@ def apply_effective_deltas_to_model(
             weight.copy_(update.to(dtype=target_dtype))
 
 
+def resolve_torch_dtype(dtype: Any = None) -> Any:
+    """Resolve a torch dtype object from a string or None."""
+    import torch
+
+    if dtype is None:
+        return torch.float32
+    if isinstance(dtype, str):
+        aliases = {
+            "float32": torch.float32,
+            "fp32": torch.float32,
+            "bfloat16": torch.bfloat16,
+            "bf16": torch.bfloat16,
+            "float16": torch.float16,
+            "fp16": torch.float16,
+        }
+        key = dtype.lower()
+        if key not in aliases:
+            raise ValueError(f"Unsupported merge dtype {dtype!r}; choose one of {sorted(aliases)}.")
+        return aliases[key]
+    return dtype
+
+
 def merge_theta(
     lmbda: np.ndarray | list[float] | tuple[float, ...],
     adapter_paths: dict[str, Path],
@@ -180,11 +208,11 @@ def merge_theta(
     dtype: Any = None,
 ) -> Any:
     """Load theta_SFT and add sum_i lambda_i delta_i directly to target weights."""
-    import torch
     from transformers import AutoModelForCausalLM
 
-    if dtype is None:
-        dtype = torch.bfloat16
+    import torch
+
+    dtype = resolve_torch_dtype(dtype)
     load_kwargs: dict[str, Any] = {"torch_dtype": dtype}
     if torch.cuda.is_available():
         load_kwargs["device_map"] = "auto"
@@ -194,28 +222,3 @@ def merge_theta(
     apply_effective_deltas_to_model(model, merged)
     model.eval()
     return model
-
-
-def merge_delta_norm_check(
-    lmbda: np.ndarray | list[float] | tuple[float, ...],
-    adapter_paths: dict[str, Path],
-) -> float:
-    """Return relative error of the exact effective-delta combination."""
-    import torch
-
-    deltas = effective_deltas(adapter_paths)
-    merged = combine_effective_deltas(lmbda, deltas)
-    names = list(deltas.keys())
-    weights = np.asarray(lmbda, dtype=np.float64)
-    total_sq = 0.0
-    err_sq = 0.0
-    for module_name in sorted(merged):
-        exact = torch.zeros_like(merged[module_name], dtype=torch.float32)
-        for adapter_name, weight in zip(names, weights):
-            exact.add_(deltas[adapter_name][module_name].to(dtype=torch.float32), alpha=float(weight))
-        diff = merged[module_name] - exact
-        err_sq += float(torch.sum(diff.float() * diff.float()).item())
-        total_sq += float(torch.sum(exact.float() * exact.float()).item())
-    if total_sq <= 0.0:
-        return 0.0 if err_sq == 0.0 else float("inf")
-    return float((err_sq ** 0.5) / (total_sq ** 0.5))

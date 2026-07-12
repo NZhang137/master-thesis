@@ -8,8 +8,9 @@ training for the selected stage.
 Negative sanity tests for maintainers:
 - if `src.coefficient_portfolio.m1_plus` is temporarily changed to always return
   p, G1 must FAIL;
-- if `src.merge.combine_effective_deltas` is temporarily changed to use PEFT's
-  sqrt-weight "linear" factor formula, G7 must FAIL.
+- if `src.merge.effective_deltas` is temporarily changed to use sqrt scaling,
+  if B@A is transposed, or if `resolve_base_module` maps to a wrong module,
+  G7 must FAIL.
 These checks confirm the verifier is testing production implementations, not
 local copies.
 """
@@ -21,8 +22,10 @@ import ast
 import importlib
 import json
 import math
+import os
 import sys
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,13 +43,7 @@ from src.coefficient_portfolio import (  # noqa: E402 - project root is set abov
     paired_rank_delta,
     run_portfolio,
 )
-from src.merge import (  # noqa: E402 - project root is set above.
-    combine_effective_deltas,
-    effective_deltas,
-    merge_delta_norm_check,
-    merge_theta,
-    resolve_base_module,
-)
+from src.merge import merge_theta  # noqa: E402 - project root is set above.
 from src.preferences import PREFERENCES  # noqa: E402 - project root is set above.
 
 REPORT_PATH = PROJECT_ROOT / "results" / "verify_rs_ppo_setup" / "report.json"
@@ -222,6 +219,8 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
     prereg_tree = parse_notebook_code(prereg_text)
     primary_from_nb08 = False
     addendum_uses_primary = False
+    addendum_reports_unweighted_delta_m = False
+    addendum_context_weighted_delta_m = False
     for node in ast.walk(prereg_tree):
         if isinstance(node, ast.Assign):
             targets = {target.id for target in node.targets if isinstance(target, ast.Name)}
@@ -232,6 +231,16 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
             for key, value in zip(node.keys, node.values):
                 if isinstance(key, ast.Constant) and key.value == "metric":
                     addendum_uses_primary = isinstance(value, ast.Name) and value.id == "PRIMARY_METRIC"
+                if isinstance(key, ast.Constant) and key.value == "reported_secondary_metric":
+                    addendum_reports_unweighted_delta_m = (
+                        isinstance(value, ast.Constant)
+                        and value.value == "delta_m_percent_unweighted_gain"
+                    )
+                if isinstance(key, ast.Constant) and key.value == "context_metric":
+                    addendum_context_weighted_delta_m = (
+                        isinstance(value, ast.Constant)
+                        and value.value == "delta_m_percent_pref_weighted_gain"
+                    )
 
     analysis_text = notebook_code_cell_containing(
         "n_quality_significant_after_holm",
@@ -241,6 +250,9 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
     analysis_tree = parse_notebook_code(analysis_text)
     verdict_uses_holm_count = False
     raw_quality_count_drives_verdict = False
+    analysis_reports_unweighted_delta_m = False
+    analysis_reports_weighted_delta_m = False
+    holm_uses_testable_rows = False
     for node in ast.walk(analysis_tree):
         if isinstance(node, ast.If):
             cond = ast.unparse(node.test)
@@ -255,6 +267,22 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
                     verdict_uses_holm_count = True
                 if "q_sig" in cond or "n_quality_significant" in cond and "after_holm" not in cond:
                     raw_quality_count_drives_verdict = True
+        if isinstance(node, ast.Dict):
+            for key, value in zip(node.keys, node.values):
+                if isinstance(key, ast.Constant) and key.value == "reported_secondary_metric":
+                    analysis_reports_unweighted_delta_m = (
+                        isinstance(value, ast.Constant)
+                        and value.value == "delta_m_percent_unweighted_gain"
+                    )
+                if isinstance(key, ast.Constant) and key.value == "context_secondary_metric":
+                    analysis_reports_weighted_delta_m = (
+                        isinstance(value, ast.Constant)
+                        and value.value == "delta_m_percent_pref_weighted_gain"
+                    )
+        if isinstance(node, ast.ListComp):
+            text = ast.unparse(node)
+            if "row['testable']" in text and "row['preference'] in family" in text:
+                holm_uses_testable_rows = True
 
     raw_delta_seen = raw_delta_check(NOTEBOOK_09_PATH)
     if not primary_from_nb08:
@@ -265,11 +293,19 @@ def nb09_metric_and_holm_check() -> dict[str, Any]:
         raise AssertionError("NB09 analysis does not compute per_prompt as (heads_l - heads_p) @ p_vec.")
     if not verdict_uses_holm_count or raw_quality_count_drives_verdict:
         raise AssertionError("NB09 upper_bound_verdict is not driven by the Holm-corrected quality count.")
+    if not (addendum_reports_unweighted_delta_m and addendum_context_weighted_delta_m):
+        raise AssertionError("NB09 addendum does not freeze the unweighted Delta m% secondary metric.")
+    if not (analysis_reports_unweighted_delta_m and analysis_reports_weighted_delta_m):
+        raise AssertionError("NB09 analysis does not report both Delta m% variants with distinct names.")
+    if not holm_uses_testable_rows:
+        raise AssertionError("NB09 Holm correction does not appear to exclude no-movement rows.")
     return {
         "primary_metric_from_nb08": primary_from_nb08,
         "addendum_uses_primary_metric": addendum_uses_primary,
         "raw_delta_seen": raw_delta_seen,
         "verdict_uses_holm_count": verdict_uses_holm_count,
+        "delta_m_secondary_metric": "delta_m_percent_unweighted_gain",
+        "holm_moving_preferences_only": holm_uses_testable_rows,
     }
 
 
@@ -509,6 +545,12 @@ def check_s5_firewall() -> tuple[str, dict[str, Any]]:
 def check_s6_preregistration_consistency() -> tuple[str, dict[str, Any]]:
     """S6: preregistered metrics must match the NB09 decision code."""
     prereg = extract_preregistration_dict()
+    expected_superseder = "preregistration_addendum_nb09.json (Holm-corrected, per-family)"
+    if prereg.get("superseded_by") != expected_superseder:
+        raise AssertionError(
+            "NB08 preregistration must point to the Holm-corrected NB09 addendum; "
+            f"got {prereg.get('superseded_by')!r}."
+        )
     primary = prereg.get("primary", {})
     metric = str(primary.get("metric", ""))
     success = str(primary.get("success", ""))
@@ -711,6 +753,220 @@ def check_g5_paired_rank_shape() -> tuple[str, dict[str, Any]]:
     return "paired_rank_delta returns one value per prompt.", {"shape": list(delta.shape)}
 
 
+TOY_TARGET_MODULES = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
+
+def require_toy_merge_deps() -> dict[str, Any]:
+    """Import CPU-only model/PEFT dependencies for the toy merge verifier."""
+    cache_root = PROJECT_ROOT / "results" / "verify_rs_ppo_setup" / "hf_cache"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("HF_HOME", str(cache_root))
+    os.environ.setdefault("TRANSFORMERS_CACHE", str(cache_root / "transformers"))
+    try:
+        import torch
+        from peft import LoraConfig, PeftModel, get_peft_model
+        from safetensors.torch import load_file
+        from transformers import LlamaConfig, LlamaForCausalLM
+    except Exception as exc:  # noqa: BLE001
+        raise SkipCheck(
+            "Toy merge checks require torch, transformers, peft, and safetensors.",
+            error=repr(exc),
+        ) from exc
+    return {
+        "torch": torch,
+        "LoraConfig": LoraConfig,
+        "PeftModel": PeftModel,
+        "get_peft_model": get_peft_model,
+        "load_file": load_file,
+        "LlamaConfig": LlamaConfig,
+        "LlamaForCausalLM": LlamaForCausalLM,
+    }
+
+
+def independent_find_weight_module(model: Any, module_name: str) -> Any:
+    """Resolve a module name without using src.merge."""
+    modules = dict(model.named_modules())
+    candidates = [module_name]
+    if module_name.startswith("base_model.model."):
+        candidates.append(module_name[len("base_model.model."):])
+    if module_name.startswith("model."):
+        candidates.append(module_name)
+    for candidate in dict.fromkeys(candidates):
+        if candidate in modules and hasattr(modules[candidate], "weight"):
+            return modules[candidate]
+    matches = [
+        module for name, module in modules.items()
+        if name.endswith(f".{module_name}") and hasattr(module, "weight")
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    raise KeyError(f"Could not independently resolve module {module_name!r}.")
+
+
+def adapter_weight_path(adapter_path: Path) -> tuple[Path, str]:
+    """Return adapter weight path and storage format."""
+    safetensors_path = adapter_path / "adapter_model.safetensors"
+    if safetensors_path.exists():
+        return safetensors_path, "safetensors"
+    bin_path = adapter_path / "adapter_model.bin"
+    if bin_path.exists():
+        return bin_path, "bin"
+    raise FileNotFoundError(f"No adapter weights found in {adapter_path}")
+
+
+def split_lora_module_key(key: str, side: str) -> tuple[str, str] | None:
+    """Return (base_module_name, matching_suffix) for one LoRA key."""
+    suffixes = (f".lora_{side}.default.weight", f".lora_{side}.weight")
+    for suffix in suffixes:
+        if key.endswith(suffix):
+            module_name = key[:-len(suffix)]
+            if module_name.startswith("base_model.model."):
+                module_name = module_name[len("base_model.model."):]
+            return module_name, suffix
+    return None
+
+
+def independent_effective_deltas(adapter_path: Path) -> dict[str, Any]:
+    """Read a PEFT adapter directly and compute (alpha/r) B@A without src.merge."""
+    deps = require_toy_merge_deps()
+    torch = deps["torch"]
+    load_file = deps["load_file"]
+
+    cfg = json.loads((adapter_path / "adapter_config.json").read_text(encoding="utf-8"))
+    rank = cfg["r"]
+    alpha = cfg["lora_alpha"]
+    if isinstance(rank, dict) or isinstance(alpha, dict):
+        raise ValueError("The verifier expects scalar LoRA r and lora_alpha.")
+    scaling = float(alpha) / float(rank)
+    weight_path, fmt = adapter_weight_path(adapter_path)
+    state = load_file(str(weight_path)) if fmt == "safetensors" else torch.load(weight_path, map_location="cpu")
+
+    deltas: dict[str, Any] = {}
+    for key, value in state.items():
+        parsed = split_lora_module_key(key, "A")
+        if parsed is None:
+            continue
+        module_name, suffix = parsed
+        b_key = key[:-len(suffix)] + suffix.replace("lora_A", "lora_B")
+        if b_key not in state:
+            raise KeyError(f"Missing matching LoRA B tensor for {key}")
+        lora_a = value.detach().cpu().to(dtype=torch.float64)
+        lora_b = state[b_key].detach().cpu().to(dtype=torch.float64)
+        deltas[module_name] = scaling * (lora_b @ lora_a)
+    if not deltas:
+        raise AssertionError(f"No LoRA A/B pairs found in {adapter_path}")
+    return deltas
+
+
+def independent_expected_weights(
+    base_model: Any,
+    adapter_paths: dict[str, Path],
+    lmbda: np.ndarray,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Compute expected target weights from raw adapter files, independent of src.merge."""
+    names = list(adapter_paths)
+    weights = np.asarray(lmbda, dtype=np.float64)
+    raw_deltas = {name: independent_effective_deltas(adapter_paths[name]) for name in names}
+    module_names = sorted(raw_deltas[names[0]])
+    for name in names[1:]:
+        if sorted(raw_deltas[name]) != module_names:
+            raise AssertionError(f"Adapter {name!r} has a different LoRA target set.")
+
+    base_weights: dict[str, Any] = {}
+    expected: dict[str, Any] = {}
+    for module_name in module_names:
+        module = independent_find_weight_module(base_model, module_name)
+        weight = module.weight.detach().cpu().to(dtype=raw_deltas[names[0]][module_name].dtype)
+        base_weights[module_name] = weight.clone()
+        total = weight.clone()
+        for adapter_name, coeff in zip(names, weights):
+            total = total + float(coeff) * raw_deltas[adapter_name][module_name]
+        expected[module_name] = total
+    return expected, base_weights
+
+
+def max_abs_target_error(model: Any, expected: dict[str, Any]) -> tuple[float, dict[str, float]]:
+    """Return max absolute error on expected target weights."""
+    errors: dict[str, float] = {}
+    for module_name, expected_weight in expected.items():
+        actual = independent_find_weight_module(model, module_name).weight.detach().cpu().to(dtype=expected_weight.dtype)
+        errors[module_name] = float((actual - expected_weight).abs().max().item())
+    return max(errors.values()), errors
+
+
+def relative_delta_error(model: Any, expected: dict[str, Any], base_weights: dict[str, Any]) -> float:
+    """Relative error against the true target delta, not against full base weights."""
+    numerator = 0.0
+    denominator = 0.0
+    for module_name, expected_weight in expected.items():
+        actual = independent_find_weight_module(model, module_name).weight.detach().cpu().to(dtype=expected_weight.dtype)
+        diff = actual - expected_weight
+        true_delta = expected_weight - base_weights[module_name]
+        numerator += float((diff * diff).sum().item())
+        denominator += float((true_delta * true_delta).sum().item())
+    return float(math.sqrt(numerator / denominator)) if denominator > 0 else float("inf")
+
+
+def build_toy_lora_case(tmp_root: Path, n_adapters: int = 3) -> tuple[Path, dict[str, Path], Any]:
+    """Build a tiny LlamaForCausalLM and real random PEFT LoRA adapters on CPU."""
+    deps = require_toy_merge_deps()
+    torch = deps["torch"]
+    LlamaConfig = deps["LlamaConfig"]
+    LlamaForCausalLM = deps["LlamaForCausalLM"]
+    LoraConfig = deps["LoraConfig"]
+    get_peft_model = deps["get_peft_model"]
+
+    torch.manual_seed(137)
+    config = LlamaConfig(
+        hidden_size=32,
+        intermediate_size=64,
+        num_hidden_layers=2,
+        num_attention_heads=4,
+        num_key_value_heads=4,
+        vocab_size=64,
+        pad_token_id=0,
+        bos_token_id=1,
+        eos_token_id=2,
+    )
+    base_model = LlamaForCausalLM(config).to(dtype=torch.float32)
+    base_path = tmp_root / "theta_0"
+    base_model.save_pretrained(str(base_path), safe_serialization=True)
+
+    adapter_paths: dict[str, Path] = {}
+    for adapter_idx in range(n_adapters):
+        model = LlamaForCausalLM.from_pretrained(str(base_path), torch_dtype=torch.float32)
+        peft_cfg = LoraConfig(
+            r=8,
+            lora_alpha=16,
+            lora_dropout=0.0,
+            target_modules=TOY_TARGET_MODULES,
+            task_type="CAUSAL_LM",
+        )
+        peft_model = get_peft_model(model, peft_cfg)
+        generator = torch.Generator(device="cpu").manual_seed(137 + adapter_idx)
+        with torch.no_grad():
+            for module in peft_model.modules():
+                if hasattr(module, "lora_A") and hasattr(module, "lora_B"):
+                    for adapter_name in module.lora_A:
+                        module.lora_A[adapter_name].weight.normal_(mean=0.0, std=0.05, generator=generator)
+                        module.lora_B[adapter_name].weight.normal_(mean=0.0, std=0.05, generator=generator)
+        adapter_dir = tmp_root / f"adapter_{adapter_idx}"
+        peft_model.save_pretrained(str(adapter_dir), safe_serialization=True)
+        adapter_paths[f"a{adapter_idx}"] = adapter_dir
+    return base_path, adapter_paths, config
+
+
+def prepare_toy_dir(name: str) -> Path:
+    """Create a fresh short-path toy directory for model/adapters."""
+    root = (Path(os.environ.get("TEMP", PROJECT_ROOT / "results")) / "rsppo_verify_toy").resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    path = (root / f"{name}_{os.getpid()}_{uuid.uuid4().hex[:8]}").resolve()
+    if root not in path.parents:
+        raise RuntimeError(f"Refusing to clear toy path outside verifier directory: {path}")
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def check_g6_no_duplicate_portfolio() -> tuple[str, dict[str, Any]]:
     """G6: portfolio and merge functions must only be defined in src modules."""
     names = (
@@ -721,11 +977,17 @@ def check_g6_no_duplicate_portfolio() -> tuple[str, dict[str, Any]]:
         "merge_theta",
         "effective_deltas",
         "score_lambda",
+        "lambda_key",
+        "holm_adjust",
+        "delta_m_percent",
+        "score_one_lambda",
     )
     needles = tuple(f"def {name}(" for name in names)
     allowed_roots = {
         (PROJECT_ROOT / "src" / "coefficient_portfolio.py").resolve(),
         (PROJECT_ROOT / "src" / "merge.py").resolve(),
+        (PROJECT_ROOT / "src" / "metrics.py").resolve(),
+        (PROJECT_ROOT / "src" / "lambda_utils.py").resolve(),
     }
     hits: list[dict[str, Any]] = []
     for path in PROJECT_ROOT.rglob("*"):
@@ -745,45 +1007,106 @@ def check_g6_no_duplicate_portfolio() -> tuple[str, dict[str, Any]]:
 
 
 def check_g7_synthetic_lora_linearity() -> tuple[str, dict[str, Any]]:
-    """G7: exact effective-delta combination is linear; PEFT linear is not."""
-    rng = np.random.default_rng(137)
-    n_adapters = 5
-    rank = 8
-    out_dim = 17
-    in_dim = 13
-    scaling = 2.0
-    weights = np.asarray([0.15, 0.35, 0.25, 0.10, 0.15], dtype=np.float64)
-    deltas: dict[str, dict[str, np.ndarray]] = {}
-    lora_as: list[np.ndarray] = []
-    lora_bs: list[np.ndarray] = []
-    for i in range(n_adapters):
-        a = rng.normal(size=(rank, in_dim)).astype(np.float32)
-        b = rng.normal(size=(out_dim, rank)).astype(np.float32)
-        lora_as.append(a)
-        lora_bs.append(b)
-        deltas[f"a{i}"] = {"layer": scaling * (b @ a)}
+    """G7: production merge_theta matches an independent toy-PEFT oracle."""
+    deps = require_toy_merge_deps()
+    torch = deps["torch"]
+    LlamaForCausalLM = deps["LlamaForCausalLM"]
+    PeftModel = deps["PeftModel"]
 
-    combined = combine_effective_deltas(weights, deltas)["layer"]
-    exact = np.zeros_like(combined, dtype=np.float32)
-    for i, weight in enumerate(weights):
-        exact += float(weight) * deltas[f"a{i}"]["layer"]
-    rel_error = float(np.linalg.norm(combined - exact) / np.linalg.norm(exact))
-    if rel_error >= 1e-6:
-        raise AssertionError(f"Exact merge path is not linear enough: relative error {rel_error}")
+    tmp_root = prepare_toy_dir("g7_merge")
+    base_path, adapter_paths, _config = build_toy_lora_case(tmp_root)
+    weights = np.asarray([0.15, 0.35, 0.50], dtype=np.float64)
 
-    a_linear = np.zeros_like(lora_as[0], dtype=np.float32)
-    b_linear = np.zeros_like(lora_bs[0], dtype=np.float32)
-    for weight, a, b in zip(weights, lora_as, lora_bs):
-        factor = math.sqrt(float(weight) * scaling)
-        a_linear += factor * a
-        b_linear += factor * b
-    peft_linear = b_linear @ a_linear
-    peft_rel_error = float(np.linalg.norm(peft_linear - exact) / np.linalg.norm(exact))
+    base = LlamaForCausalLM.from_pretrained(str(base_path), torch_dtype=torch.float32)
+    expected, base_weights = independent_expected_weights(base, adapter_paths, weights)
+    expected_count = len(TOY_TARGET_MODULES) * 2
+    if len(expected) != expected_count:
+        raise AssertionError(f"Expected {expected_count} touched modules, got {len(expected)}.")
+
+    merged = merge_theta(weights, adapter_paths, base_path, dtype=torch.float32)
+    max_abs, module_errors = max_abs_target_error(merged, expected)
+    moved = {
+        name: float((independent_find_weight_module(merged, name).weight.detach().cpu().double()
+                     - base_weights[name]).norm().item())
+        for name in expected
+    }
+    if max_abs >= 1e-5:
+        raise AssertionError(f"merge_theta does not match independent oracle: max_abs={max_abs}")
+    if any(value <= 0.0 for value in moved.values()):
+        raise AssertionError("At least one target module was not touched by merge_theta.")
+
+    peft_base = LlamaForCausalLM.from_pretrained(str(base_path), torch_dtype=torch.float32)
+    names = list(adapter_paths)
+    peft_model = PeftModel.from_pretrained(peft_base, str(adapter_paths[names[0]]), adapter_name=names[0])
+    for name in names[1:]:
+        peft_model.load_adapter(str(adapter_paths[name]), adapter_name=name)
+    peft_model.add_weighted_adapter(
+        adapters=names,
+        weights=weights.tolist(),
+        adapter_name="merged",
+        combination_type="linear",
+    )
+    peft_model.set_adapter("merged")
+    peft_linear = peft_model.merge_and_unload()
+    peft_rel_error = relative_delta_error(peft_linear, expected, base_weights)
     if peft_rel_error <= 0.1:
-        raise AssertionError(f"Synthetic PEFT-linear control was not wrong enough: {peft_rel_error}")
-    return "Synthetic LoRA exact sum is linear and PEFT-linear control shows cross-term error.", {
-        "exact_relative_error": rel_error,
+        raise AssertionError(f"PEFT linear control was not wrong enough: {peft_rel_error}")
+
+    vertex_errors: dict[str, float] = {}
+    for idx, name in enumerate(names):
+        vertex = np.zeros(len(names), dtype=np.float64)
+        vertex[idx] = 1.0
+        vertex_merged = merge_theta(vertex, adapter_paths, base_path, dtype=torch.float32)
+        direct_base = LlamaForCausalLM.from_pretrained(str(base_path), torch_dtype=torch.float32)
+        direct = PeftModel.from_pretrained(direct_base, str(adapter_paths[name])).merge_and_unload()
+        direct_expected = {
+            module_name: independent_find_weight_module(direct, module_name).weight.detach().cpu().double()
+            for module_name in expected
+        }
+        vertex_max_abs, _ = max_abs_target_error(vertex_merged, direct_expected)
+        vertex_errors[name] = vertex_max_abs
+        if vertex_max_abs >= 1e-5:
+            raise AssertionError(f"Vertex merge for {name} differs from PEFT direct merge: {vertex_max_abs}")
+
+    return "Toy PEFT end-to-end merge matches independent oracle; PEFT-linear control fails.", {
+        "max_abs_oracle_error": max_abs,
         "peft_linear_relative_error": peft_rel_error,
+        "n_touched_modules": len(module_errors),
+        "vertex_max_abs": vertex_errors,
+    }
+
+
+def check_g8_toy_bf16_precision_diagnostic() -> tuple[str, dict[str, Any]]:
+    """G8: report bf16 storage noise on a toy lambda* vs p displacement."""
+    deps = require_toy_merge_deps()
+    torch = deps["torch"]
+    LlamaForCausalLM = deps["LlamaForCausalLM"]
+
+    tmp_root = prepare_toy_dir("g8_precision")
+    base_path, adapter_paths, _config = build_toy_lora_case(tmp_root)
+    base = LlamaForCausalLM.from_pretrained(str(base_path), torch_dtype=torch.float32)
+    p = np.asarray([0.20, 0.30, 0.50], dtype=np.float64)
+    lam = np.asarray([0.25, 0.35, 0.40], dtype=np.float64)
+    expected_p, _base_weights = independent_expected_weights(base, adapter_paths, p)
+    expected_lam, _ = independent_expected_weights(base, adapter_paths, lam)
+    true_parts = []
+    bf16_parts = []
+    for module_name in sorted(expected_p):
+        w_p = expected_p[module_name]
+        w_l = expected_lam[module_name]
+        true_parts.append((w_l - w_p).reshape(-1))
+        bf16_p = w_p.to(dtype=torch.bfloat16).to(dtype=torch.float64)
+        bf16_l = w_l.to(dtype=torch.bfloat16).to(dtype=torch.float64)
+        bf16_parts.append((bf16_l - bf16_p).reshape(-1))
+    d_true = torch.cat(true_parts)
+    d_bf16 = torch.cat(bf16_parts)
+    denom = float(torch.linalg.norm(d_true).item())
+    noise_ratio = float(torch.linalg.norm(d_bf16 - d_true).item() / denom)
+    cosine = float(torch.dot(d_true, d_bf16).item() / (denom * float(torch.linalg.norm(d_bf16).item())))
+    return "Toy bf16 storage diagnostic recorded; no pass/fail threshold on toy scales.", {
+        "lambda_l2": float(np.linalg.norm(lam - p)),
+        "bf16_noise_over_true_displacement": noise_ratio,
+        "bf16_cosine_with_true_displacement": cosine,
     }
 
 
@@ -983,8 +1306,8 @@ def check_m1_vertex_merge_reproduces_adapter() -> tuple[str, dict[str, Any]]:
     sft_path, adapter_paths = stage3_paths()
     axis = config["ATTRIBUTES"][0]
     e0 = np.eye(5)[0]
-    weighted = merge_theta(e0, adapter_paths, sft_path)
-    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.bfloat16, device_map="auto")
+    weighted = merge_theta(e0, adapter_paths, sft_path, dtype=torch.float32)
+    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.float32, device_map="auto")
     direct = PeftModel.from_pretrained(base, str(adapter_paths[axis])).merge_and_unload()
     diff = max_fingerprint_diff(state_fingerprint(weighted), state_fingerprint(direct))
     del weighted, direct, base
@@ -1001,8 +1324,8 @@ def check_m2_zero_merge_is_base() -> tuple[str, dict[str, Any]]:
 
     sft_path, adapter_paths = stage3_paths()
     zero = np.zeros(5)
-    merged = merge_theta(zero, adapter_paths, sft_path)
-    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.bfloat16, device_map="auto")
+    merged = merge_theta(zero, adapter_paths, sft_path, dtype=torch.float32)
+    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.float32, device_map="auto")
     diff = max_fingerprint_diff(state_fingerprint(merged), state_fingerprint(base))
     del merged, base
     torch.cuda.empty_cache()
@@ -1017,8 +1340,8 @@ def check_m3_different_lambdas_change_weights() -> tuple[str, dict[str, Any]]:
     sft_path, adapter_paths = stage3_paths()
     e0 = np.eye(5)[0]
     uniform = np.ones(5) / 5
-    model_a = merge_theta(e0, adapter_paths, sft_path)
-    model_b = merge_theta(uniform, adapter_paths, sft_path)
+    model_a = merge_theta(e0, adapter_paths, sft_path, dtype=torch.float32)
+    model_b = merge_theta(uniform, adapter_paths, sft_path, dtype=torch.float32)
     diff = max_fingerprint_diff(state_fingerprint(model_a), state_fingerprint(model_b))
     del model_a, model_b
     torch.cuda.empty_cache()
@@ -1034,28 +1357,66 @@ def check_m4_real_adapter_effective_merge() -> tuple[str, dict[str, Any]]:
 
     sft_path, adapter_paths = stage3_paths()
     lmbda = np.asarray(PREFERENCES["dominant_complexity"], dtype=np.float64)
-    rel_error = merge_delta_norm_check(lmbda, adapter_paths)
-    if rel_error >= 1e-4:
-        raise AssertionError(f"merge_delta_norm_check failed on real adapters: {rel_error}")
-
-    merged = merge_theta(lmbda, adapter_paths, sft_path)
-    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.bfloat16, device_map="auto")
-    expected = combine_effective_deltas(lmbda, effective_deltas(adapter_paths))
+    merged = merge_theta(lmbda, adapter_paths, sft_path, dtype=torch.float32)
+    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.float32, device_map="auto")
+    expected, _base_weights = independent_expected_weights(base, adapter_paths, lmbda)
     max_abs = 0.0
     with torch.inference_mode():
         for module_name, expected_delta in expected.items():
-            merged_module = resolve_base_module(merged, module_name)
-            base_module = resolve_base_module(base, module_name)
-            actual_delta = merged_module.weight.detach().float() - base_module.weight.detach().float()
-            diff = actual_delta - expected_delta.to(device=actual_delta.device, dtype=torch.float32)
+            actual = independent_find_weight_module(merged, module_name).weight.detach().cpu().double()
+            diff = actual - expected_delta
             max_abs = max(max_abs, float(diff.abs().max().detach().cpu()))
     del merged, base
     torch.cuda.empty_cache()
     if max_abs >= 1e-3:
         raise AssertionError(f"Merged model weights do not match effective delta sum: max_abs={max_abs}")
     return "Real dominant_complexity merge matches sum_i lambda_i delta_i.", {
-        "merge_delta_norm_rel_error": rel_error,
         "max_abs_weight_error": max_abs,
+    }
+
+
+def check_m5_real_bf16_precision() -> tuple[str, dict[str, Any]]:
+    """M5: real bf16 storage must preserve lambda* vs p displacement direction."""
+    torch = require_cuda()
+    from transformers import AutoModelForCausalLM
+
+    config = notebook_config()
+    r_path = PROJECT_ROOT / config["OUTPUT_DIR"] / "R_cos.npy"
+    if not r_path.exists():
+        raise SkipCheck("M5 requires R_cos.npy from Notebook 08.", missing=str(r_path))
+    sft_path, adapter_paths = stage3_paths()
+    R = np.load(r_path)
+    p = np.asarray(PREFERENCES["dominant_complexity"], dtype=np.float64)
+    lam = np.asarray(run_portfolio(p, R, portfolio_cfg())["M1+"]["lam"], dtype=np.float64)
+    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.float32, device_map="auto")
+    expected_p, _base_weights = independent_expected_weights(base, adapter_paths, p)
+    expected_lam, _ = independent_expected_weights(base, adapter_paths, lam)
+    true_parts = [(expected_lam[name] - expected_p[name]).reshape(-1) for name in sorted(expected_p)]
+    d_true = torch.cat(true_parts)
+
+    merged_p = merge_theta(p, adapter_paths, sft_path, dtype=torch.bfloat16)
+    merged_lam = merge_theta(lam, adapter_paths, sft_path, dtype=torch.bfloat16)
+    bf16_parts = []
+    for module_name in sorted(expected_p):
+        w_p = independent_find_weight_module(merged_p, module_name).weight.detach().cpu().double()
+        w_lam = independent_find_weight_module(merged_lam, module_name).weight.detach().cpu().double()
+        bf16_parts.append((w_lam - w_p).reshape(-1))
+    d_bf16 = torch.cat(bf16_parts)
+    true_norm = float(torch.linalg.norm(d_true).item())
+    bf16_norm = float(torch.linalg.norm(d_bf16).item())
+    if true_norm <= 0 or bf16_norm <= 0:
+        raise AssertionError("M5 displacement norm is zero.")
+    cosine = float(torch.dot(d_true, d_bf16).item() / (true_norm * bf16_norm))
+    noise_ratio = float(torch.linalg.norm(d_bf16 - d_true).item() / true_norm)
+    del base, merged_p, merged_lam
+    torch.cuda.empty_cache()
+    if cosine < 0.999:
+        raise AssertionError(f"bf16 storage distorts real lambda displacement: cosine={cosine}")
+    return "Real bf16 storage preserves dominant_complexity lambda displacement direction.", {
+        "preference": "dominant_complexity",
+        "lambda_l2": float(np.linalg.norm(lam - p)),
+        "bf16_cosine_with_true_displacement": cosine,
+        "bf16_noise_over_true_displacement": noise_ratio,
     }
 
 
@@ -1078,6 +1439,7 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("G5", check_g5_paired_rank_shape),
         ("G6", check_g6_no_duplicate_portfolio),
         ("G7", check_g7_synthetic_lora_linearity),
+        ("G8", check_g8_toy_bf16_precision_diagnostic),
     ],
     "2": [
         ("A1", check_a1_armorm_head_indices),
@@ -1090,6 +1452,7 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("M2", check_m2_zero_merge_is_base),
         ("M3", check_m3_different_lambdas_change_weights),
         ("M4", check_m4_real_adapter_effective_merge),
+        ("M5", check_m5_real_bf16_precision),
     ],
 }
 
