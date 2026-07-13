@@ -1,5 +1,5 @@
 {
-  "created_at_utc": "2026-07-13T17:27:18.902145+00:00",
+  "created_at_utc": "2026-07-13T20:31:57.738264+00:00",
   "results": [
     {
       "check_id": "S1",
@@ -26,7 +26,7 @@
           "verbosity"
         ]
       },
-      "elapsed_s": 0.00835418701171875,
+      "elapsed_s": 0.0035626888275146484,
       "message": "Axis order is shared by train script, HelpSteer2 utils, and notebook.",
       "stage": "0",
       "status": "PASS"
@@ -47,7 +47,7 @@
         "armorm_calls": 1,
         "policy_calls": 1
       },
-      "elapsed_s": 0.005040645599365234,
+      "elapsed_s": 0.0,
       "message": "Policy has no device_map; ArmoRM loader keeps device_map.",
       "stage": "0",
       "status": "PASS"
@@ -60,7 +60,7 @@
         "out_dir": "results/verify_rs_ppo_setup/_tmp_rs_runs",
         "total_ppo_steps": 19
       },
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.0169525146484375,
       "message": "apply_overrides writes and exposes out_dir/batch_size/steps/prompts.",
       "stage": "0",
       "status": "PASS"
@@ -86,7 +86,7 @@
         ],
         "warning": "CIRCULAR ArmoRM PPO acknowledged: PPO reward model and evaluation model are both ArmoRM. This retires RQ2 proxy-validity claims. Valid use is only upper-bound, R-minus, Wall-A/R2, and LMC diagnostics."
       },
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.0060079097747802734,
       "message": "Firewall blocks unacknowledged ArmoRM and retires RQ2 when acknowledged.",
       "stage": "0",
       "status": "PASS"
@@ -107,7 +107,7 @@
         "primary_success": "mean Delta U_p > 0 with bootstrap 95% CI (2000 resamples) excluding 0",
         "wall_A_R2_threshold": 0.3
       },
-      "elapsed_s": 0.019615888595581055,
+      "elapsed_s": 0.009737968444824219,
       "message": "NB08 preregistration, NB09 addendum, raw paired scale, Holm verdict, and Wall-A threshold match.",
       "stage": "0",
       "status": "PASS"
@@ -119,7 +119,7 @@
         "total_ppo_steps": 200,
         "train_seed": 911
       },
-      "elapsed_s": 0.0040283203125,
+      "elapsed_s": 0.0013971328735351562,
       "message": "prompt_seed, train_seed, and total_ppo_steps are global scalar settings.",
       "stage": "0",
       "status": "PASS"
@@ -146,7 +146,7 @@
           "scalar_gain_pT_R_dlam": 0.07875000000000003
         }
       },
-      "elapsed_s": 0.00748443603515625,
+      "elapsed_s": 0.019354581832885742,
       "message": "Production portfolio: conflict-free R collapses floor; vector-safe methods return p; M1+ moves.",
       "stage": "1",
       "status": "PASS"
@@ -157,7 +157,7 @@
         "floor_lp_value": -0.0,
         "min_eigenvalue": 0.6000000000000001
       },
-      "elapsed_s": 0.0019996166229248047,
+      "elapsed_s": 0.0,
       "message": "PSD R has negative off-diagonals, but floor remains collapsed; LP is the criterion.",
       "stage": "1",
       "status": "PASS"
@@ -178,7 +178,7 @@
           "P3++": 0.0
         }
       },
-      "elapsed_s": 0.005568265914916992,
+      "elapsed_s": 0.009268999099731445,
       "message": "C1++/M1++/P2++/P3++ satisfy R(lambda-p)>=0 in synthetic cases.",
       "stage": "1",
       "status": "PASS"
@@ -231,7 +231,7 @@
           }
         }
       },
-      "elapsed_s": 0.005299568176269531,
+      "elapsed_s": 0.005039215087890625,
       "message": "Every vector-safe synthetic lambda is scalar-safe.",
       "stage": "1",
       "status": "PASS"
@@ -243,7 +243,7 @@
           13
         ]
       },
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.0011038780212402344,
       "message": "paired_rank_delta returns one value per prompt.",
       "stage": "1",
       "status": "PASS"
@@ -299,7 +299,7 @@
           }
         ]
       },
-      "elapsed_s": 0.11327767372131348,
+      "elapsed_s": 0.12132692337036133,
       "message": "No duplicate portfolio or merge definitions outside the shared src modules.",
       "stage": "1",
       "status": "PASS"
@@ -316,7 +316,7 @@
           "a2": 0.0
         }
       },
-      "elapsed_s": 3.915998935699463,
+      "elapsed_s": 3.3832249641418457,
       "message": "Toy PEFT end-to-end merge matches independent oracle; PEFT-linear control fails.",
       "stage": "1",
       "status": "PASS"
@@ -328,7 +328,7 @@
         "bf16_noise_over_true_displacement": 0.03011915940519991,
         "lambda_l2": 0.12247448713915887
       },
-      "elapsed_s": 0.2899465560913086,
+      "elapsed_s": 0.23147320747375488,
       "message": "Toy bf16 storage diagnostic recorded; no pass/fail threshold on toy scales.",
       "stage": "1",
       "status": "PASS"
