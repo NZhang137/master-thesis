@@ -252,15 +252,8 @@ class ArmoRMHeadScorer:
         self.objective_name = ARMORM_HELPSTEER_OBJECTIVE_NAMES[axis]
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_id, use_fast=True)
-        # [F4] explicit None check -- pad_token_id == 0 is a VALID id and would be
-        # swallowed by `pad_token_id or eos_token_id`.
-        if self.tokenizer.pad_token_id is None:
-            self.tokenizer.pad_token = self.tokenizer.eos_token
-        pad_id = self.tokenizer.pad_token_id
-        if pad_id is None:
-            pad_id = self.tokenizer.eos_token_id
-        assert pad_id is not None, "tokenizer has neither pad nor eos token id"
-        self.pad_id = int(pad_id)
+        # [F5] The pad id is resolved AFTER the model is loaded, from the MODEL's config --
+        # not from the tokenizer. See the long note at self._resolve_pad_id().
 
         quantization_config = None
         if CFG.get("armorm_load_in_4bit", True):
@@ -287,14 +280,62 @@ class ArmoRMHeadScorer:
         # empirically by verify_against_model_card() below.
         assert_model_agrees(self.model.config)
         self.objective_index = self._name_to_index(self.objective_name)
+        self.pad_id = self._resolve_pad_id()
         print(f"[armorm] axis={self.axis} -> {self.objective_name!r} at index "
-              f"{self.objective_index} (num_objectives={self.model.config.num_objectives})")
+              f"{self.objective_index} (num_objectives={self.model.config.num_objectives}, "
+              f"pad_id={self.pad_id})")
 
-        # padding side is decided empirically by validate_batching()
+        # ArmoRM reads the reward at the token BEFORE the first pad id, so right padding
+        # is the only side that keeps position_ids unshifted for the real tokens.
         self.padding_side = "right"
         self.batching_validated = False
 
+        # [F2] The head order is pinned against the AUTHORS' published numbers before this
+        # scorer is allowed to return a single reward. This cannot be skipped: it is the
+        # only expected value in the pipeline that does not come from our own code.
+        self.golden = self.verify_against_model_card()
+
     # ---- [F2] index verification -------------------------------------------
+
+    def _resolve_pad_id(self) -> int:
+        """Return the pad id the MODEL looks for -- never the tokenizer's.
+
+        ArmoRM's modeling_custom.forward locates the reward position with
+
+            sequence_lengths = eq(input_ids, config.pad_token_id).argmax(-1) - 1   (mod L)
+
+        i.e. it searches for the FIRST occurrence of *config.pad_token_id* (128256, a
+        dedicated pad token appended to the vocabulary: vocab_size is 128257) and reads the
+        hidden state one position earlier.
+
+        The Llama-3 tokenizer ships NO pad token. Padding with eos (128001) therefore makes
+        eq(...) match nothing, argmax return 0, sequence_lengths become -1 % L = L-1, and the
+        reward gets read at the LAST slot of the padded row -- under right padding that is a
+        PAD token. Worse, if eos appears inside the text (it does: the chat template emits
+        <|eot_id|>), argmax lands in the middle of the prompt. This is exactly why
+        validate_batching() reported that neither padding side reproduces the single-example
+        scores.
+
+        Using the model's own pad id makes argmax land on the first real pad, so L-1 is the
+        last REAL token, and right padding leaves position_ids unshifted.
+        """
+        model_pad = getattr(self.model.config, "pad_token_id", None)
+        if model_pad is None:
+            raise RuntimeError(
+                "ArmoRM config has no pad_token_id. Its forward() cannot locate the reward "
+                "position for batch sizes > 1; refusing to guess a pad token."
+            )
+        pad_id = int(model_pad)
+        vocab_size = int(getattr(self.model.config, "vocab_size", 0))
+        if vocab_size and not 0 <= pad_id < vocab_size:
+            raise RuntimeError(f"pad_token_id={pad_id} outside vocab_size={vocab_size}.")
+        tok_pad = self.tokenizer.pad_token_id
+        if tok_pad is not None and int(tok_pad) != pad_id:
+            print(f"[armorm] NOTE: tokenizer pad id {tok_pad} != model pad id {pad_id}; "
+                  "padding with the MODEL's id, which is what forward() searches for.")
+        # Keep the tokenizer consistent so any apply_chat_template(padding=True) agrees.
+        self.tokenizer.pad_token_id = pad_id
+        return pad_id
 
     def _name_to_index(self, name: str) -> int:
         """Resolve an objective name to its head index against the model-card list."""
