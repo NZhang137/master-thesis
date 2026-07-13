@@ -29,7 +29,8 @@ FIXES vs. the first draft (audit findings):
        via subprocess -> every mutation was silently lost and the adapters were
        written to the wrong directory. CFG is now settable from the command line
        AND via apply_overrides() for in-process calls.
-  [F2] ArmoRM objective indices are VERIFIED against config.id2label, never assumed.
+  [F2] ArmoRM objective indices are resolved BY NAME against the model-card list
+       and pinned with the authors' published golden sample. ArmoRM ships no id2label.
        (This is the exact bug class that produced the QRM verbosity == 0 disaster.)
   [F3] Batched reward scoring is validated against single-example scoring; the
        padding side is resolved empirically and falls back to batch_size=1.
@@ -79,15 +80,17 @@ assert ATTRIBUTES == tuple(HELPSTEER2_ATTRIBUTES), (
 )
 
 # NOTE: no positional indices here on purpose. The head index is resolved BY NAME
-# from the model's own config.id2label at load time -- never trust a hard-coded
+# by NAME against src/armorm_objectives.py (the model card) and pinned by the
+# published golden sample at load time -- never trust a hard-coded
 # reward-head index (this is how QRM's verbosity head silently returned zeros).
-ARMORM_HELPSTEER_OBJECTIVE_NAMES = {
-    "helpfulness": "helpsteer-helpfulness",
-    "correctness": "helpsteer-correctness",
-    "coherence": "helpsteer-coherence",
-    "complexity": "helpsteer-complexity",
-    "verbosity": "helpsteer-verbosity",
-}
+from src.armorm_objectives import (  # single source of truth (model card)
+    ARMORM_HELPSTEER_OBJECTIVE_NAMES,
+    ARMORM_OBJECTIVES,
+    GOLDEN_SAMPLE,
+    assert_model_agrees,
+    helpsteer_head_indices,
+    to_helpsteer_scale,
+)
 
 CIRCULARITY_WARNING = (
     "CIRCULAR ArmoRM PPO acknowledged: PPO reward model and evaluation model "
@@ -226,7 +229,10 @@ class ArmoRMHeadScorer:
     """Frozen ArmoRM scorer returning ONE verified HelpSteer2 head per text pair.
 
     Audit fixes baked in:
-      [F2] objective index resolved from config.id2label, never hard-coded
+      [F2] objective index resolved BY NAME against the model-card objective list
+           and pinned with the authors' published golden sample. ArmoRM ships NO
+           id2label (it is literally {0: 'LABEL_0'}), so the old id2label route
+           was itself an unverified assumption about an external artifact.
       [F3] padding side resolved empirically; batched == single is asserted
       [F4] no `pad_token_id or eos_token_id` falsy bug
     """
@@ -275,10 +281,14 @@ class ArmoRMHeadScorer:
         self.model.eval()
         self.device = next(self.model.parameters()).device
 
-        self.id2label = self._read_id2label()
+        # ArmoRM's config.json carries "num_objectives": 19 but an EMPTY id2label
+        # ({"0": "LABEL_0"}). The count is therefore the only thing the model itself
+        # can confirm; the names come from the model card and the mapping is pinned
+        # empirically by verify_against_model_card() below.
+        assert_model_agrees(self.model.config)
         self.objective_index = self._name_to_index(self.objective_name)
-        print(f"[armorm] axis={self.axis} -> {self.objective_name!r} "
-              f"verified at index {self.objective_index}")
+        print(f"[armorm] axis={self.axis} -> {self.objective_name!r} at index "
+              f"{self.objective_index} (num_objectives={self.model.config.num_objectives})")
 
         # padding side is decided empirically by validate_batching()
         self.padding_side = "right"
@@ -286,30 +296,61 @@ class ArmoRMHeadScorer:
 
     # ---- [F2] index verification -------------------------------------------
 
-    def _read_id2label(self) -> dict[int, str]:
-        raw = getattr(self.model.config, "id2label", None) or {}
-        labels = {int(k): str(v) for k, v in raw.items()}
-        if not labels:
-            raise RuntimeError(
-                "ArmoRM config exposes no id2label; cannot verify the reward-head "
-                "index. Refusing to guess -- a hard-coded index is exactly how the "
-                "QRM verbosity head silently returned zeros."
-            )
-        return labels
-
     def _name_to_index(self, name: str) -> int:
-        matches = [i for i, label in self.id2label.items() if label == name]
-        if not matches:
+        """Resolve an objective name to its head index against the model-card list."""
+        if name not in ARMORM_OBJECTIVES:
             raise RuntimeError(
-                f"Objective {name!r} not found in ArmoRM id2label. "
-                f"Available: {sorted(self.id2label.items())}"
+                f"Objective {name!r} is not in the ArmoRM objective list. "
+                f"Known: {list(ARMORM_OBJECTIVES)}"
             )
-        return int(matches[0])
+        return ARMORM_OBJECTIVES.index(name)
 
     def helpsteer_indices(self) -> list[int]:
-        """Verified indices of the five HelpSteer2 heads, in ATTRIBUTES order."""
-        return [self._name_to_index(ARMORM_HELPSTEER_OBJECTIVE_NAMES[a])
-                for a in ATTRIBUTES]
+        """Indices of the five HelpSteer2 heads, in ATTRIBUTES order, resolved BY NAME."""
+        return helpsteer_head_indices(ATTRIBUTES)
+
+    def verify_against_model_card(self) -> dict:
+        """Pin the head order with the AUTHORS' published numbers, not with our own.
+
+        The model card prints, for one fixed prompt/response, the first five raw heads
+        mapped onto the original HelpSteer scale (rewards[:5] * 5 - 0.5). Reproducing
+        those five numbers is the only check in this pipeline whose expected value does
+        not come from our own code -- it cannot be satisfied by a self-referential test.
+
+        A shuffled head order would move complexity/verbosity (low: ~1.3) into the
+        helpfulness/correctness slots (high: ~2.8) and blow the tolerance immediately.
+        """
+        encoded = [self._encode(GOLDEN_SAMPLE["prompt"], GOLDEN_SAMPLE["response"])]
+        rewards = self._forward_rewards(encoded, "right")
+        assert_model_agrees(self.model.config, rewards_last_dim=int(rewards.shape[-1]))
+
+        idx = helpsteer_head_indices(ATTRIBUTES)
+        observed = to_helpsteer_scale(rewards[0, idx].numpy().astype(float))
+        expected = np.asarray(GOLDEN_SAMPLE["expected_helpsteer_rewards"], dtype=float)
+        max_abs = float(np.max(np.abs(observed - expected)))
+
+        result = {
+            "axes": list(ATTRIBUTES),
+            "head_indices": [int(i) for i in idx],
+            "observed_helpsteer_scale": [float(v) for v in observed],
+            "expected_helpsteer_scale": [float(v) for v in expected],
+            "helpsteer_ground_truth": list(GOLDEN_SAMPLE["helpsteer_ground_truth"]),
+            "max_abs_error": max_abs,
+            "atol": float(GOLDEN_SAMPLE["atol"]),
+            "source": GOLDEN_SAMPLE["source"],
+            "passed": max_abs <= float(GOLDEN_SAMPLE["atol"]),
+        }
+        if not result["passed"]:
+            raise RuntimeError(
+                "ArmoRM golden sample MISMATCH -- the head order or the loading path is "
+                f"wrong. observed={result['observed_helpsteer_scale']} "
+                f"expected={result['expected_helpsteer_scale']} "
+                f"max_abs={max_abs:.4f} > atol={GOLDEN_SAMPLE['atol']}. "
+                "Refusing to score anything with an unverified head mapping."
+            )
+        print(f"[armorm] golden sample OK (max_abs={max_abs:.4f}); head order pinned "
+              f"against {GOLDEN_SAMPLE['source']}")
+        return result
 
     # ---- scoring ------------------------------------------------------------
 

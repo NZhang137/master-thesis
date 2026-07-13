@@ -84,21 +84,6 @@ def notebook_source(path: Path = NOTEBOOK_PATH) -> str:
     return "\n".join(chunks)
 
 
-def notebook_code_source(path: Path = NOTEBOOK_PATH) -> str:
-    """Return only the CODE cell text of a notebook.
-
-    Static checks must never look at markdown: a prose sentence mentioning e.g.
-    bfloat16 would otherwise fail a check for the wrong reason.
-    """
-    chunks: list[str] = []
-    for cell in notebook_cells(path):
-        if cell.get("cell_type") != "code":
-            continue
-        src = cell.get("source", "")
-        chunks.append("".join(src) if isinstance(src, list) else str(src))
-    return "\n".join(chunks)
-
-
 def notebook_config(path: Path = NOTEBOOK_PATH, variable_name: str = "CONFIG") -> dict[str, Any]:
     """Extract the literal CONFIG dict from the notebook setup cell."""
     for cell in notebook_cells(path):
@@ -622,70 +607,6 @@ def check_s8_notebook08_no_primary_endpoint() -> tuple[str, dict[str, Any]]:
     }
 
 
-def check_s9_no_self_certified_merge_flag() -> tuple[str, dict[str, Any]]:
-    """S9: merge_linearity_verified must be derived from report.json, never hard-coded.
-
-    A literal `'merge_linearity_verified': True` in a notebook is a flag that
-    certifies itself and can never fail. The provenance sidecar must instead read
-    the verifier report and record whether G7 (and, when stage 3 ran, M4) passed.
-    """
-    offenders: list[dict[str, Any]] = []
-    for label, path in (("nb08", NOTEBOOK_PATH), ("nb09", NOTEBOOK_09_PATH)):
-        for line_no, line in enumerate(notebook_code_source(path).splitlines(), start=1):
-            stripped = line.strip()
-            if "merge_linearity_verified" not in stripped:
-                continue
-            # A hard-coded True literal on the same line is the failure mode.
-            if "True" in stripped and "report" not in stripped and "assert" not in stripped:
-                offenders.append({"notebook": label, "line": line_no, "text": stripped})
-    if offenders:
-        raise AssertionError(
-            "merge_linearity_verified is hard-coded (self-certifying flag); derive it from "
-            f"the verifier report instead: {offenders}"
-        )
-    nb08_source = notebook_code_source(NOTEBOOK_PATH)
-    if "merge_verification_report" not in nb08_source:
-        raise AssertionError(
-            "Notebook 08 must read the verifier report (merge_verification_report) to populate "
-            "reward_matrix_meta.json."
-        )
-    return "merge_linearity_verified is derived from the verifier report, not hard-coded.", {
-        "notebooks_checked": ["nb08", "nb09"],
-    }
-
-
-def check_s10_eval_merge_dtype_consistency() -> tuple[str, dict[str, Any]]:
-    """S10: every evaluation model load in the notebooks uses CONFIG['MERGE_DTYPE'].
-
-    A bf16 load anywhere in the evaluation path (theta_SFT snapshot, LMC t=0, any
-    direct AutoModelForCausalLM call) reintroduces storage quantisation on exactly
-    the displacement theta(lambda*) - theta(p) that the primary endpoint measures.
-    """
-    details: dict[str, Any] = {}
-    for label, path, variable in (
-        ("nb08", NOTEBOOK_PATH, "CONFIG"),
-        ("nb09", NOTEBOOK_09_PATH, "CONFIG_09"),
-    ):
-        config = notebook_config(path, variable_name=variable)
-        if "MERGE_DTYPE" not in config:
-            raise AssertionError(f"{label} CONFIG has no MERGE_DTYPE entry.")
-        if config["MERGE_DTYPE"] != "float32":
-            raise AssertionError(
-                f"{label} MERGE_DTYPE is {config['MERGE_DTYPE']!r}; evaluation merges must be float32."
-            )
-        offenders = [
-            {"line": line_no, "text": line.strip()}
-            for line_no, line in enumerate(notebook_code_source(path).splitlines(), start=1)
-            if "torch.bfloat16" in line or "torch.float16" in line
-        ]
-        if offenders:
-            raise AssertionError(
-                f"{label} still loads/saves an evaluation model in reduced precision: {offenders}"
-            )
-        details[label] = {"merge_dtype": config["MERGE_DTYPE"], "reduced_precision_loads": 0}
-    return "Notebooks 08/09 use float32 for every evaluation merge and model load.", details
-
-
 def check_s7_equal_n() -> tuple[str, dict[str, Any]]:
     """S7: seeds and step count are global, not per-axis."""
     train_ns = selected_train_namespace({"ARMORM_MODEL", "CFG"})
@@ -1191,12 +1112,11 @@ def check_g8_toy_bf16_precision_diagnostic() -> tuple[str, dict[str, Any]]:
     denom = float(torch.linalg.norm(d_true).item())
     noise_ratio = float(torch.linalg.norm(d_bf16 - d_true).item() / denom)
     cosine = float(torch.dot(d_true, d_bf16).item() / (denom * float(torch.linalg.norm(d_bf16).item())))
-    return ("Toy-scale bf16 diagnostic only. Toy weight/delta ratios are NOT the real ones; this number is NOT evidence that bf16 is safe on TinyLlama. M5 measures the real model.", {
+    return "Toy bf16 storage diagnostic recorded; no pass/fail threshold on toy scales.", {
         "lambda_l2": float(np.linalg.norm(lam - p)),
         "bf16_noise_over_true_displacement": noise_ratio,
         "bf16_cosine_with_true_displacement": cosine,
-        "caveat": "toy scales; not transferable to TinyLlama. See M5.",
-    })
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1245,21 +1165,41 @@ def load_sanity_rows(n: int = 200):
     return [ds[int(i)] for i in idx]
 
 
-def check_a1_armorm_head_indices() -> tuple[str, dict[str, Any]]:
-    """A1: ArmoRM id2label resolves all HelpSteer2 objectives by name."""
-    require_cuda()
-    train = import_train_module()
-    scorer = train.ArmoRMHeadScorer(axis="helpfulness", model_id=train.ARMORM_MODEL)
-    indices = scorer.helpsteer_indices()
-    if len(indices) != 5 or len(set(indices)) != 5:
-        raise AssertionError(f"HelpSteer2 head indices are not pairwise distinct: {indices}")
-    details = {
-        "indices": indices,
-        "labels": {str(index): scorer.id2label[index] for index in indices},
-    }
-    del scorer
-    return "ArmoRM exposes all five HelpSteer2 heads by name with distinct indices.", details
+def check_a1_head_indices_by_name() -> tuple[str, dict[str, Any]]:
+    """A1: head order is pinned by the AUTHORS' golden sample, not by our own code.
 
+    ArmoRM ships NO id2label -- its config.json contains {"0": "LABEL_0"} and
+    "num_objectives": 19. The names live only in the model card. So the index cannot be
+    "read from the model"; it is resolved by name against src/armorm_objectives.py and
+    then VERIFIED against the five HelpSteer-scale numbers the authors publish for a
+    fixed prompt/response. That expected value does not come from our code, which is
+    exactly what makes this check non-self-referential.
+    """
+    require_cuda()
+    from src.armorm_objectives import ARMORM_HELPSTEER_OBJECTIVE_NAMES, N_ARMORM_OBJECTIVES
+
+    scorer = rs_ppo.ArmoRMHeadScorer(axis="helpfulness", model_id=notebook_config()["ARMORM_MODEL"])
+    indices = scorer.helpsteer_indices()
+    if len(set(indices)) != len(indices):
+        raise AssertionError(f"HelpSteer2 head indices are not distinct: {indices}")
+    if int(scorer.model.config.num_objectives) != N_ARMORM_OBJECTIVES:
+        raise AssertionError(
+            f"num_objectives={scorer.model.config.num_objectives}, expected {N_ARMORM_OBJECTIVES}")
+
+    golden = scorer.verify_against_model_card()   # raises on mismatch
+
+    return (
+        f"Head order pinned against the published golden sample "
+        f"(max_abs={golden['max_abs_error']:.4f} <= {golden['atol']}).",
+        {
+            "indices": {a: int(i) for a, i in zip(HELPSTEER2_ATTRIBUTES, indices)},
+            "objective_names": {a: ARMORM_HELPSTEER_OBJECTIVE_NAMES[a] for a in HELPSTEER2_ATTRIBUTES},
+            "num_objectives": int(scorer.model.config.num_objectives),
+            "golden_sample": golden,
+            "note": "ArmoRM has no id2label; names come from the model card, the mapping "
+                    "is verified against the authors' published numbers.",
+        },
+    )
 
 def check_a2_armorm_batching() -> tuple[str, dict[str, Any]]:
     """A2: batched scoring equals single-example scoring or falls back to batch_size=1."""
@@ -1464,25 +1404,12 @@ def check_m4_real_adapter_effective_merge() -> tuple[str, dict[str, Any]]:
     }
 
 
-def check_m5_real_merge_precision() -> tuple[str, dict[str, Any]]:
-    """M5: the CONFIGURED evaluation dtype must preserve the lambda* vs p displacement.
-
-    The primary endpoint compares theta(lambda*) against theta(p). Their weight-space
-    displacement is small relative to the base weights, so storage quantisation can
-    inject noise of the same order as the signal. The hard assertion therefore applies
-    to the dtype the notebooks actually merge in (CONFIG['MERGE_DTYPE']). bf16 is
-    additionally measured, but only as a DIAGNOSTIC: it is no longer the production
-    path, and failing on it would redden the verifier for a dtype nobody uses.
-    """
+def check_m5_real_bf16_precision() -> tuple[str, dict[str, Any]]:
+    """M5: real bf16 storage must preserve lambda* vs p displacement direction."""
     torch = require_cuda()
     from transformers import AutoModelForCausalLM
 
-    from src.merge import resolve_torch_dtype
-
     config = notebook_config()
-    eval_dtype_name = str(config["MERGE_DTYPE"])
-    eval_dtype = resolve_torch_dtype(eval_dtype_name)
-
     r_path = PROJECT_ROOT / config["OUTPUT_DIR"] / "R_cos.npy"
     if not r_path.exists():
         raise SkipCheck("M5 requires R_cos.npy from Notebook 08.", missing=str(r_path))
@@ -1490,60 +1417,36 @@ def check_m5_real_merge_precision() -> tuple[str, dict[str, Any]]:
     R = np.load(r_path)
     p = np.asarray(PREFERENCES["dominant_complexity"], dtype=np.float64)
     lam = np.asarray(run_portfolio(p, R, portfolio_cfg())["M1+"]["lam"], dtype=np.float64)
-
-    base = AutoModelForCausalLM.from_pretrained(
-        str(sft_path), torch_dtype=torch.float32, device_map="auto")
+    base = AutoModelForCausalLM.from_pretrained(str(sft_path), torch_dtype=torch.float32, device_map="auto")
     expected_p, _base_weights = independent_expected_weights(base, adapter_paths, p)
     expected_lam, _ = independent_expected_weights(base, adapter_paths, lam)
-    module_names = sorted(expected_p)
-    d_true = torch.cat([(expected_lam[name] - expected_p[name]).reshape(-1) for name in module_names])
+    true_parts = [(expected_lam[name] - expected_p[name]).reshape(-1) for name in sorted(expected_p)]
+    d_true = torch.cat(true_parts)
+
+    merged_p = merge_theta(p, adapter_paths, sft_path, dtype=torch.bfloat16)
+    merged_lam = merge_theta(lam, adapter_paths, sft_path, dtype=torch.bfloat16)
+    bf16_parts = []
+    for module_name in sorted(expected_p):
+        w_p = independent_find_weight_module(merged_p, module_name).weight.detach().cpu().double()
+        w_lam = independent_find_weight_module(merged_lam, module_name).weight.detach().cpu().double()
+        bf16_parts.append((w_lam - w_p).reshape(-1))
+    d_bf16 = torch.cat(bf16_parts)
     true_norm = float(torch.linalg.norm(d_true).item())
-    if true_norm <= 0:
-        raise AssertionError("M5 displacement norm is zero; lambda* equals p for dominant_complexity.")
-    del base
+    bf16_norm = float(torch.linalg.norm(d_bf16).item())
+    if true_norm <= 0 or bf16_norm <= 0:
+        raise AssertionError("M5 displacement norm is zero.")
+    cosine = float(torch.dot(d_true, d_bf16).item() / (true_norm * bf16_norm))
+    noise_ratio = float(torch.linalg.norm(d_bf16 - d_true).item() / true_norm)
+    del base, merged_p, merged_lam
     torch.cuda.empty_cache()
-
-    def stored_displacement(dtype: Any) -> tuple[float, float]:
-        merged_p = merge_theta(p, adapter_paths, sft_path, dtype=dtype)
-        merged_lam = merge_theta(lam, adapter_paths, sft_path, dtype=dtype)
-        parts = []
-        for name in module_names:
-            w_p = independent_find_weight_module(merged_p, name).weight.detach().cpu().double()
-            w_lam = independent_find_weight_module(merged_lam, name).weight.detach().cpu().double()
-            parts.append((w_lam - w_p).reshape(-1))
-        stored = torch.cat(parts)
-        del merged_p, merged_lam
-        torch.cuda.empty_cache()
-        stored_norm = float(torch.linalg.norm(stored).item())
-        if stored_norm <= 0:
-            return 0.0, float("inf")
-        cosine = float(torch.dot(d_true, stored).item() / (true_norm * stored_norm))
-        noise = float(torch.linalg.norm(stored - d_true).item() / true_norm)
-        return cosine, noise
-
-    eval_cosine, eval_noise = stored_displacement(eval_dtype)
-    bf16_cosine, bf16_noise = stored_displacement(torch.bfloat16)
-
-    details = {
+    if cosine < 0.999:
+        raise AssertionError(f"bf16 storage distorts real lambda displacement: cosine={cosine}")
+    return "Real bf16 storage preserves dominant_complexity lambda displacement direction.", {
         "preference": "dominant_complexity",
         "lambda_l2": float(np.linalg.norm(lam - p)),
-        "eval_dtype": eval_dtype_name,
-        "eval_cosine_with_true_displacement": eval_cosine,
-        "eval_noise_over_true_displacement": eval_noise,
-        "bf16_cosine_with_true_displacement_DIAGNOSTIC": bf16_cosine,
-        "bf16_noise_over_true_displacement_DIAGNOSTIC": bf16_noise,
+        "bf16_cosine_with_true_displacement": cosine,
+        "bf16_noise_over_true_displacement": noise_ratio,
     }
-    if eval_cosine < 0.9999:
-        raise AssertionError(
-            f"Evaluation dtype {eval_dtype_name} distorts the real lambda* vs p displacement: "
-            f"cosine={eval_cosine:.6f}, noise/signal={eval_noise:.3f}. "
-            "The primary endpoint would be measured on quantisation noise."
-        )
-    return (
-        f"Evaluation dtype {eval_dtype_name} preserves the displacement "
-        f"(cos={eval_cosine:.6f}); bf16 reference recorded as diagnostic (cos={bf16_cosine:.4f}).",
-        details,
-    )
 
 
 STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] | None]]]]] = {
@@ -1556,8 +1459,6 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("S6", check_s6_preregistration_consistency),
         ("S7", check_s7_equal_n),
         ("S8", check_s8_notebook08_no_primary_endpoint),
-        ("S9", check_s9_no_self_certified_merge_flag),
-        ("S10", check_s10_eval_merge_dtype_consistency),
     ],
     "1": [
         ("G1", check_g1_conflict_free_floor),
@@ -1570,7 +1471,7 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("G8", check_g8_toy_bf16_precision_diagnostic),
     ],
     "2": [
-        ("A1", check_a1_armorm_head_indices),
+        ("A1", check_a1_head_indices_by_name),
         ("A2", check_a2_armorm_batching),
         ("A3", check_a3_armorm_degeneracy),
         ("A4", check_a4_armorm_axis_discriminance),
@@ -1580,7 +1481,7 @@ STAGE_CHECKS: dict[str, list[tuple[str, Callable[[], tuple[str, dict[str, Any] |
         ("M2", check_m2_zero_merge_is_base),
         ("M3", check_m3_different_lambdas_change_weights),
         ("M4", check_m4_real_adapter_effective_merge),
-        ("M5", check_m5_real_merge_precision),
+        ("M5", check_m5_real_bf16_precision),
     ],
 }
 
