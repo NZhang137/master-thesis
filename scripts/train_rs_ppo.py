@@ -140,13 +140,14 @@ CFG = dict(
     out_dir="rs_runs",
     armorm_model=ARMORM_MODEL,
     armorm_load_in_4bit=True,
+    armorm_load_in_8bit=False,   # RS-faithful LLM.int8 (~8 GB); takes precedence over 4bit if True
     armorm_reward_batch_size=8,
 )
 
 # Keys that may be overridden from the CLI or from the notebook (audit fix [F1]).
 OVERRIDABLE = (
     "out_dir", "batch_size", "mini_batch_size", "total_ppo_steps", "n_prompts",
-    "armorm_model", "armorm_load_in_4bit", "armorm_reward_batch_size",
+    "armorm_model", "armorm_load_in_4bit", "armorm_load_in_8bit", "armorm_reward_batch_size",
     "learning_rate", "init_kl_coef", "ppo_epochs",
     "output_min_len", "output_max_len", "prompt_seed", "train_seed", "full_epoch",
     "plateau_window", "plateau_slope_eps",
@@ -263,7 +264,10 @@ class ArmoRMHeadScorer:
         # not from the tokenizer. See the long note at self._resolve_pad_id().
 
         quantization_config = None
-        if CFG.get("armorm_load_in_4bit", True):
+        if CFG.get("armorm_load_in_8bit", False):
+            # LLM.int8 -- ~8 GB, far more faithful than 4-bit nf4, and what RS itself used.
+            quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+        elif CFG.get("armorm_load_in_4bit", True):
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.bfloat16,
@@ -848,6 +852,8 @@ def _build_argparser() -> argparse.ArgumentParser:
     ap.add_argument("--armorm_reward_batch_size", type=int, default=None)
     ap.add_argument("--armorm_load_in_4bit", type=lambda s: s.lower() == "true",
                     default=None)
+    ap.add_argument("--armorm_load_in_8bit", type=lambda s: s.lower() == "true",
+                    default=None, help="LLM.int8 (~8 GB, RS-faithful); overrides 4bit if true.")
     ap.add_argument("--full_epoch", type=lambda s: s.lower() == "true", default=None,
                     help="If true: one full pass over HelpSteer2-train (RS-faithful). "
                          "If false: sample n_prompts for total_ppo_steps (short horizon).")
@@ -865,11 +871,14 @@ if __name__ == "__main__":
         armorm_model=args.armorm_model,
         armorm_reward_batch_size=args.armorm_reward_batch_size,
         armorm_load_in_4bit=args.armorm_load_in_4bit,
+        armorm_load_in_8bit=args.armorm_load_in_8bit,
         full_epoch=args.full_epoch,
     )
     epoch_str = "full_epoch" if CFG.get("full_epoch") else f"{CFG['n_prompts']} sampled prompts"
+    _prec = ("8bit" if CFG.get("armorm_load_in_8bit")
+             else "4bit" if CFG.get("armorm_load_in_4bit") else "bf16")
     print(f"[cfg] out_dir={CFG['out_dir']} batch_size={CFG['batch_size']} "
-          f"mode={epoch_str} armorm_4bit={CFG['armorm_load_in_4bit']}")
+          f"mode={epoch_str} armorm_precision={_prec}")
     if args.phase == "sft":
         run_sft()
     else:
