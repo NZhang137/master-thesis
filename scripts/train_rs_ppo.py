@@ -588,7 +588,10 @@ def detect_reward_plateau(log: list[dict]) -> dict:
     if len(rewards) < max(10, window):
         return {"reward_plateaued": None,
                 "reason": "too few steps to judge",
-                "n_steps": int(len(rewards))}
+                "n_steps": int(len(rewards)),
+                "interpretation": (
+                    f"too few steps ({len(rewards)} < {max(10, window)}) to judge a plateau; "
+                    "not meaningful for a short probe run.")}
     tail = rewards[-window:]
     steps = np.arange(len(tail), dtype=np.float64)
     slope = float(np.polyfit(steps, tail, 1)[0])
