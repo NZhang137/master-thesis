@@ -127,7 +127,8 @@ CFG = dict(
     total_ppo_steps=200,    # pilot-scale; same number for every axis, never per-axis tuned
     prompt_seed=137,        # same prompt subsample for every axis
     train_seed=911,         # same train seed schedule for every axis
-    n_prompts=2005,         # mirror the frozen N from the SFT recipe
+    n_prompts=2005,         # mirror the frozen N from the SFT recipe (ignored if full_epoch=True)
+    full_epoch=False,       # if True: use entire HelpSteer2-train split, one pass per axis (RS-faithful)
     # --- Plateau detection (audit fix [F6]) ---
     plateau_window=50,      # steps used to estimate the tail slope of the reward curve
     plateau_slope_eps=0.02, # |slope| * window < eps * std(reward)  =>  plateaued
@@ -147,7 +148,7 @@ OVERRIDABLE = (
     "out_dir", "batch_size", "mini_batch_size", "total_ppo_steps", "n_prompts",
     "armorm_model", "armorm_load_in_4bit", "armorm_reward_batch_size",
     "learning_rate", "init_kl_coef", "ppo_epochs",
-    "output_min_len", "output_max_len", "prompt_seed", "train_seed",
+    "output_min_len", "output_max_len", "prompt_seed", "train_seed", "full_epoch",
     "plateau_window", "plateau_slope_eps",
 )
 
@@ -174,12 +175,18 @@ def set_all_seeds(seed: int):
         torch.cuda.manual_seed_all(seed)
 
 
-def load_helpsteer2_prompts(n: int, seed: int, split: str = "train"):
-    """Same prompt subsample for every axis (Equal-N analogue)."""
+def load_helpsteer2_prompts(n: int | None, seed: int, split: str = "train"):
+    """Load prompts from HelpSteer2.
+    
+    If n is None: use entire split (RS-faithful full epoch).
+    If n is int: uniform subsample of size n (default short horizon).
+    Both shuffle deterministically by seed for Equal-N (all axes see same permutation).
+    """
     from datasets import load_dataset
     ds = load_dataset("nvidia/HelpSteer2", split=split)
     rng = np.random.default_rng(seed)
-    idx = rng.choice(len(ds), size=min(n, len(ds)), replace=False)
+    size = len(ds) if n is None else min(n, len(ds))
+    idx = rng.choice(len(ds), size=size, replace=False)
     return [ds[int(i)]["prompt"] for i in idx]
 
 
@@ -714,7 +721,15 @@ def run_ppo(
         seed=CFG["train_seed"])
     trainer = PPOTrainer(config=ppo_cfg, model=policy, tokenizer=tok)
 
-    prompts = load_helpsteer2_prompts(CFG["n_prompts"], CFG["prompt_seed"])
+    # Load prompts: full split (full_epoch=True, RS-faithful) or subsample (full_epoch=False, short horizon)
+    if CFG.get("full_epoch"):
+        prompts = load_helpsteer2_prompts(None, CFG["prompt_seed"])  # entire split
+        n_steps = len(prompts) // CFG["batch_size"]
+        print(f"[ppo:{axis}] FULL EPOCH mode: {len(prompts)} prompts -> {n_steps} steps "
+              f"(batch {CFG['batch_size']}, remainder {len(prompts) % CFG['batch_size']} dropped)")
+    else:
+        prompts = load_helpsteer2_prompts(CFG["n_prompts"], CFG["prompt_seed"])  # subsample
+        n_steps = CFG["total_ppo_steps"]
 
     # Reward pipeline. In acknowledged circular mode this is a frozen ArmoRM head.
     batching_report = None
@@ -732,8 +747,17 @@ def run_ppo(
                       pad_token_id=tok.eos_token_id)
 
     log, step = [], 0
-    while step < CFG["total_ppo_steps"]:
-        batch_prompts = random.sample(prompts, CFG["batch_size"])
+    for step in range(1, n_steps + 1):
+        if CFG.get("full_epoch"):
+            # Sequential indexing: each prompt seen exactly once per epoch
+            s = (step - 1) * CFG["batch_size"]
+            e = min(s + CFG["batch_size"], len(prompts))
+            batch_prompts = prompts[s:e]
+            if len(batch_prompts) < CFG["batch_size"]:
+                break  # incomplete final batch, skip it
+        else:
+            # Sampling mode: random sample from subsample
+            batch_prompts = random.sample(prompts, CFG["batch_size"])
         queries = [tok.apply_chat_template(
             [{"role": "user", "content": p}], tokenize=False,
             add_generation_prompt=True) for p in batch_prompts]
@@ -755,14 +779,13 @@ def run_ppo(
             rewards = [torch.tensor(s["score"], dtype=torch.float32) for s in scores]
 
         stats = trainer.step(q_tensors, r_tensors, rewards)
-        step += 1
         values = [float(r.item()) for r in rewards]
         log.append({"step": step,
                     "mean_reward": float(np.mean(values)),
                     "reward_std": float(np.std(values)),
                     "kl": float(stats.get("objective/kl", float("nan")))})
         if step % 10 == 0:
-            print(f"[ppo:{axis}] step {step}/{CFG['total_ppo_steps']} "
+            print(f"[ppo:{axis}] step {step}/{n_steps} "
                   f"reward={log[-1]['mean_reward']:.4f} kl={log[-1]['kl']:.3f}")
 
     # [F6] horizon diagnostic -- decides whether the upper-bound reading survives
@@ -825,6 +848,9 @@ def _build_argparser() -> argparse.ArgumentParser:
     ap.add_argument("--armorm_reward_batch_size", type=int, default=None)
     ap.add_argument("--armorm_load_in_4bit", type=lambda s: s.lower() == "true",
                     default=None)
+    ap.add_argument("--full_epoch", type=lambda s: s.lower() == "true", default=None,
+                    help="If true: one full pass over HelpSteer2-train (RS-faithful). "
+                         "If false: sample n_prompts for total_ppo_steps (short horizon).")
     return ap
 
 
@@ -839,10 +865,11 @@ if __name__ == "__main__":
         armorm_model=args.armorm_model,
         armorm_reward_batch_size=args.armorm_reward_batch_size,
         armorm_load_in_4bit=args.armorm_load_in_4bit,
+        full_epoch=args.full_epoch,
     )
+    epoch_str = "full_epoch" if CFG.get("full_epoch") else f"{CFG['n_prompts']} sampled prompts"
     print(f"[cfg] out_dir={CFG['out_dir']} batch_size={CFG['batch_size']} "
-          f"total_ppo_steps={CFG['total_ppo_steps']} n_prompts={CFG['n_prompts']} "
-          f"armorm_4bit={CFG['armorm_load_in_4bit']}")
+          f"mode={epoch_str} armorm_4bit={CFG['armorm_load_in_4bit']}")
     if args.phase == "sft":
         run_sft()
     else:
