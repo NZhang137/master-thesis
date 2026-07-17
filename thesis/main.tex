@@ -3,9 +3,6 @@
 @article{ilharco2022taskarithmetic,title={Editing Models with Task Arithmetic},author={Ilharco, Gabriel and Ribeiro, Marco Tulio and Wortsman, Mitchell and Gururangan, Suchin and Schmidt, Ludwig and Hajishirzi, Hannaneh and Farhadi, Ali},journal={arXiv preprint arXiv:2212.04089},year={2022}}
 @article{yadav2023ties,title={{TIES}-{Merging}: Resolving Interference When Merging Models},author={Yadav, Prateek and Tam, Derek and Choshen, Leshem and Raffel, Colin and Bansal, Mohit},journal={arXiv preprint arXiv:2306.01708},year={2023}}
 @article{yang2023adamerging,title={{AdaMerging}: Adaptive Model Merging for Multi-Task Learning},author={Yang, Enneng and Wang, Zhenyi and Shen, Li and Liu, Shiwei and Guo, Guibing and Wang, Xingwei and Tao, Dacheng},journal={arXiv preprint arXiv:2310.02575},year={2023}}
-@article{sener2018mgda,title={Multi-Task Learning as Multi-Objective Optimization},author={Sener, Ozan and Koltun, Vladlen},journal={arXiv preprint arXiv:1810.04650},year={2018}}
-@article{yu2020pcgrad,title={Gradient Surgery for Multi-Task Learning},author={Yu, Tianhe and Kumar, Saurabh and Gupta, Abhishek and Levine, Sergey and Hausman, Karol and Finn, Chelsea},journal={arXiv preprint arXiv:2001.06782},year={2020}}
-@article{liu2021cagrad,title={Conflict-Averse Gradient Descent for Multi-task Learning},author={Liu, Bo and Liu, Xingchao and Jin, Xiaojie and Stone, Peter and Liu, Qiang},journal={arXiv preprint arXiv:2110.14048},year={2021}}
 @article{hu2021lora,title={{LoRA}: Low-Rank Adaptation of Large Language Models},author={Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},journal={arXiv preprint arXiv:2106.09685},year={2021}}
 @article{bai2022hh,title={Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback},author={Bai, Yuntao and Jones, Andy and Ndousse, Kamal and Askell, Amanda and Chen, Anna and others},journal={arXiv preprint arXiv:2204.05862},year={2022}}
 @article{ji2023beavertails,title={BeaverTails: Towards Improved Safety Alignment of LLM via a Human-Preference Dataset},author={Ji, Jiaming and Liu, Mickel and Dai, Juntao and Pan, Xuehai and Zhang, Chi and others},journal={arXiv preprint arXiv:2307.04657},year={2023}}
@@ -34,9 +31,6 @@
 \newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
 \newcommand{\todo}[1]{\textbf{TODO:} #1}
 \DeclareMathOperator*{\argmax}{arg\,max}
-\DeclareMathOperator*{\argmin}{arg\,min}
-\DeclareMathOperator{\Diag}{Diag}
-\DeclareMathOperator{\softmin}{softmin}
 \DeclareMathOperator{\vecop}{vec}
 \DeclareMathOperator{\concat}{concat}
 \DeclareMathOperator{\rank}{rank}
@@ -80,19 +74,7 @@ Dense search over the simplex \(\Delta_m\) becomes expensive as the number of ob
 
 \chapter{Background and Related Work}
 
-Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES and AdaMerging are nearby model-merging baselines \citep{yadav2023ties,yang2023adamerging}. MGDA, PCGrad, and CAGrad are gradient-based multi-objective methods that here serve only as inspiration for one-shot, \(R\)-based coefficient mappings rather than their original training-time algorithms \citep{sener2018mgda,yu2020pcgrad,liu2021cagrad}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}.
-
-\section{Multi-objective methods that inspire the coefficient mappings}
-
-For context, we briefly summarize the three multi-objective optimization methods that inspire the coefficient mappings defined in Chapter~\ref{chap:method}. In all three cases only the underlying geometric principle is reused; it is applied to the static relationship matrix \(R\) rather than to live per-step gradients, and no coefficient-space gradient descent is performed.
-
-\emph{MGDA (Multiple Gradient Descent Algorithm)} casts multi-task learning as multi-objective optimization \citep{sener2018mgda}. Given a set of per-task gradients, it selects the convex combination of minimum aggregated norm; the resulting update direction lies in the common descent cone, so no individual task loss increases to first order. Strongly conflicting tasks pull the combination weights toward a balancing point.
-
-\emph{PCGrad (Gradient Surgery)} resolves conflicts locally and pairwise \citep{yu2020pcgrad}. Whenever two task gradients have a negative inner product (an interference), one gradient is projected onto the orthogonal complement of the other, removing only the conflicting component while leaving complementary directions intact. This contrasts with MGDA, which computes a single global balance.
-
-\emph{CAGrad (Conflict-Averse Gradient Descent)} optimizes the average objective while constraining the update to a trust region around the average gradient \citep{liu2021cagrad}. The constraint bounds the worst-case per-task decrease, trading off average progress against worst-case protection.
-
-In this thesis these ideas are transferred to one-shot coefficient selection: the gradient Gram matrix is replaced by the static relationship matrix \(R\), conflict projections and trust regions are expressed in the \(R\)-induced geometry, and the output is a single coefficient vector \(\lambda\in\Delta_m\) rather than an iterative descent trajectory.
+Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES and AdaMerging are nearby model-merging baselines \citep{yadav2023ties,yang2023adamerging}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}.
 
 \todo{Expand this chapter into a proper related-work review.}
 
@@ -135,13 +117,6 @@ Symbol & Meaning & Type / dim. \\
 \(\mathcal{B}\subset\Delta_m\) & finite search / candidate set & --- \\
 \(\lambda_{\mathrm{best}}^{\mathcal{B}}\) & best coefficient found in \(\mathcal{B}\) & \(\Delta_m\) \\
 \(\operatorname{Gap}_p^{\mathcal{B}}\) & within-family regret vs.\ \(\mathcal{B}\) & scalar \\
-\midrule
-\multicolumn{3}{@{}l}{\emph{Hyperparameters}}\\
-\(\rho\) & faithfulness penalty (M1, M2, C2, C3) & \(>0\) \\
-\(c\) & trust-region radius (C1) & \(\ge0\) \\
-\(\beta\) & conflict-shrinkage strength (P1) & \(\ge0\) \\
-\(\tau\) & soft-min temperature (C2) & \(>0\) \\
-\(\varepsilon\) & trust-region floor / numerical guard & \(>0\) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -560,203 +535,7 @@ The reference \(\lambda_{\mathrm{best}}^{\mathcal{B}}(p)\) is the best coefficie
 \chapter{Method}
 \label{chap:method}
 
-This chapter defines one-shot mappings \(\lambda=f(p,R)\) that use only the preference vector \(p\) and a static relationship matrix \(R\). No coefficient-space gradients are introduced. We define seven mappings:
-\[
-\text{M1, M2, P1, P2, C1, C2, C3}.
-\]
-They are grouped by the multi-objective method that inspires them: \emph{M1} and \emph{M2} (MGDA-inspired), \emph{P1} and \emph{P2} (PCGrad / conflict-inspired), and \emph{C1}, \emph{C2}, and \emph{C3} (CAGrad-inspired).
-
-\section{General setup}
-
-The relationship-matrix construction and its reward-proxy interpretation are given in Section~\ref{sec:relationship-matrix}; the limitations of this proxy are summarized in Remark~\ref{rem:relationship-limits}. For optimization-based methods below, assume that the relationship matrix supplied to the mapping is symmetric and positive semidefinite. The canonical choices are the unnormalized matrix \(R=D^\top D\) and the cosine matrix \(\hat R=\hat D^\top\hat D\). For compactness, the method definitions use \(R\) as the generic matrix argument; when cosine geometry is selected, this argument is instantiated as \(R\leftarrow\hat R\). The current implementation uses \(\hat R\).
-
-\section{MGDA-inspired coefficient mapping}
-
-\begin{definition}[M1: MGDA-inspired one-shot mapping]
-Given \(p\in\Delta_m\), \(R\in\R^{m\times m}\), and \(\rho>0\), define
-\[
-\lambda_{\mathrm{M1}}
-:=
-\argmin_{\lambda\in\Delta_m}
-\lambda^\top R\lambda+\rho\norm{\lambda-p}_2^2.
-\]
-This is inspired by min-norm balancing, but adapted to coefficient selection rather than gradient descent.
-\end{definition}
-
-\begin{remark}[Possible limitation]
-Depending on how informative \(R\) is, this objective may encourage cancellation or move too strongly toward low-norm combinations.
-\end{remark}
-
-\begin{definition}[M2: Preference-weighted \(\alpha\)-MGDA variant]
-Let
-\[
-G_p:=\Diag(p)\,R\,\Diag(p),\qquad u:=\frac{1}{m}\1.
-\]
-Define
-\[
-\alpha^\star
-:=
-\argmin_{\alpha\in\Delta_m}
-\alpha^\top G_p\alpha+\rho\norm{\alpha-u}_2^2,
-\]
-and then
-\[
-\lambda_{\mathrm{M2}}:=
-\frac{\alpha^\star\odot p}{\1^\top(\alpha^\star\odot p)}.
-\]
-This variant corrects \(p\) multiplicatively instead of replacing it outright. It is well defined for any \(p\neq 0\); objectives with \(p_i=0\) receive coefficient zero.
-\end{definition}
-
-\section{PCGrad-inspired coefficient mapping}
-
-We consider two conflict-based mappings: a closed-form shrinkage (P1) that requires no solver, and a projection-based reconstruction (P2) that more directly mirrors PCGrad's gradient surgery.
-
-\begin{definition}[P1: Conflict-weighted closed-form shrinkage]
-Given \(p\in\Delta_m\), \(R\in\R^{m\times m}\), and \(\beta>0\), define the per-objective conflict load
-\[
-\kappa_i:=\sum_{j\neq i}\max(0,\,-R_{ij}),
-\]
-the shrinkage factors
-\[
-s_i:=\frac{1}{1+\beta\,\kappa_i},
-\]
-and the raw weights \(\tilde\lambda_i:=p_i\,s_i\). The coefficient vector is the simplex normalization
-\[
-\lambda_{\mathrm{P1}}:=\frac{\tilde\lambda}{\1^\top\tilde\lambda}.
-\]
-This is a closed-form mapping: objectives that conflict strongly with others (large \(\kappa_i\)) are down-weighted relative to their preference \(p_i\), while objectives that are aligned or complementary keep \(s_i\approx 1\).
-\end{definition}
-
-\begin{remark}[Scale of \(\beta\) and \(R\)]
-The conflict load \(\kappa_i\) inherits the scale of the selected relationship matrix. With the cosine matrix \(\hat R=\hat D^\top\hat D\), the off-diagonal entries lie in \([-1,1]\) and \(\kappa_i\in[0,m-1]\), so \(\beta\) has a stable, dimensionless interpretation. With \(R=D^\top D\), the magnitudes depend on the task-vector norms, and \(\beta\) must be tuned accordingly or \(R\) rescaled. Since \(s_i>0\) always and \(p\) has at least one positive entry on \(\Delta_m\), the vector \(\tilde\lambda\) has positive sum and the normalization is always well defined.
-\end{remark}
-
-\begin{definition}[P2: Task-vector PCGrad with simplex reconstruction]
-Initialize preference-weighted task directions by
-\[
-d_i:=p_i\delta_i,\qquad i=1,\dots,m.
-\]
-Process conflicting pairs in a fixed deterministic order. Whenever a current pair satisfies
-\[
-d_i^\top d_j<0,
-\]
-update
-\[
-d_i\leftarrow d_i-\frac{d_i^\top d_j}{\norm{d_j}_2^2+\varepsilon}d_j,\qquad \varepsilon\ge 0.
-\]
-After all chosen projections, aggregate
-\[
-d_{\mathrm{PC}}:=\sum_{i=1}^m d_i.
-\]
-Since \(d_{\mathrm{PC}}\) need not correspond to a valid convex merge coefficient, reconstruct coefficients by solving
-\[
-\lambda_{\mathrm{P2}}
-:=
-\argmin_{\lambda\in\Delta_m}
-\norm{D\lambda-d_{\mathrm{PC}}}_2^2+\rho\norm{\lambda-p}_2^2.
-\]
-\end{definition}
-
-\begin{remark}[Equivalent \(R\)-metric implementation]
-Let \(e_i\) be the \(i\)-th standard basis vector and
-\[
-c_i:=p_i e_i.
-\]
-Then \(Dc_i=p_i\delta_i=d_i\), and
-\[
-c_i^\top R c_j=(Dc_i)^\top(Dc_j).
-\]
-Thus projection can also be performed in the \(R\)-induced metric:
-\[
-c_i\leftarrow c_i-\frac{c_i^\top Rc_j}{c_j^\top Rc_j+\varepsilon}\,c_j.
-\]
-\end{remark}
-
-\begin{remark}[Heuristic nature]
-This PCGrad-inspired mapping is heuristic and may depend on projection order. A deterministic ordering by strongest negative conflict can be used for reproducibility.
-\end{remark}
-
-\section{CAGrad-inspired coefficient mapping}
-
-\begin{definition}[C1: Trust-Region CAGrad-inspired method]
-Let \(p\in\Delta_m\), let \(R\succeq 0\), let \(c\ge 0\), and let \(\varepsilon>0\). Define
-\[
-\lambda_{\mathrm{C1}}
-:=
-\argmax_{\lambda\in\Delta_m}\min_{i=1,\dots,m}(R\lambda)_i
-\]
-subject to
-\[
-(\lambda-p)^\top R(\lambda-p)\le c^2\max(p^\top Rp,\varepsilon).
-\]
-
-Equivalently, introduce \(t\in\R\) and solve
-\[
-\max_{\lambda\in\Delta_m,\ t} t
-\]
-subject to
-\[
-(R\lambda)_i\ge t\quad \forall i,
-\qquad
-(\lambda-p)^\top R(\lambda-p)\le c^2\max(p^\top Rp,\varepsilon).
-\]
-\end{definition}
-
-\begin{remark}[Interpretation]
-If \(R=D^\top D\), then
-\[
-(R\lambda)_i=\delta_i^\top D\lambda.
-\]
-Thus the objective protects against worst-case negative alignment in the proxy geometry while the trust region keeps \(\lambda\) close to \(p\). This is a one-shot coefficient mapping inspired by conflict-averse aggregation, not the original CAGrad training algorithm.
-\end{remark}
-
-\begin{definition}[C2: Soft-min CAGrad-inspired variant]
-For \(\tau>0\), define
-\[
-\softmin_\tau(z):=-\tau\log\sum_{i=1}^m \exp(-z_i/\tau).
-\]
-Then
-\[
-\lambda_{\mathrm{C2}}
-:=
-\argmax_{\lambda\in\Delta_m}
-\softmin_\tau(R\lambda)-\rho(\lambda-p)^\top R(\lambda-p).
-\]
-This is a smooth approximation of the worst-case alignment objective; as \(\tau\to 0^+\), \(\softmin_\tau\) converges to the minimum, recovering the C1 objective.
-\end{definition}
-
-\begin{definition}[C3: Preference-Alignment CAGrad-inspired Mapping]
-Given \(\mathbf p\in\Delta_m\), \(\mathbf R\succeq 0\), and \(\rho>0\), define
-\[
-\boldsymbol{\lambda}_{\mathrm{C3}}^{\star}
-=
-\arg\max_{\boldsymbol{\lambda}\in\Delta_m}
-\mathbf p^\top \mathbf R\boldsymbol{\lambda}
--
-\rho
-\bigl(
-\boldsymbol{\lambda}-\mathbf p
-\bigr)^\top
-\mathbf R
-\bigl(
-\boldsymbol{\lambda}-\mathbf p
-\bigr).
-\]
-C3 is CAGrad-inspired because it searches for a corrected merge direction that remains aligned with the preference-induced reference direction while penalizing deviation from the original preference vector. The first term maximizes geometric alignment between the direct preference direction and the corrected merge direction, whereas the second term measures preference deviation in the \(\mathbf R\)-metric.
-\end{definition}
-
-\begin{remark}[Task-vector interpretation and distinction]
-If \(\mathbf R=\boldsymbol{\Delta}^\top\boldsymbol{\Delta}\), where \(\boldsymbol{\Delta}\) denotes the task-vector matrix, then
-\[
-\mathbf p^\top \mathbf R\boldsymbol{\lambda}
-=
-(\boldsymbol{\Delta}\mathbf p)^\top
-(\boldsymbol{\Delta}\boldsymbol{\lambda}).
-\]
-Thus the linear term measures alignment directly in task-vector space. In contrast, C1 protects hard worst-case alignment and C2 uses a soft-min approximation of worst-case alignment; C3 instead maximizes preference-direction alignment. Its main limitation is that it does not explicitly protect the worst-aligned objective, but optimizes preference-weighted alignment instead.
-\end{remark}
-
-
+\todo{Add the new coefficient-selection methods.}
 
 \chapter{Practical LoRA-Based Implementation}
 
