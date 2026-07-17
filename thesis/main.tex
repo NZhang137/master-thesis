@@ -71,7 +71,7 @@ This thesis is organized around three research questions; \textbf{RQ2} is the pi
 
 \begin{description}[leftmargin=2.2em,style=nextline]
 \item[\textbf{RQ1 (Does geometry-aware correction help?)}]
-Within the fixed Rewarded-Soups interpolation family \(\mathcal{M}=\{\theta(\lambda):\lambda\in\Delta_m\}\), can a conflict-aware mapping \(\lambda=f(p,R)\) achieve higher preference-weighted utility \(U_p\) than the direct baseline \(\lambda=p\), and than search-based selection at a matched compute budget?
+Within the fixed Rewarded-Soups interpolation family \(\mathcal{M}=\{\theta(\lambda):\lambda\in\Delta_m\}\), can a conflict-aware mapping \(\lambda=f(p,R)\) achieve higher linear utility \(U_p\) than the direct baseline \(\lambda=p\), and than search-based selection at a matched compute budget?
 \item[\textbf{RQ2 (Is \(R\) a valid proxy, and when does it help?)}]
 To what extent does the parameter-geometric relationship matrix \(R\) predict reward-space behaviour? Because \(R\) never observes the rewards directly, quantifying the strength of this proxy --- and the regimes in which it holds --- is what determines when \(f(p,R)\) can be expected to help, and whether reward-informed correction is needed to close any remaining gap.
 \item[\textbf{RQ3 (How does the benefit scale with \(m\)?)}]
@@ -128,7 +128,7 @@ Symbol & Meaning & Type / dim. \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Rewards and evaluation metrics}}\\
 \(r_i,\ \tilde r_i\) & reward \(i\), normalized reward & scalar \\
-\(U_p(\theta(\lambda))=\sum_i p_i\tilde r_i(\theta(\lambda))\) & preference-weighted utility & scalar \\
+\(U_p(\theta(\lambda))=\sum_i p_i\tilde r_i(\theta(\lambda))\) & linear utility & scalar \\
 \(\Delta U_p\) & gain over the direct baseline & scalar \\
 \(T_p^{\mathrm{norm}}\) & weighted Tchebycheff (worst-case) metric & scalar \\
 \(\norm{\lambda-p}\) & preference faithfulness & scalar \\
@@ -172,7 +172,8 @@ p\in\Delta_m,\qquad
 \]
 \end{definition}
 
-\begin{definition}[Preference-weighted utility]
+\begin{definition}[Linear utility]
+The linear utility is the preference-weighted linear scalarization of the objective rewards.
 For fixed \(p\in\Delta_m\), define
 \[
 U_p(\theta):=\sum_{i=1}^m p_i\,r_i(\theta).
@@ -313,7 +314,7 @@ H_{ij}
 \boldsymbol{\delta}_j
 \right\rangle.
 \]
-For \(\theta(\boldsymbol{\lambda})=\theta_0+\boldsymbol{\Delta}\boldsymbol{\lambda}\), a first-order expansion of the preference-weighted utility around \(\theta_0\) gives
+For \(\theta(\boldsymbol{\lambda})=\theta_0+\boldsymbol{\Delta}\boldsymbol{\lambda}\), a first-order expansion of the linear utility around \(\theta_0\) gives
 \[
 U_{\mathbf p}\!\bigl(\theta(\boldsymbol{\lambda})\bigr)
 -
@@ -452,7 +453,7 @@ For a fixed preference vector \(p\in\Delta_m\), the individual objective scores 
 %\operatorname{AvgReward}(\lambda):=\frac{1}{m}\sum_{i=1}^m %\tilde r_i(\theta(\lambda)),
 %\]
 %where larger values are better. 
-The preference-weighted utility is
+The linear utility is
 \[
 U_p(\theta(\lambda)):=\sum_{i=1}^m p_i\,\tilde r_i(\theta(\lambda)),
 \]

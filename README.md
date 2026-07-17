@@ -29,7 +29,7 @@ The final experiment direction is **TinyLlama + HelpSteer2 + ArmoRM**:
    method set M1, M2, P1, P2, C1, C2, and C3.
 4. Merge the TinyLlama adapters and generate responses on fixed prompts.
 5. Score generated responses with ArmoRM.
-6. Analyze preference-weighted utility, distance to \(p\), and computational
+6. Analyze linear utility, distance to \(p\), and computational
    cost.
 
 ArmoRM monitoring in the training script is evaluation only. Its scores are

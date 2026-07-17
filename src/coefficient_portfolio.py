@@ -343,7 +343,7 @@ def run_portfolio(p: np.ndarray, R: np.ndarray, cfg: dict[str, Any]) -> dict[str
 
 
 def paired_rank_delta(heads_p: np.ndarray, heads_l: np.ndarray, p_vec: np.ndarray) -> np.ndarray:
-    """Rank-normalized paired Delta U_p with ranks pooled over both models per axis."""
+    """Rank-normalized paired linear-utility gain Delta U_p with pooled ranks."""
     left = np.asarray(heads_p, dtype=float)
     right = np.asarray(heads_l, dtype=float)
     pref = np.asarray(p_vec, dtype=float)
