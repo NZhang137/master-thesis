@@ -1,16 +1,16 @@
-\begin{filecontents*}{references.bib}
-@article{rame2023rewarded,title={Rewarded Soups: Towards Pareto-Optimal Alignment by Interpolating Weights Fine-Tuned on Diverse Rewards},author={Ram{\'e}, Alexandre and Couairon, Guillaume and Shukor, Mustafa and Dancette, Corentin and Gaya, Jean-Baptiste and Soulier, Laure and Cord, Matthieu},journal={arXiv preprint arXiv:2306.04488},year={2023}}
-@article{ilharco2022taskarithmetic,title={Editing Models with Task Arithmetic},author={Ilharco, Gabriel and Ribeiro, Marco Tulio and Wortsman, Mitchell and Gururangan, Suchin and Schmidt, Ludwig and Hajishirzi, Hannaneh and Farhadi, Ali},journal={arXiv preprint arXiv:2212.04089},year={2022}}
-@article{yadav2023ties,title={{TIES}-{Merging}: Resolving Interference When Merging Models},author={Yadav, Prateek and Tam, Derek and Choshen, Leshem and Raffel, Colin and Bansal, Mohit},journal={arXiv preprint arXiv:2306.01708},year={2023}}
-@article{yang2023adamerging,title={{AdaMerging}: Adaptive Model Merging for Multi-Task Learning},author={Yang, Enneng and Wang, Zhenyi and Shen, Li and Liu, Shiwei and Guo, Guibing and Wang, Xingwei and Tao, Dacheng},journal={arXiv preprint arXiv:2310.02575},year={2023}}
-@article{hu2021lora,title={{LoRA}: Low-Rank Adaptation of Large Language Models},author={Hu, Edward J. and Shen, Yelong and Wallis, Phillip and Allen-Zhu, Zeyuan and Li, Yuanzhi and Wang, Shean and Wang, Lu and Chen, Weizhu},journal={arXiv preprint arXiv:2106.09685},year={2021}}
-@article{bai2022hh,title={Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback},author={Bai, Yuntao and Jones, Andy and Ndousse, Kamal and Askell, Amanda and Chen, Anna and others},journal={arXiv preprint arXiv:2204.05862},year={2022}}
-@article{ji2023beavertails,title={BeaverTails: Towards Improved Safety Alignment of LLM via a Human-Preference Dataset},author={Ji, Jiaming and Liu, Mickel and Dai, Juntao and Pan, Xuehai and Zhang, Chi and others},journal={arXiv preprint arXiv:2307.04657},year={2023}}
-@article{cui2023ultrafeedback,title={{UltraFeedback}: Boosting Language Models with Scaled AI Feedback},author={Cui, Ganqu and Yuan, Lifan and Ding, Ning and Yao, Guanming and He, Bingxiang and others},journal={arXiv preprint arXiv:2310.01377},year={2023}}
-@article{wang2023helpsteer,title={{HelpSteer}: Multi-Attribute Helpfulness Dataset for {SteerLM}},author={Wang, Zhilin and Dong, Yi and Zeng, Jiaqi and Adams, Virginia and Sreedhar, Makesh Narsimhan and others},journal={arXiv preprint arXiv:2311.09528},year={2023}}
-@article{wang2024dpa,title={Arithmetic Control of LLMs for Diverse User Preferences: Directional Preference Alignment with Multi-Objective Rewards},author={Wang, Haoxiang and Lin, Yong and Xiong, Wei and Yang, Rui and Diao, Shizhe and Qiu, Shuang and Zhao, Han and Zhang, Tong},journal={arXiv preprint arXiv:2402.18571},year={2024}}
-@book{miettinen1999nonlinear,title={Nonlinear Multiobjective Optimization},author={Miettinen, Kaisa},publisher={Kluwer Academic Publishers},address={Boston},year={1999}}
-\end{filecontents*}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Preference-Aware Coefficient Correction for Rewarded-Soups-Style Merging
+%
+%  Numbering convention (see nummerierung_mapping.md):
+%    Definition / Remark / Proposition / Lemma / Corollary share ONE flat
+%    counter; Assumption counts separately.  Numbers are NEVER hard-coded --
+%    every statement carries a \label and is cited via \ref.  The project's
+%    internal catalogue identifiers (P23 ... P44) are given in brackets at the
+%    end of each statement so that the thesis, beweisbarer_katalog.md and
+%    f_pHR_recherche.md remain cross-referenceable.
+%
+%  Bibliography lives in references.bib (no filecontents block).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \documentclass[12pt,a4paper]{report}
 
@@ -20,6 +20,8 @@
 \usepackage[a4paper,margin=3cm]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
 \usepackage{enumitem}
 \usepackage{natbib}
 \usepackage{hyperref}
@@ -29,17 +31,33 @@
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\1}{\mathbf{1}}
 \newcommand{\norm}[1]{\left\lVert #1 \right\rVert}
-\newcommand{\todo}[1]{\textbf{TODO:} #1}
+\newcommand{\Bset}{\mathcal{B}}
+\newcommand{\Mfam}{\mathcal{M}}
+\newcommand{\Floor}{\mathcal{F}_{p}}
+\newcommand{\Pz}{\Pi_{0}}
 \DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
 \DeclareMathOperator{\vecop}{vec}
 \DeclareMathOperator{\concat}{concat}
 \DeclareMathOperator{\rank}{rank}
+\DeclareMathOperator{\ri}{ri}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\MSE}{MSE}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\reg}{reg}
+\DeclareMathOperator{\conv}{conv}
+\DeclareMathOperator{\Diag}{Diag}
 
+% One flat counter for Definition / Remark / Proposition / Lemma / Corollary.
+% Assumption is counted separately, so that "Definition 1" and "Assumption 1"
+% can coexist.  No [chapter] reset: the counter is global.
 \theoremstyle{definition}
-\newtheorem{definition}{Definition}[chapter]
+\newtheorem{definition}{Definition}
 \newtheorem{remark}[definition]{Remark}
-\newtheorem{assumption}[definition]{Assumption}
 \newtheorem{proposition}[definition]{Proposition}
+\newtheorem{lemma}[definition]{Lemma}
+\newtheorem{corollary}[definition]{Corollary}
+\newtheorem{assumption}{Assumption}
 
 \title{Preference-Aware Coefficient Correction for Rewarded-Soups-Style Model Merging}
 \author{Nils}
@@ -61,24 +79,61 @@ This thesis studies preference-aware coefficient correction for model merging un
 \]
 can improve coefficient selection relative to the direct baseline \(\lambda=p\), while staying in the same Rewarded-Soups-style family.
 
-This thesis is organized around three research questions; \textbf{RQ2} is the pivotal one, since it governs whether the others can be answered affirmatively.
+This thesis is organized around three research questions. They are stated below in the form in which the work was begun. Chapter~\ref{chap:method} and Chapter~\ref{chap:setup} make explicit which of them the executed experiment can settle and which it cannot: the status of RQ2 in particular is revisited there, because the guarantees that would make an affirmative answer meaningful are themselves conditional on the proxy assumption that RQ2 tests.
 
 \begin{description}[leftmargin=2.2em,style=nextline]
 \item[\textbf{RQ1 (Does geometry-aware correction help?)}]
-Within the fixed Rewarded-Soups interpolation family \(\mathcal{M}=\{\theta(\lambda):\lambda\in\Delta_m\}\), can a conflict-aware mapping \(\lambda=f(p,R)\) achieve higher linear utility \(U_p\) than the direct baseline \(\lambda=p\), and than search-based selection at a matched compute budget?
+Within the fixed Rewarded-Soups interpolation family \(\Mfam=\{\theta(\lambda):\lambda\in\Delta_m\}\), can a conflict-aware mapping \(\lambda=f(p,R)\) achieve higher linear utility \(U_p\) than the direct baseline \(\lambda=p\), and than search-based selection at a matched compute budget?
 \item[\textbf{RQ2 (Is \(R\) a valid proxy, and when does it help?)}]
 To what extent does the parameter-geometric relationship matrix \(R\) predict reward-space behaviour? Because \(R\) never observes the rewards directly, quantifying the strength of this proxy --- and the regimes in which it holds --- is what determines when \(f(p,R)\) can be expected to help, and whether reward-informed correction is needed to close any remaining gap.
 \item[\textbf{RQ3 (How does the benefit scale with \(m\)?)}]
 Dense search over the simplex \(\Delta_m\) becomes expensive as the number of objectives \(m\) grows. How does the advantage of a one-shot mapping \(f(p,R)\) over budgeted search scale with \(m\)?
 \end{description}
 
+\section{Contributions}
+\label{sec:contributions}
+
+The thesis makes four contributions.
+
+\begin{enumerate}[leftmargin=2.2em,itemsep=4pt]
+\item \textbf{A formalization of the gap between parameter geometry and reward.} The reward-sensitivity matrix \(H_{ij}=\langle\nabla r_i(\theta_0),\delta_j\rangle\) is introduced as the object that governs reward behaviour to first order, and the linear short-horizon proxy assumption under which the gradient-free matrix \(R\) may stand in for \(H\) is stated explicitly, together with the concrete counts on which that assumption is violated in this setup (Chapter~\ref{chap:problem}). The assumption is thereby made a hypothesis under test rather than a premise.
+
+\item \textbf{A portfolio of one-shot coefficient mappings with a layered catalogue of guarantees.} Five mappings derived from the multi-objective optimization literature are defined on the static matrix \(R\), and their properties are separated into an unconditional structural layer (family preservation, well-posedness, limiting consistency, faithfulness and excursion bounds) and a conditional reward-space layer that binds only under the proxy assumption. The organizing object is the common-ascent floor \(\Floor\), which yields joint non-degradation of \emph{every} objective rather than of their weighted average (Chapter~\ref{chap:method}).
+
+\item \textbf{A reward-free applicability criterion.} The per-axis linearity indicator \(R^2_i\) --- the coefficient of determination of the affine fit of reward \(i\) anchored at the family vertices --- is computed once per setup, before and independently of any preference, and predicts a priori whether geometric coefficient correction can help on that axis (Section~\ref{sec:linearity-criterion}).
+
+\item \textbf{A characterization of the applicability boundary.} Two independent obstructions are identified and proved: a \emph{geometric} one, in which the floor collapses to \(\{p\}\) and every floor-constrained mapping returns the baseline simultaneously and for the same reason (Proposition~\ref{prop:class-collapse}); and a \emph{reward-landscape} one, in which a negative \(R^2_i\) caps every endpoint-linear score --- whether built from \(R\) or from a measured \(H\) --- at \(L^2\)-non-informativeness on that axis (Proposition~\ref{prop:l2-cap}). Where purely geometric correction provably cannot work, and what reward information would be needed to move past it, is stated as a result rather than as a caveat.
+\end{enumerate}
+
 \chapter{Background and Related Work}
+\label{chap:related}
 
-Rewarded Soups motivates the fixed linear interpolation family considered here \citep{rame2023rewarded}. Task Arithmetic motivates the use of task vectors defined relative to a shared base model \citep{ilharco2022taskarithmetic}. TIES and AdaMerging are nearby model-merging baselines \citep{yadav2023ties,yang2023adamerging}. LoRA is the practical adapter mechanism for the prototype implementation \citep{hu2021lora}.
+\section{Weight interpolation and model merging}
 
-\todo{Expand this chapter into a proper related-work review.}
+Rewarded Soups motivates the fixed linear interpolation family \(\Mfam\) used throughout this thesis \citep{rame2023rewarded}: specialists are trained independently, one per reward, and interpolated in weight space, with the interpolation coefficient selected at test time. Two aspects of that work matter here beyond the family itself. First, its empirical premise --- linear mode connectivity of networks fine-tuned from a shared initialization --- is exactly the shared-base requirement of Assumption~\ref{ass:shared-base} and is the reason a common \(\theta_0\) is required. Second, Ram\'e et al.\ observe that the \emph{optimal} interpolation coefficient depends on how similar the evaluation metric is to the training rewards. In the vocabulary of this thesis that is an early instance of axis dissociation: how well coefficient selection can work depends on how the reward axes relate to what the specialists actually encode.
+
+Task Arithmetic supplies the task-vector calculus \(\delta_i=\theta_i-\theta_0\) on which the relationship matrix \(R=D^\top D\) is built \citep{ilharco2022taskarithmetic}. Importantly for the methodological choice defended in Chapter~\ref{chap:setup}, it defines task vectors as displacements of \emph{supervised} fine-tuned models from a shared base, which anchors the SFT-based specialization used here.
+
+TIES-Merging and AdaMerging are the nearest merging baselines \citep{yadav2023ties,yang2023adamerging}: TIES resolves sign interference among task vectors before averaging, AdaMerging learns per-layer coefficients. Both differ from the present work in that they modify \emph{how} vectors are combined, whereas this thesis keeps the combination rule fixed --- convex interpolation inside \(\Mfam\) --- and studies only the selection of \(\lambda\). The sign-conflict idea of TIES nonetheless reappears as the auxiliary diagnostic SignConf in Definition~\ref{def:portfolio}.
+
+\section{Multi-objective optimization and the origin of the mappings}
+\label{sec:related-moo}
+
+The coefficient mappings of Chapter~\ref{chap:method} transfer geometric principles from live per-step gradients to the static matrix \(R\). Three sources are used directly. MGDA formulates multi-task learning as multi-objective optimization and computes the minimum-norm element of the convex hull of the task gradients, which is a common-ascent direction for all tasks simultaneously \citep{sener2018mgda}; this is the construction behind the retired mapping M1++ and behind Lemma~\ref{lem:mgda-ascent}. PCGrad projects each task gradient onto the normal plane of any other gradient with which it has negative inner product, removing pairwise conflict before aggregation \citep{yu2020pcgrad}; this is the construction behind P2++. CAGrad maximizes the worst-case local improvement inside a ball around the average gradient, trading average progress against worst-case protection through a single radius parameter \citep{liu2021cagrad}; this is the construction behind MaxMin\((c)\), with the important difference --- stated explicitly in Definition~\ref{def:portfolio} --- that the ball here is centred on the preference-ascent direction rather than on the average task gradient.
+
+Two further strands are used as framing. Gradient Vaccine and GradDrop treat gradient similarity and gradient sign conflict respectively as first-class signals \citep{wang2021gradvac,chen2020graddrop}; the latter is the faithful lineage of the entrywise sign statistic that SignConf records. The \(\alpha\)-fairness family of FairGrad and the Nash bargaining view of Nash-MTL provide the framework in which Fair\((\alpha,\varepsilon)\) is situated \citep{ban2024fairgrad,navon2022nashmtl}, and the identification of the Nash point with the instance \(\alpha=1\) is what allows the portfolio to absorb it rather than list it separately (Remark~\ref{rem:portfolio-closed}).
+
+\section{The evaluation standard of the multi-task literature}
+\label{sec:related-deltam}
+
+The multi-task learning literature has converged on a reporting standard that this thesis adopts, and adopting it has a second benefit beyond comparability. CAGrad, Nash-MTL and FairGrad all report \(\Delta m\%\) --- the mean relative per-task drop against single-task baselines --- together with a mean rank across tasks, and average over multiple seeds with reported variance \citep{liu2021cagrad,navon2022nashmtl,ban2024fairgrad}.
+
+Two properties make \(\Delta m\%\) the right secondary metric here. It is scale-invariant, which matters because the observed reward ranges in this setup are small and unequal across axes. And its reference point is the \emph{single-task model} --- in the present vocabulary, the family vertex \(\theta_k\), i.e.\ the specialist for objective \(k\). That reference is external to the evaluated coefficient set \(\Bset\), which breaks the normalization circularity that a min--max scheme estimated from \(\Bset\) itself would introduce (Section~\ref{sec:metrics}). The uncertainty-first reporting style of the same literature is adopted as well, in the sharper form of mandatory bootstrap confidence intervals (Section~\ref{sec:uncertainty}): at the signal-to-noise ratio of this setup, a point estimate without an interval is not interpretable.
+
+A further reason to import this standard rather than invent one is that the failure mode it guards against is documented in the alignment literature too: optimizing against a learned reward model past a certain point degrades the true objective while the measured proxy keeps improving \citep{gao2023overoptimization}. Metrics whose reference point is estimated from the same set that is being searched are precisely the metrics that hide this.
 
 \chapter{Problem Formulation}
+\label{chap:problem}
 
 In this chapter, \(m\ge 2\) denotes the number of objectives and \(d\) the flattened parameter dimension. Table~\ref{tab:notation} summarizes the notation used throughout.
 
@@ -95,7 +150,7 @@ Symbol & Meaning & Type / dim. \\
 \(\delta_i=\theta_i-\theta_0\) & task vector / LoRA-adapter update & \(\R^d\) \\
 \(D=[\delta_1,\dots,\delta_m]\) & stacked task vectors & \(\R^{d\times m}\) \\
 \(\theta(\lambda)=\theta_0+D\lambda\) & merged model & \(\R^d\) \\
-\(\mathcal{M}=\{\theta(\lambda):\lambda\in\Delta_m\}\) & interpolation family & --- \\
+\(\Mfam=\{\theta(\lambda):\lambda\in\Delta_m\}\) & interpolation family & --- \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Preferences and coefficients}}\\
 \(m\) & number of objectives & \(\mathbb{N}\) \\
@@ -103,20 +158,35 @@ Symbol & Meaning & Type / dim. \\
 \(p\) & user preference vector & \(\Delta_m\) \\
 \(\lambda=f(p,R)\) & corrected merge coefficients & \(\Delta_m\) \\
 \(\Delta_m=\{x\ge0:\1^\top x=1\}\) & probability simplex & --- \\
+\(\Pz=I-\tfrac1m\1\1^\top\) & projector onto the simplex tangent \(\1^\perp\) & \(\R^{m\times m}\) \\
 \midrule
-\multicolumn{3}{@{}l}{\emph{Relationship matrix}}\\
+\multicolumn{3}{@{}l}{\emph{Relationship and sensitivity matrices}}\\
 \(R=D^\top D\) & Gram relationship matrix & \(\R^{m\times m}\), PSD \\
 \(\hat R=\hat D^\top\hat D\) & cosine relationship matrix & \(\R^{m\times m}\), PSD \\
+\(H_{ij}=\langle\nabla r_i(\theta_0),\delta_j\rangle\) & reward-sensitivity matrix & \(\R^{m\times m}\), asym. \\
+\(M_{ij}=r_i(\theta_j)\) & vertex reward matrix & \(\R^{m\times m}\) \\
+\(g_i=R_{\cdot i}\) & reward gradient of obj.\ \(i\) in coeff.\ space & \(\R^m\) \\
+\(S\) & sign-conflict matrix (auxiliary only) & \(\R^{m\times m}\), sym. \\
+\(\norm{v}_R^2=v^\top R v\) & \(R\)-seminorm & scalar \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Improvements, floor and conflict}}\\
+\(\Delta(\lambda)=R(\lambda-p)\) & per-objective improvement over \(\lambda=p\) & \(\R^m\) \\
+\(\Floor=\{\lambda\in\Delta_m:\Delta(\lambda)\ge0\}\) & common-ascent floor & \(\subseteq\Delta_m\) \\
+\(K=\{v:\1^\top v=0,\ Rv\ge0\}\) & floor cone (collapse criterion) & cone in \(\R^m\) \\
+\(C(\lambda)=\lambda^\top R^-\lambda\) & conflict energy & scalar \\
 \midrule
 \multicolumn{3}{@{}l}{\emph{Rewards and evaluation metrics}}\\
-\(r_i,\ \tilde r_i\) & reward \(i\), normalized reward & scalar \\
+\(r_i\) & raw reward for objective \(i\) & scalar \\
+\(\tilde r_i\) & rank-normalized reward over \(\Bset\) & \([0,1]\) \\
 \(U_p(\theta(\lambda))=\sum_i p_i\tilde r_i(\theta(\lambda))\) & linear utility & scalar \\
 \(\Delta U_p\) & gain over the direct baseline & scalar \\
-\(T_p^{\mathrm{norm}}\) & weighted Tchebycheff (worst-case) metric & scalar \\
+\(R^2_i\) & per-axis linearity indicator & scalar \\
+\(\Delta m\%\) & mean relative drop vs.\ the specialists & percent \\
+\(T_p^{\mathrm{norm}}\) & weighted Tchebycheff shortfall (diagnostic) & scalar \\
 \(\norm{\lambda-p}\) & preference faithfulness & scalar \\
-\(\mathcal{B}\subset\Delta_m\) & finite search / candidate set & --- \\
-\(\lambda_{\mathrm{best}}^{\mathcal{B}}\) & best coefficient found in \(\mathcal{B}\) & \(\Delta_m\) \\
-\(\operatorname{Gap}_p^{\mathcal{B}}\) & within-family regret vs.\ \(\mathcal{B}\) & scalar \\
+\(\Bset\subset\Delta_m\) & finite search / candidate set & --- \\
+\(\lambda_{\mathrm{best}}^{\Bset}\) & best coefficient found in \(\Bset\) & \(\Delta_m\) \\
+\(\reg_p(\lambda)\) & selection regret against \(\lambda_{\mathrm{best}}^{\Bset}\) & scalar \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -124,6 +194,7 @@ Symbol & Meaning & Type / dim. \\
 \section{Objectives and rewards}
 
 \begin{definition}[Objectives and rewards]
+\label{def:objectives}
 Let \(\Theta:=\R^d\) denote the parameter space. For each objective \(i\in\{1,\dots,m\}\), let
 \[
 r_i:\Theta\to\R
@@ -135,6 +206,7 @@ r(\theta):=\bigl(r_1(\theta),\dots,r_m(\theta)\bigr)\in\R^m.
 \end{definition}
 
 \begin{definition}[Preference vector]
+\label{def:preference}
 The user preference vector is
 \[
 p\in\Delta_m,\qquad
@@ -143,6 +215,7 @@ p\in\Delta_m,\qquad
 \end{definition}
 
 \begin{definition}[Linear utility]
+\label{def:utility}
 The linear utility is the preference-weighted linear scalarization of the objective rewards.
 For fixed \(p\in\Delta_m\), define
 \[
@@ -155,16 +228,19 @@ U_p(\theta):=\sum_{i=1}^m p_i\,\tilde r_i(\theta).
 \end{definition}
 
 \begin{remark}[Normalization]
-If normalized rewards are used, the normalization rule should be fixed before comparing coefficient-selection methods.
+\label{rem:normalization}
+If normalized rewards are used, the normalization rule must be fixed before comparing coefficient-selection methods. Section~\ref{sec:metrics} fixes it as rank normalization over \(\Bset\), and Section~\ref{sec:prereg} records it as a pre-registered choice.
 \end{remark}
 
 \section{Base model, specialists, and task vectors}
 
 \begin{assumption}[Shared-base requirement]
+\label{ass:shared-base}
 There exists a shared base model \(\theta_0\in\Theta\). For each objective \(i\in\{1,\dots,m\}\), the specialist model \(\theta_i\in\Theta\) is obtained from the same base model \(\theta_0\), with the same parameterization and parameter ordering.
 \end{assumption}
 
 \begin{definition}[Task vectors]
+\label{def:task-vectors}
 For each specialist \(i\), define
 \[
 \delta_i:=\theta_i-\theta_0\in\R^d.
@@ -173,6 +249,7 @@ The shared-base requirement is necessary for the task-vector interpretation and 
 \end{definition}
 
 \begin{definition}[Rewarded-Soups-style interpolation family]
+\label{def:family}
 For \(\lambda\in\Delta_m\), define
 \[
 \theta(\lambda):=\theta_0+\sum_{i=1}^m \lambda_i\delta_i.
@@ -183,92 +260,56 @@ Equivalently, because \(\sum_i\lambda_i=1\) and \(\delta_i=\theta_i-\theta_0\),
 \]
 Define the fixed interpolation family
 \[
-\mathcal{M}:=\{\theta(\lambda):\lambda\in\Delta_m\}.
+\Mfam:=\{\theta(\lambda):\lambda\in\Delta_m\}.
 \]
-This thesis operates only inside \(\mathcal{M}\).
+This thesis operates only inside \(\Mfam\).
 \end{definition}
 
 \begin{remark}[Non-claim]
-Any empirical gain discussed later would concern only \emph{selection of \(\lambda\) inside \(\mathcal{M}\)}. It would not imply a global Pareto-front improvement over all \(\theta\in\Theta\).
+\label{rem:non-claim}
+Any empirical gain discussed later would concern only \emph{selection of \(\lambda\) inside \(\Mfam\)}. It would not imply a global Pareto-front improvement over all \(\theta\in\Theta\).
 \end{remark}
 
 \section{Relationship matrix from task-vector geometry}
 \label{sec:relationship-matrix}
 
 \begin{definition}[Task vectors and task-vector matrix]
+\label{def:task-vector-matrix}
 For each specialist \(i\), define the task vector and collect the task vectors as columns:
 \[
-\boldsymbol{\delta}_i
-:=
-\theta_i-\theta_0,
+\boldsymbol{\delta}_i:=\theta_i-\theta_0,
 \qquad
-\boldsymbol{\Delta}
-:=
-\bigl[
-\boldsymbol{\delta}_1,\dots,\boldsymbol{\delta}_m
-\bigr]
-\in\R^{d\times m}.
+\boldsymbol{\Delta}:=\bigl[\boldsymbol{\delta}_1,\dots,\boldsymbol{\delta}_m\bigr]\in\R^{d\times m}.
 \]
-Thus
-\[
-\theta(\boldsymbol{\lambda})
-=
-\theta_0+\boldsymbol{\Delta}\boldsymbol{\lambda}.
-\]
+Thus \(\theta(\boldsymbol{\lambda})=\theta_0+\boldsymbol{\Delta}\boldsymbol{\lambda}\).
 \end{definition}
 
 \begin{definition}[Relationship matrix]
 \label{def:relationship-matrix}
 The unnormalized Gram relationship matrix is
 \[
-\mathbf R
-:=
-\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta},
-\]
-with scalar entries
-\[
-R_{ij}
-=
-\boldsymbol{\delta}_i^{\top}\boldsymbol{\delta}_j.
+\mathbf R:=\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta},
+\qquad
+R_{ij}=\boldsymbol{\delta}_i^{\top}\boldsymbol{\delta}_j.
 \]
 If \(\boldsymbol{\delta}_i\neq 0\) for all \(i\), define normalized task vectors and their matrix by
 \[
-\widehat{\boldsymbol{\delta}}_i
-:=
-\frac{\boldsymbol{\delta}_i}{\norm{\boldsymbol{\delta}_i}_2},
+\widehat{\boldsymbol{\delta}}_i:=\frac{\boldsymbol{\delta}_i}{\norm{\boldsymbol{\delta}_i}_2},
 \qquad
-\widehat{\boldsymbol{\Delta}}
-:=
-\bigl[
-\widehat{\boldsymbol{\delta}}_1,\dots,
-\widehat{\boldsymbol{\delta}}_m
-\bigr].
+\widehat{\boldsymbol{\Delta}}:=\bigl[\widehat{\boldsymbol{\delta}}_1,\dots,\widehat{\boldsymbol{\delta}}_m\bigr].
 \]
 The cosine relationship matrix is then
 \[
-\widehat{\mathbf R}
-:=
-\widehat{\boldsymbol{\Delta}}^{\top}
-\widehat{\boldsymbol{\Delta}},
+\widehat{\mathbf R}:=\widehat{\boldsymbol{\Delta}}^{\top}\widehat{\boldsymbol{\Delta}},
 \qquad
-\widehat R_{ij}
-=
-\cos\!\bigl(
-\boldsymbol{\delta}_i,
-\boldsymbol{\delta}_j
-\bigr)
-=
-\frac{
-\boldsymbol{\delta}_i^{\top}\boldsymbol{\delta}_j
-}{
-\norm{\boldsymbol{\delta}_i}_2
-\norm{\boldsymbol{\delta}_j}_2
-}.
+\widehat R_{ij}=\cos\bigl(\boldsymbol{\delta}_i,\boldsymbol{\delta}_j\bigr)
+=\frac{\boldsymbol{\delta}_i^{\top}\boldsymbol{\delta}_j}{\norm{\boldsymbol{\delta}_i}_2\norm{\boldsymbol{\delta}_j}_2}.
 \]
 \end{definition}
 
 \begin{remark}[PSD status]
-If \(\mathbf R=\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta}\), then \(\mathbf R\) is positive semidefinite by construction. The normalized Gram matrix \(\widehat{\mathbf R}=\widehat{\boldsymbol{\Delta}}^{\top}\widehat{\boldsymbol{\Delta}}\) is positive semidefinite as well. An arbitrary non-Gram similarity matrix need not be positive semidefinite.
+\label{rem:psd}
+If \(\mathbf R=\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta}\), then \(\mathbf R\) is positive semidefinite by construction. The normalized Gram matrix \(\widehat{\mathbf R}\) is positive semidefinite as well. An arbitrary non-Gram similarity matrix need not be positive semidefinite.
 \end{remark}
 
 Definition~\ref{def:relationship-matrix} records only inner products among the task vectors; the reward gradients \(\nabla r_i\) do not appear in it. To state precisely what \(\mathbf R\) is a proxy for, we first identify the object that governs reward behavior to first order.
@@ -277,26 +318,13 @@ Definition~\ref{def:relationship-matrix} records only inner products among the t
 \label{def:reward-sensitivity}
 For differentiable rewards \(r_i\), define the reward-sensitivity matrix \(\mathbf H\in\R^{m\times m}\) by
 \[
-H_{ij}
-:=
-\left\langle
-\nabla r_i(\theta_0),
-\boldsymbol{\delta}_j
-\right\rangle.
+H_{ij}:=\left\langle\nabla r_i(\theta_0),\boldsymbol{\delta}_j\right\rangle.
 \]
 For \(\theta(\boldsymbol{\lambda})=\theta_0+\boldsymbol{\Delta}\boldsymbol{\lambda}\), a first-order expansion of the linear utility around \(\theta_0\) gives
 \[
-U_{\mathbf p}\!\bigl(\theta(\boldsymbol{\lambda})\bigr)
--
-U_{\mathbf p}(\theta_0)
-=
-\mathbf p^{\top}\mathbf H\boldsymbol{\lambda}
-+
-o\!\left(
-\norm{\boldsymbol{\Delta}\boldsymbol{\lambda}}_2
-\right)
-\approx
-\mathbf p^{\top}\mathbf H\boldsymbol{\lambda}.
+U_{\mathbf p}\bigl(\theta(\boldsymbol{\lambda})\bigr)-U_{\mathbf p}(\theta_0)
+=\mathbf p^{\top}\mathbf H\boldsymbol{\lambda}+o\!\left(\norm{\boldsymbol{\Delta}\boldsymbol{\lambda}}_2\right)
+\approx\mathbf p^{\top}\mathbf H\boldsymbol{\lambda}.
 \]
 Indeed, \(\nabla U_{\mathbf p}(\theta_0)=\sum_i p_i\nabla r_i(\theta_0)\). Hence reward behavior is governed to first order by \(\mathbf H\), not directly by \(\mathbf R\): the scalar \(H_{ij}\) is the first-order change in reward \(i\) induced by moving along specialist direction \(\boldsymbol{\delta}_j\).
 \end{definition}
@@ -305,49 +333,70 @@ Indeed, \(\nabla U_{\mathbf p}(\theta_0)=\sum_i p_i\nabla r_i(\theta_0)\). Hence
 \label{ass:linear-short-horizon-proxy}
 Suppose that each task vector is approximately a short gradient step on its own reward, with a common step scale \(\eta>0\):
 \[
-\boldsymbol{\delta}_j
-\approx
-\eta\nabla r_j(\theta_0).
+\boldsymbol{\delta}_j\approx\eta\nabla r_j(\theta_0).
 \]
 Then
 \[
-H_{ij}
-\approx
-\eta
-\left\langle
-\nabla r_i(\theta_0),
-\nabla r_j(\theta_0)
-\right\rangle,
+H_{ij}\approx\eta\left\langle\nabla r_i(\theta_0),\nabla r_j(\theta_0)\right\rangle,
 \qquad
-R_{ij}
-\approx
-\eta^2
-\left\langle
-\nabla r_i(\theta_0),
-\nabla r_j(\theta_0)
-\right\rangle,
+R_{ij}\approx\eta^2\left\langle\nabla r_i(\theta_0),\nabla r_j(\theta_0)\right\rangle,
 \]
 and therefore, for the unnormalized Gram matrix,
 \[
-H_{ij}
-\approx
-\frac{1}{\eta}R_{ij},
+H_{ij}\approx\frac{1}{\eta}R_{ij},
 \qquad
-\mathbf H
-\approx
-\frac{1}{\eta}\mathbf R.
+\mathbf H\approx\frac{1}{\eta}\mathbf R.
 \]
-Under this assumption, the symmetric, gradient-free matrix \(\mathbf R\) can serve as a proxy for \(\mathbf H\).
 \end{assumption}
+
+Combining Assumption~\ref{ass:linear-short-horizon-proxy} with the first-order expansion of Definition~\ref{def:reward-sensitivity} gives the form in which the assumption is actually used in Chapter~\ref{chap:method}: there are constants \(a_i\in\R\) and \(b>0\) (namely \(b=1/\eta\)) with
+\begin{equation}
+\label{eq:a1-operative}
+\tilde r_i(\theta(\lambda))=a_i+b\,(R\lambda)_i
+\qquad\text{for all } i \text{ and all }\lambda\in\Delta_m,
+\end{equation}
+and consequently \(U_p(\theta(\lambda))=\sum_i p_i a_i + b\,p^\top R\lambda\). Every reward-space guarantee in Chapter~\ref{chap:method} is stated relative to \eqref{eq:a1-operative}. Its only directly testable consequence is that \(U_p(\theta(\lambda))\) is monotonically increasing in \(p^\top R\lambda\); the constants \(a_i,b\) never need to be estimated, which is why a rank correlation is the appropriate instrument (Section~\ref{sec:prereg}).
+
+Whether \(\mathbf R\) is in fact a usable stand-in for \(\mathbf H\) is therefore not settled by Assumption~\ref{ass:linear-short-horizon-proxy}; it is the hypothesis this thesis puts under test, and Remark~\ref{rem:relationship-limits} lists the counts on which the assumption is violated here.
 
 \begin{remark}[Validity, locality, and the limits of \(\mathbf R\)]
 \label{rem:relationship-limits}
-The proxy in Assumption~\ref{ass:linear-short-horizon-proxy} is local and first order. Its remainder is of order \(o(\norm{\boldsymbol{\Delta}\boldsymbol{\lambda}}_2)\), so the approximation is reliable only near the base model; far from \(\theta_0\), the linearization and the predictive value of \(\mathbf R\) may break down. Moreover, \(\mathbf H\) is generally asymmetric: the effect of \(\boldsymbol{\delta}_j\) on reward \(i\) need not equal the effect of \(\boldsymbol{\delta}_i\) on reward \(j\). In contrast, \(\mathbf R=\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta}\) is symmetric by construction and cannot represent such directed help or harm effects. Fully trained adapters or RLHF specialists may also violate \(\boldsymbol{\delta}_j\approx\eta\nabla r_j(\theta_0)\), because their net displacement need not be proportional to the initial reward gradient. The validity of \(\mathbf R\) as a proxy for \(\mathbf H\) must therefore be tested empirically rather than assumed.
+The proxy in Assumption~\ref{ass:linear-short-horizon-proxy} is local and first order. Its remainder is of order \(o(\norm{\boldsymbol{\Delta}\boldsymbol{\lambda}}_2)\), so the approximation is reliable only near the base model; far from \(\theta_0\), the linearization and the predictive value of \(\mathbf R\) may break down. Moreover, \(\mathbf H\) is generally asymmetric: the effect of \(\boldsymbol{\delta}_j\) on reward \(i\) need not equal the effect of \(\boldsymbol{\delta}_i\) on reward \(j\). In contrast, \(\mathbf R=\boldsymbol{\Delta}^{\top}\boldsymbol{\Delta}\) is symmetric by construction and cannot represent such directed help or harm effects.
+
+In the setup of this thesis the assumption is violated on four counts simultaneously, and these are stated openly rather than deferred: (i) the adapters are trained to convergence, so the net displacement is not the initial gradient; (ii) AdamW preconditioning decouples the update direction from the raw gradient; (iii) the supervised training objective differs from the evaluation reward; and (iv) \(\mathbf H\) is asymmetric while \(\mathbf R\) is symmetric. The assumption is therefore not a premise of this thesis but the hypothesis under test: the work asks whether \(\mathbf R\) remains a useful, positively rank-correlated proxy despite these violations. That is a graded empirical question, and a negative answer is itself a reportable finding about the limits of purely geometric coefficient correction.
 \end{remark}
+
+\section{A reward-free applicability criterion: per-axis linearity}
+\label{sec:linearity-criterion}
+
+Assumption~\ref{ass:linear-short-horizon-proxy} implies in particular, via \eqref{eq:a1-operative}, that each \(\tilde r_i(\theta(\lambda))\) is \emph{affine} in \(\lambda\) along the family. This weaker consequence can be checked one axis at a time, and it does not require knowing \(R\), \(H\), or the preference.
+
+\begin{definition}[Per-axis linearity indicator]
+\label{def:linearity-indicator}
+For objective \(i\), fit the affine model \(\tilde r_i(\theta(\lambda))\approx c_i+w_i^\top\lambda\) anchored at the \(m\) family vertices --- that is, using the specialist rewards \(\tilde r_i(\theta(e_k))\), \(k=1,\dots,m\) --- and evaluate its coefficient of determination \(R^2_i\) on held-out coefficients \(\lambda\in\Bset\). The axis \(i\) is called \emph{locally linear} when \(R^2_i\) is high. A negative \(R^2_i\) indicates that the best affine fit performs worse than the constant predictor, hence that no affine rule in \(\lambda\) --- whether built from \(R\) or from a measured \(H\) --- can rank coefficients correctly on that axis.
+\end{definition}
+
+The indicator is reward-free \emph{at selection time} in the operative sense: it is computed once per setup, before and independently of any preference \(p\), and then predicts for every subsequent preference whether geometric correction can help. Its logic is a strict generalization of the aggregate proxy test. Assumption~\ref{ass:linear-short-horizon-proxy} implies that all axes are locally linear, which in turn is what would allow an aggregate rank-correlation gate to pass; contrapositively, a non-linear axis caps what any endpoint-linear rule can achieve there, no matter how \(R\) is constructed or how the adapters are retrained. This is what gives the criterion predictive force across preferences, objective counts and datasets, and it is formalized in Proposition~\ref{prop:l2-cap}.
+
+\section{The cost--information spectrum}
+\label{sec:cost-information}
+
+The mappings of this thesis occupy the zero-cost end of a spectrum. \(R\)-only methods use no reward queries at merge time: the geometry is computed once from the task vectors at cost \(O(m^2 d)\) and reused for every preference, so they are reward-model-free at selection time.
+
+At the other end, reward-informed selection buys information with queries. The cheapest useful step along the spectrum estimates \(H\) directly, either by finite differences or from the vertex matrix,
+\[
+H_{ij}\approx\frac{r_i(\theta_0+\epsilon\,\delta_j)-r_i(\theta_0)}{\epsilon},
+\qquad\text{or}\qquad
+M_{ij}:=r_i(\theta_j),
+\]
+neither of which requires gradients. The vertex matrix costs \(m\) merges evaluated once each --- here \(m=5\), with all heads read in a single forward pass --- and, as Proposition~\ref{prop:h-m-equivalence} shows, the base row \(r(\theta_0)\) is never needed, because \(H\) and \(M\) agree on the simplex tangent.
+
+The question ``how much reward quality does reward-model-freeness cost?'' is answered by comparing the two ends on the same search sets. It turns the principal limitation of \(R\)-only correction into a quantified trade-off rather than a weakness. The limitation that reward information does \emph{not} remove is the linearity wall of Section~\ref{sec:linearity-criterion}: both ends of the spectrum are endpoint-linear in \(\lambda\), and Proposition~\ref{prop:l2-cap} caps both on any axis with \(R^2_i<0\).
 
 \section{Preference-to-coefficient mapping}
 
 \begin{definition}[Preference-to-coefficient mapping]
+\label{def:mapping}
 The main object of study is
 \[
 f:\Delta_m\times\R^{m\times m}\to\Delta_m,\qquad \lambda=f(p,R).
@@ -364,153 +413,152 @@ Even though \(p\) and \(\lambda\) lie in the same simplex, they are conceptually
 \end{definition}
 
 \begin{definition}[Coefficient-selection problem]
+\label{def:selection-problem}
 Given \(p\in\Delta_m\) and a fixed relationship matrix \(R\), the thesis studies whether a geometry-aware correction
 \[
 \lambda=f(p,R)
 \]
-can improve coefficient selection relative to \(\lambda=p\), while keeping \(\theta(\lambda)\) inside the same interpolation family \(\mathcal{M}\). The intended pipeline is
+can improve coefficient selection relative to \(\lambda=p\), while keeping \(\theta(\lambda)\) inside the same interpolation family \(\Mfam\). The intended pipeline is
 \[
 (\delta_i)_{i=1}^m \longrightarrow R \longrightarrow \lambda=f(p,R) \longrightarrow \theta(\lambda).
 \]
 \end{definition}
 
 \begin{remark}[Selection cost is independent of the parameter dimension]
-Every coefficient mapping \(f(p,R)\) operates only on the relationship matrix \(R\in\R^{m\times m}\) and the coefficient vector \(\lambda\in\R^m\). The high-dimensional parameter space enters exactly once, when \(R=D^\top D\) is formed from the task vectors at cost \(O(m^2 d)\); this is computed a single time and reused for every preference. Thereafter, solving for \(\lambda=f(p,R)\) --- and re-solving for any new preference \(p\) --- costs \(\mathrm{poly}(m)\) and is \emph{independent of} \(d\). The parameter dimension \(d\) (millions, for LoRA adapters) is touched again only to realize the final merge \(\theta(\lambda)=\theta_0+D\lambda\) for a chosen \(\lambda\). By contrast, search over \(\mathcal{B}\) requires \(\lvert\mathcal{B}\rvert\) separate merges and reward evaluations, each touching \(d\). This is the precise sense in which the proposed mappings are one-shot and cheap: the selection problem is solved entirely in the \(m\)-dimensional space.
+\label{rem:selection-cost}
+Every coefficient mapping \(f(p,R)\) operates only on the relationship matrix \(R\in\R^{m\times m}\) and the coefficient vector \(\lambda\in\R^m\). The high-dimensional parameter space enters exactly once, when \(R=D^\top D\) is formed from the task vectors at cost \(O(m^2 d)\); this is computed a single time and reused for every preference. Thereafter, solving for \(\lambda=f(p,R)\) --- and re-solving for any new preference \(p\) --- costs \(\mathrm{poly}(m)\) and is \emph{independent of} \(d\). The parameter dimension \(d\) (millions, for LoRA adapters) is touched again only to realize the final merge \(\theta(\lambda)=\theta_0+D\lambda\) for a chosen \(\lambda\). By contrast, search over \(\Bset\) requires \(\lvert\Bset\rvert\) separate merges and reward evaluations, each touching \(d\). This is the precise sense in which the proposed mappings are one-shot and cheap: the selection problem is solved entirely in the \(m\)-dimensional space.
 \end{remark}
 
 \section{Baselines and evaluation}
+\label{sec:metrics}
 
 \begin{definition}[Baselines]
+\label{def:baselines}
 The following baselines are considered:
 \[
 \lambda_i^{\mathrm{unif}}=\frac{1}{m},\qquad
 \lambda^{\mathrm{direct}}=p.
 \]
-In addition, one may use random search, Dirichlet sampling, or Sobol-style search over \(\Delta_m\).
+In addition, random search, Dirichlet sampling, or Sobol-style search over \(\Delta_m\) may be used; the budget-matched random baseline of Definition~\ref{def:regret} is the one against which the one-shot mappings are actually scored.
 \end{definition}
 
 \begin{remark}[Finite-search notation]
-To avoid a clash with LoRA matrices \(B_i\), the finite evaluated coefficient set is denoted by \(\mathcal{B}\subset\Delta_m\).
+\label{rem:b-notation}
+To avoid a clash with LoRA matrices \(B_i\), the finite evaluated coefficient set is denoted by \(\Bset\subset\Delta_m\).
 \end{remark}
 
 \begin{definition}[High-budget best-found reference]
-Given finite \(\mathcal{B}\subset\Delta_m\), define
+\label{def:best-found}
+Given finite \(\Bset\subset\Delta_m\), define
 \[
-\lambda_{\mathrm{best}}(p):=\argmax_{\lambda\in\mathcal{B}}U_p(\theta(\lambda)).
+\lambda_{\mathrm{best}}^{\Bset}(p):=\argmax_{\lambda\in\Bset}U_p(\theta(\lambda)).
 \]
-This is a finite-search reference, not a true oracle over all of \(\Delta_m\).
+This is a finite-search reference, not a true oracle over all of \(\Delta_m\). It is used exclusively as the reference point of the selection regret in Definition~\ref{def:regret}, and never as a normalization constant.
 \end{definition}
 
-\begin{definition}[Evaluation metrics]
-All evaluation metrics are defined for coefficient vectors \(\lambda\in\Delta_m\) and therefore evaluate only models inside the fixed family
-\[
-\mathcal{M}=\{\theta(\lambda):\lambda\in\Delta_m\}.
-\]
-They are not global Pareto-front metrics.
+\subsection{Rank normalization}
+\label{sec:rank-normalization}
 
-Let \(\tilde r_i(\theta(\lambda))\) denote the evaluation reward for objective \(i\). If objective scales are already comparable, we set \(\tilde r_i=r_i\). Otherwise, the normalization rule is fixed before comparing methods. A typical min--max normalization uses constants \(a_i<b_i\), obtained from known reward ranges or from a separate calibration set, and defines
-\[
-\tilde r_i(\theta):=\frac{r_i(\theta)-a_i}{b_i-a_i}.
-\]
-If the normalization constants are instead estimated from the finite evaluated set \(\mathcal{B}\), this choice must be reported explicitly because the same set is also used to define the best-found reference.
+All evaluation metrics are defined for coefficient vectors \(\lambda\in\Delta_m\) and therefore evaluate only models inside the fixed family \(\Mfam\). They are not global Pareto-front metrics.
 
-For a fixed preference vector \(p\in\Delta_m\), the individual objective scores are
-\[
-\tilde r_i(\theta(\lambda)),\qquad i=1,\dots,m.
-\]
-%The average reward is the unweighted diagnostic
-%\[
-%\operatorname{AvgReward}(\lambda):=\frac{1}{m}\sum_{i=1}^m %\tilde r_i(\theta(\lambda)),
-%\]
-%where larger values are better. 
-The linear utility is
-\[
-U_p(\theta(\lambda)):=\sum_{i=1}^m p_i\,\tilde r_i(\theta(\lambda)),
-\]
-where larger values are better for the fixed preference \(p\).
+The normalized reward is the \emph{rank} of the raw reward within the evaluated set:
+\begin{equation}
+\label{eq:rank-norm}
+\tilde r_i(\theta(\lambda)):=\frac{\operatorname{rank}_i(\lambda)}{\lvert\Bset\rvert},
+\qquad
+\operatorname{rank}_i(\lambda):=\bigl\lvert\{\mu\in\Bset: r_i(\theta(\mu))\le r_i(\theta(\lambda))\}\bigr\rvert,
+\end{equation}
+and the linear utility is \(U_p(\theta(\lambda))=\sum_i p_i\tilde r_i(\theta(\lambda))\).
 
-The direct preference baseline is \(\lambda=p\). To avoid confusing the preference vector with a model parameter, we write the baseline model explicitly as \(\theta(\lambda=p)\). The utility improvement over direct preference interpolation is
-\[
-\Delta U_p(\lambda_{\mathrm{method}}):=
-U_p(\theta(\lambda_{\mathrm{method}}))-U_p(\theta(\lambda=p)).
-\]
-Thus \(\Delta U_p>0\) means that the method improves over the direct baseline for the same preference \(p\).
+Rank normalization replaces the min--max scheme that a first reading of the problem suggests, and the reason is a validity defect rather than a preference. A min--max rule \(\tilde r_i=(r_i-a_i)/(b_i-a_i)\) with \(a_i,b_i\) estimated as the observed extremes over \(\Bset\) is circular: the same finite set supplies both the normalization constants and the reference \(\lambda_{\mathrm{best}}^{\Bset}\) against which methods are scored. It is also badly conditioned here, because the observed reward ranges are small, so the denominators amplify noise rather than removing scale. Ranks are invariant to any strictly monotone rescaling of a reward axis, which is exactly the invariance the normalization was supposed to provide, and they are bounded by construction.
 
-The best-found reference is computed separately for each preference:
-\[
-\lambda_{\mathrm{best}}^{\mathcal{B}}(p):=
-\argmax_{\lambda\in\mathcal{B}}U_p(\theta(\lambda)).
-\]
-The superscript \(\mathcal{B}\) emphasizes that this is only the best point found in the finite evaluated set. The within-family utility gap is
-\[
-\operatorname{Gap}_p^{\mathcal{B}}(\lambda_{\mathrm{method}}):=
-U_p\bigl(\theta(\lambda_{\mathrm{best}}^{\mathcal{B}}(p))\bigr)
--U_p(\theta(\lambda_{\mathrm{method}})).
-\]
-A smaller gap is better. If \(\lambda_{\mathrm{method}}\in\mathcal{B}\), then \(\operatorname{Gap}_p^{\mathcal{B}}(\lambda_{\mathrm{method}})\ge 0\).
+\subsection{Primary and secondary metrics}
 
-Preference faithfulness is reported as a diagnostic trade-off, not as a reward metric. It can be measured by
+The utility improvement over direct preference interpolation is
+\[
+\Delta U_p(\lambda_{\mathrm{method}}):=U_p(\theta(\lambda_{\mathrm{method}}))-U_p(\theta(\lambda=p)),
+\]
+so \(\Delta U_p>0\) means the method improves over the direct baseline for the same preference \(p\). To avoid confusing the preference vector with a model parameter, the baseline model is written explicitly as \(\theta(\lambda=p)\).
+
+\begin{definition}[Selection regret against a budget-matched random baseline]
+\label{def:regret}
+For a method output \(\lambda^\star\), define
+\[
+\reg_p(\lambda^\star):=U_p\bigl(\theta(\lambda_{\mathrm{best}}^{\Bset}(p))\bigr)-U_p(\theta(\lambda^\star)),
+\]
+and report it \emph{against} the regret of random selection,
+\[
+\reg_p^{\mathrm{random}}:=U_p\bigl(\theta(\lambda_{\mathrm{best}}^{\Bset}(p))\bigr)-\mathbb{E}_{\mu\sim\mathrm{Unif}(\Bset)}\,U_p(\theta(\mu)),
+\]
+separately for each axis regime identified by Definition~\ref{def:linearity-indicator}. Smaller is better; the informative quantity is the ratio \(\reg_p(\lambda^\star)/\reg_p^{\mathrm{random}}\), which is budget-fair by construction because both terms are computed on the same \(\Bset\).
+\end{definition}
+
+Reporting regret against a random baseline, rather than reporting the raw gap to \(\lambda_{\mathrm{best}}^{\Bset}\) as a headline number, matters for a specific reason. The raw gap is not interpretable on its own: it can be made arbitrarily small by shrinking \(\Bset\) and arbitrarily large by enlarging it, and it says nothing about whether the method did better than picking a coefficient at random from the same set. The ratio does, and it directly answers the use case ``pick a good \(\lambda\) without evaluating the whole set''. The per-regime split is not a post-hoc slice: Definition~\ref{def:linearity-indicator} assigns axes to regimes before any method is run.
+
+\begin{definition}[\(\Delta m\%\) against the specialists]
+\label{def:delta-m}
+With the family vertices \(\theta_k=\theta(e_k)\) --- the specialists --- as single-task reference,
+\[
+\Delta m\%(\lambda):=\frac{1}{m}\sum_{k=1}^{m}\frac{r_k(\theta(\lambda))-r_k(\theta_k)}{r_k(\theta_k)}\times 100,
+\]
+with the preference-weighted variant obtained by replacing \(\tfrac1m\) with \(p_k\). Larger (less negative) is better.
+\end{definition}
+
+This is the standard multi-task reporting metric (Section~\ref{sec:related-deltam}), it is scale-invariant, and --- decisively for the present setup --- its reference point \(r_k(\theta_k)\) lies outside \(\Bset\), so it does not inherit the circularity of any \(\Bset\)-estimated quantity.
+
+Preference faithfulness is reported as a diagnostic trade-off, not as a reward metric:
 \[
 \norm{\lambda_{\mathrm{method}}-p}_1
-\qquad \text{or}\qquad
-\norm{\lambda_{\mathrm{method}}-p}_2.
+\qquad\text{or}\qquad
+\norm{\lambda_{\mathrm{method}}-p}_2 ,
 \]
-An optional geometry-aware diagnostic is
+with the geometry-aware variant
 \[
-D_{\bar R}(\lambda_{\mathrm{method}},p):=
-(\lambda_{\mathrm{method}}-p)^\top \bar R(\lambda_{\mathrm{method}}-p),
+D_{\bar R}(\lambda_{\mathrm{method}},p):=(\lambda_{\mathrm{method}}-p)^\top \bar R(\lambda_{\mathrm{method}}-p),
 \]
-where \(\bar R\succeq 0\) is the matrix used for distance evaluation. If the selected relationship matrix is already a Gram matrix, one may use either \(\bar R=R=D^\top D\) or \(\bar R=\hat R=\hat D^\top\hat D\). If the selected relationship matrix is not guaranteed to be symmetric positive semidefinite, then \(\bar R\) should be obtained by symmetrizing and projecting to the positive semidefinite cone. If \(\bar R=D^\top D\), then
+where \(\bar R\succeq 0\) is the matrix used for distance evaluation. If the selected relationship matrix is already a Gram matrix, one may use either \(\bar R=R=D^\top D\) or \(\bar R=\hat R\). If it is not guaranteed to be symmetric positive semidefinite, \(\bar R\) should be obtained by symmetrizing and projecting onto the positive semidefinite cone. For \(\bar R=D^\top D\),
 \[
-D_{\bar R}(\lambda_{\mathrm{method}},p)=
-\norm{D(\lambda_{\mathrm{method}}-p)}_2^2.
+D_{\bar R}(\lambda_{\mathrm{method}},p)=\norm{D(\lambda_{\mathrm{method}}-p)}_2^2 .
 \]
 
-For a Tchebychev-style worst-case shortfall metric, define observed best and worst normalized rewards over the finite evaluated set
+\subsection{The Tchebycheff shortfall as a diagnostic}
+\label{sec:tchebycheff}
+
+Define observed best and worst normalized rewards over the finite evaluated set,
 \[
-z_i^{\mathrm{best}}:=\max_{\lambda\in\mathcal{B}}\tilde r_i(\theta(\lambda)),
+z_i^{\mathrm{best}}:=\max_{\lambda\in\Bset}\tilde r_i(\theta(\lambda)),
 \qquad
-z_i^{\mathrm{worst}}:=\min_{\lambda\in\mathcal{B}}\tilde r_i(\theta(\lambda)).
+z_i^{\mathrm{worst}}:=\min_{\lambda\in\Bset}\tilde r_i(\theta(\lambda)),
 \]
-For numerical stability, let \(\varepsilon_T>0\). Define the active objective set
+let \(\varepsilon_T>0\) for numerical stability, and let
 \[
-A_{\varepsilon_p}(p):=\{i\in\{1,\dots,m\}:p_i>\varepsilon_p\},
+A_{\varepsilon_p}(p):=\{i\in\{1,\dots,m\}:p_i>\varepsilon_p\}
 \]
-with a small threshold \(\varepsilon_p\ge 0\). The normalized Tchebychev-style metric is
+be the active objective set for a small threshold \(\varepsilon_p\ge0\). The normalized Tchebycheff-style metric is
 \[
-T_p^{\mathrm{norm}}(\lambda):=
-\max_{i\in A_{\varepsilon_p}(p)}
-p_i\left[
-\frac{z_i^{\mathrm{best}}-\tilde r_i(\theta(\lambda))}
-{z_i^{\mathrm{best}}-z_i^{\mathrm{worst}}+\varepsilon_T}
-\right].
+T_p^{\mathrm{norm}}(\lambda):=\max_{i\in A_{\varepsilon_p}(p)}
+p_i\left[\frac{z_i^{\mathrm{best}}-\tilde r_i(\theta(\lambda))}{z_i^{\mathrm{best}}-z_i^{\mathrm{worst}}+\varepsilon_T}\right],
 \]
-Smaller values are better. This convention multiplies the normalized shortfall by \(p_i\), so shortfalls in high-preference objectives are penalized more strongly. Objectives with zero preference do not affect this metric. Objectives with negligible observed range should be handled carefully because the denominator can amplify small absolute differences.
+smaller being better. The convention multiplies the normalized shortfall by \(p_i\), so shortfalls in high-preference objectives are penalized more strongly; objectives with zero preference do not affect the metric; objectives with negligible observed range must be handled carefully, because the denominator can amplify small absolute differences.
 
-The Tchebychev improvement over the direct baseline is
-\[
-\Delta T_p^{\mathrm{norm}}(\lambda_{\mathrm{method}}):=
-T_p^{\mathrm{norm}}(\lambda=p)-T_p^{\mathrm{norm}}(\lambda_{\mathrm{method}}).
-\]
-A positive value means that the method reduces the worst-case preference-weighted shortfall relative to \(\lambda=p\).
+\(T_p^{\mathrm{norm}}\) is reported as a \emph{diagnostic}, not as an optimization target and not as a success criterion. The reason is structural rather than practical and is proved in Proposition~\ref{prop:t-unreachable}: the metric is governed by the shortfall on the Tchebycheff-active axis, and whenever that axis has \(R^2_{i^\star}<0\), every endpoint-linear score built from \(R\) or from a measured \(H\) is \(L^2\)-non-informative about precisely that shortfall. Claiming an improvement in \(T_p^{\mathrm{norm}}\) as evidence for a method would therefore be claiming something the method class provably cannot deliver on such an instance. What \(T_p^{\mathrm{norm}}\) is used for is the reverse direction: as the quantity that the floor guarantee of Lemma~\ref{lem:floor-nondeg} protects, it records whether a method that claims vector safety in fact avoids worst-case degradation.
 
-Finally, evaluation is performed over a set of preference vectors
-\[
-\mathcal{P}:=\{p^{(1)},\dots,p^{(K)}\}\subset\Delta_m.
-\]
-Metrics such as \(\Delta U_p\), \(\operatorname{Gap}_p^{\mathcal{B}}\), \(T_p^{\mathrm{norm}}\), and preference-faithfulness distances are reported per preference and summarized over \(\mathcal{P}\) using mean, median, and robust statistics. 
-%Additional useful diagnostics include the win rate over the direct baseline,
-%\[
-%\frac{1}{K}\sum_{k=1}^K
-%\mathbf{1}\!\left\{
-%U_{p^{(k)}}(\theta(\lambda_{\mathrm{method}}^{(k)}))>
-%U_{p^{(k)}}(\theta(\lambda=p^{(k)}))
-%\right\},
-%\]
-%and the finite-set rank of \(\lambda_{\mathrm{method}}\) according to \(U_p\) among the evaluated coefficients in \(\mathcal{B}\).
-\end{definition}
+\subsection{Uncertainty quantification}
+\label{sec:uncertainty}
 
-\begin{remark}[Tchebychev weighting convention]
+Every aggregated quantity is reported with a bootstrap confidence interval, and no aggregated quantity is reported without one. Concretely: 2000 resamples over the \(\lvert\Bset\rvert\) evaluated coefficients, and separately over the evaluation prompts; percentile 95\% intervals on every aggregated rank correlation, every \(\Delta U_p\), every regret ratio and every \(\Delta m\%\). An effect counts as real only if its interval excludes \(0\).
+
+Two further quantities are reported in the same form. The win rate against the direct baseline over a preference set \(\mathcal{P}=\{p^{(1)},\dots,p^{(K)}\}\subset\Delta_m\),
+\[
+\mathrm{WR}:=\frac{1}{K}\sum_{k=1}^K
+\1\!\left\{U_{p^{(k)}}\bigl(\theta(\lambda_{\mathrm{method}}^{(k)})\bigr)>U_{p^{(k)}}\bigl(\theta(\lambda=p^{(k)})\bigr)\right\},
+\]
+with a bootstrap interval over \(\mathcal{P}\); and the noise-normalized effect size \(\Delta U_p/\mathrm{SE}\), which makes gains comparable across preferences with different variance.
+
+At the signal-to-noise ratio of this setup, uncertainty quantification is not a presentational refinement but the instrument that separates signal from noise: two rank correlations of similar magnitude can have intervals that respectively exclude and straddle zero, and only the first is a finding. Metrics such as \(\Delta U_p\), \(\reg_p\), \(\Delta m\%\), \(T_p^{\mathrm{norm}}\) and the faithfulness distances are reported per preference and aggregated over \(\mathcal{P}\) with intervals; unadorned means, medians and ``robust statistics'' are not sufficient and are not used as the primary report.
+
+\begin{remark}[Tchebycheff weighting convention]
+\label{rem:tchebycheff-weights}
 The metric \(T_p^{\mathrm{norm}}\) follows the standard weighted Tchebycheff scalarization \citep{miettinen1999nonlinear}, in which the weight \emph{multiplies} the deviation from the ideal reference point,
 \[
 g_{\mathrm{tch}}(\theta\mid w,z^\star)=\max_{i=1,\dots,m}\bigl\{\,w_i\,\lvert f_i(\theta)-z_i^\star\rvert\,\bigr\}.
@@ -519,22 +567,302 @@ Choosing \(w_i=p_i\) is motivated by three considerations. First, preference con
 \end{remark}
 
 \begin{remark}[Evaluation scope]
-All quantities above compare only coefficient choices inside the fixed family \(\mathcal{M}\) or the finite evaluated set \(\mathcal{B}\). The notation \(\lambda_{\mathrm{best}}^{\mathcal{B}}(p)\) should not be interpreted as a global optimum, and improvements in \(\Delta U_p\) or \(\Delta T_p^{\mathrm{norm}}\) do not imply global Pareto-front improvement.
+\label{rem:eval-scope}
+All quantities above compare only coefficient choices inside the fixed family \(\Mfam\) or the finite evaluated set \(\Bset\). The notation \(\lambda_{\mathrm{best}}^{\Bset}(p)\) should not be interpreted as a global optimum, and improvements in \(\Delta U_p\) or reductions in \(\reg_p\) do not imply global Pareto-front improvement.
 \end{remark}
 
-\begin{remark}[A negative \(\operatorname{Gap}_p^{\mathcal{B}}\) is a success, not an anomaly]
-The reference \(\lambda_{\mathrm{best}}^{\mathcal{B}}(p)\) is the best coefficient within a \emph{finite} search set \(\mathcal{B}\) of budget \(\lvert\mathcal{B}\rvert\), not a ground-truth optimum over \(\Delta_m\). Consequently \(\operatorname{Gap}_p^{\mathcal{B}}\) can be negative: this happens exactly when a method finds a coefficient that no point in \(\mathcal{B}\) matches, i.e.\ when \(f(p,R)\) outperforms budgeted search. A negative \(\operatorname{Gap}_p^{\mathcal{B}}\) should therefore be read as evidence for the efficiency claim of RQ3, and \(\operatorname{Gap}_p^{\mathcal{B}}\) should always be reported together with the budget \(\lvert\mathcal{B}\rvert\) that defines the reference.
-\end{remark}
+\section{Pre-registration}
+\label{sec:prereg}
 
+The metric set of Section~\ref{sec:metrics} is fixed before the confirmatory run, together with the decision rules below. The purpose is to make the outcome of the experiment informative in both directions: a negative result is only a finding if the criterion for it was fixed in advance.
+
+\paragraph{The proxy gate.} The testable consequence of \eqref{eq:a1-operative} is that \(U_p(\theta(\lambda))\) increases monotonically in the geometric score \(p^\top R\lambda\). This is tested by the Spearman rank correlation \(\rho_R\) between the score and the measured utility over \(\Bset\), aggregated over the evaluation preferences, with the \(H\)-based analogue \(\rho_H\) computed from the vertex matrix. The gate is declared passed at \(\rho\ge 0.60\) and failed at \(\rho\le 0.30\); the intermediate band is reported as inconclusive. Thresholds are fixed in advance and are not adjusted after seeing the confirmatory result.
+
+\paragraph{The decision rule for effects.} An effect is reported as real only if its bootstrap 95\% interval excludes \(0\) (Section~\ref{sec:uncertainty}). Point estimates without intervals do not enter any conclusion. Multiple comparisons within a regime family are corrected by the Holm procedure.
+
+\paragraph{Regime assignment.} Axes are assigned to the linear and non-linear regimes by \(R^2_i\) (Definition~\ref{def:linearity-indicator}) before any coefficient mapping is evaluated, and the assignment is not revised afterwards. Axes predicted to fail are retained in the confirmatory run as a predicted negative control, so that a dissociation between regimes is demonstrated rather than selected.
+
+\paragraph{Reward-model firewall.} The evaluation reward model is used strictly read-only. It is never used for checkpoint selection, hyperparameter choice, or any within-training decision; only held-out validation loss governs training. This is the validity condition of the proxy experiment: selecting adapters against the same model on which the proxy is subsequently validated would contaminate the measurement, and the overoptimization literature documents exactly this failure mode \citep{gao2023overoptimization}. The firewall is described concretely in Section~\ref{sec:firewall}.
+
+\paragraph{Data separation.} Exploratory and confirmatory analyses use disjoint prompt slices. Quantities computed in the exploratory phase are labelled as such wherever they are reported, and are never presented as confirmatory evidence.
 
 \chapter{Method}
 \label{chap:method}
 
-\todo{Add the new coefficient-selection methods.}
+Throughout this chapter \(R=D^\top D\succeq 0\) (or its cosine variant \(\hat R\)), \(p\in\Delta_m\), and the \emph{reward gradient of objective \(i\) in coefficient space} is the \(i\)-th column of \(R\), written \(g_i:=R_{\cdot i}\in\R^m\). Under \eqref{eq:a1-operative}, moving \(\lambda\) in direction \(v\) changes \(\tilde r_i\) at rate \(b\,\langle g_i,v\rangle\).
+
+Statements are labelled with their identifier in the project's provable-statement catalogue, e.g.\ \emph{(catalogue P26)}, so that this chapter, Appendix~\ref{app:catalogue} and the standalone catalogue documents remain cross-referenceable independently of the numbers \LaTeX{} assigns.
+
+\section{Improvements, the floor, and two notions of safety}
+\label{sec:floor}
+
+\begin{definition}[Improvement vector and common-ascent floor]
+\label{def:floor}
+For \(\lambda\in\Delta_m\) define the per-objective improvement over the baseline
+\[
+\Delta(\lambda):=R(\lambda-p),
+\qquad
+\Delta_i(\lambda)=\bigl(R(\lambda-p)\bigr)_i=\langle g_i,\lambda-p\rangle,
+\]
+and the \emph{common-ascent floor}
+\[
+\Floor:=\{\lambda\in\Delta_m:\Delta_i(\lambda)\ge 0\ \ \forall i\},
+\qquad p\in\Floor \text{ since } \Delta(p)=0 .
+\]
+\end{definition}
+
+\begin{definition}[Conflict energy]
+\label{def:conflict-energy}
+\(C(\lambda):=\lambda^\top R^-\lambda\) with \(R^-_{ij}=\max(0,-R_{ij})\) for \(i\ne j\) and \(R^-_{ii}=0\). Reducing conflict means placing less joint mass on conflicting objective pairs.
+\end{definition}
+
+Two notions of safety order everything that follows.
+
+\begin{description}[leftmargin=2.2em,style=nextline]
+\item[\emph{Scalar safety}] \(p^\top R\lambda\ge p^\top Rp\), which under \eqref{eq:a1-operative} means that \(U_p\) is not worsened.
+\item[\emph{Vector safety}] \(\lambda\in\Floor\), which under the same relation means that \emph{no individual objective} is worsened --- hence neither \(U_p\) nor \(T_p^{\mathrm{norm}}\).
+\end{description}
+
+\begin{lemma}[Floor \(\Rightarrow\) joint non-degradation]
+\label{lem:floor-nondeg}
+Under \eqref{eq:a1-operative}, if \(\lambda\in\Floor\) then \(\tilde r_i(\theta(\lambda))\ge\tilde r_i(\theta(p))\) for every \(i\), and consequently (i) \(U_p(\theta(\lambda))\ge U_p(\theta(p))\) and (ii) \(T_p^{\mathrm{norm}}(\lambda)\le T_p^{\mathrm{norm}}(p)\).
+\end{lemma}
+
+\begin{proof}
+\(\lambda\in\Floor\) means \(\Delta_i(\lambda)=(R\lambda)_i-(Rp)_i\ge 0\) for all \(i\); by \eqref{eq:a1-operative}, \(\tilde r_i(\theta(\lambda))-\tilde r_i(\theta(p))=b\,\Delta_i(\lambda)\ge 0\) since \(b>0\). For (i), \(U_p(\theta(\lambda))-U_p(\theta(p))=b\,p^\top\Delta(\lambda)\ge 0\). For (ii), the active set \(A_{\varepsilon_p}(p)\), the constants \(z_i^{\mathrm{best}},z_i^{\mathrm{worst}}\) and the denominators of \(T_p^{\mathrm{norm}}\) depend only on \(p\) and \(\Bset\), not on \(\lambda\); for each active \(i\), \(\tilde r_i(\theta(\lambda))\ge\tilde r_i(\theta(p))\) with \(p_i\ge0\) and positive denominator gives a smaller or equal weighted shortfall, and taking the maximum preserves the inequality.
+\end{proof}
+
+\begin{proposition}[Vector-safe \(\Rightarrow\) scalar-safe, strictly]
+\label{prop:vector-implies-scalar}
+For any \(\lambda\in\Floor\), \(p^\top R\lambda\ge p^\top Rp\). The converse fails: there exist \((R,p,\lambda)\) with \(p^\top R\lambda\ge p^\top Rp\) but \(\lambda\notin\Floor\).
+\end{proposition}
+
+\begin{proof}
+\(p^\top R(\lambda-p)=\sum_i p_i\Delta_i(\lambda)\ge0\) since \(p_i\ge0\) and \(\Delta_i\ge0\). For strictness, a counterexample at \(m=2\) has \(\min_i\Delta_i(\lambda_{\mathrm{Avg}})<0\) while \(p^\top R(\lambda-p)>0\); the Avg output of Definition~\ref{def:portfolio} exhibits it.
+\end{proof}
+
+\section{The portfolio}
+\label{sec:portfolio}
+
+\begin{definition}[The portfolio]
+\label{def:portfolio}
+Given \(p\in\Delta_m\), \(R\succeq0\), and hyperparameters \(\rho>0\), \(c\ge0\), \(\varepsilon\ge0\), \(\alpha\ge0\):
+\[
+\begin{aligned}
+\textbf{Avg}:\quad
+&\lambda_{\mathrm{Avg}}=\argmax_{\lambda\in\Delta_m}\; p^\top R\lambda-\rho\,(\lambda-p)^\top R(\lambda-p),\\[2pt]
+\textbf{Cert}:\quad
+&\lambda_{\mathrm{Cert}}=\argmax_{\lambda\in\Delta_m}\;\min_i\Delta_i(\lambda)
+\quad\text{s.t.}\quad (\lambda-p)^\top R(\lambda-p)\le c^2\max(p^\top Rp,\varepsilon),\\[2pt]
+\textbf{MaxMin}(c):\quad
+&d^\star=\argmax_{\1^\top d=0}\;\min_i (Rd)_i
+\quad\text{s.t.}\quad \norm{d-d_0}_R\le c\,\norm{d_0}_R,\ \ d_0=\Pz(Rp),\\
+&\lambda_{\mathrm{MaxMin}(c)}=p+d^\star,\\[2pt]
+\textbf{Fair}(\alpha,\varepsilon):\quad
+&\lambda_{\mathrm{Fair}}=\argmax_{\lambda\in\Floor^{\varepsilon}}\;U_\alpha\bigl(\Delta(\lambda)+\varepsilon\1\bigr)
+\quad\text{s.t.}\quad (\lambda-p)^\top R(\lambda-p)\le c^2,\\[2pt]
+\textbf{SignConf}:\quad
+&\text{auxiliary score } s(\lambda)=\lambda^\top S\lambda \ \text{ (secondary diagnostic; never the primary map)},
+\end{aligned}
+\]
+where \(\Floor^{\varepsilon}:=\{\lambda\in\Delta_m:\Delta_i(\lambda)\ge-\varepsilon\ \forall i\}\) is the \(\varepsilon\)-relaxed floor, \(U_\alpha\) is the \(\alpha\)-fair welfare (so \(\alpha=1\) is the Nash / proportional-fairness point), and \(S\) is the sign-conflict matrix.
+\end{definition}
+
+\begin{remark}[The two radii run in opposite directions]
+\label{rem:two-cs}
+Cert's trust region is centred on \(p\), so its \(c\) \emph{grows} the feasible set: \(c=0\) forces \(\lambda=p\) (Proposition~\ref{prop:limiting-consistency}) and \(t^\star\) is non-decreasing in \(c\) (Proposition~\ref{prop:cert}). MaxMin\((c)\)'s ball is centred on the preference-ascent direction \(d_0=\Pz(Rp)\), \emph{not} on \(p\), so its \(c\) runs the other way: \(c=0\) is the \emph{aggressive} pole and every \(c\ge1\) returns the certificate \(\lambda=p\). The two hyperparameters are not comparable and must be pre-registered separately. The inversion is a consequence of preference-centring and is stated explicitly because the CAGrad construction from which MaxMin\((c)\) descends centres on the average task gradient instead \citep{liu2021cagrad}.
+\end{remark}
+
+\begin{definition}[Retired mappings, defined for the record]
+\label{def:retired}
+Three further mappings were carried through the design rounds and are defined here because Chapter~\ref{chap:results} reports their behaviour, not because they are portfolio members:
+\[
+\begin{aligned}
+\textbf{M1++}:\ &\alpha^\star=\argmin_{\alpha\in\Delta_m}\norm{R\alpha}^2,\quad d_M=R\alpha^\star,\quad
+\lambda=p+t^\star\Pz d_M,\quad t^\star\text{ maximal in }\Floor\cap\Delta_m,\\
+\textbf{P2++}:\ &\hat g_i=g_i-\tfrac{g_i^\top g_j}{\norm{g_j}^2}g_j\ \text{ for each pair with } g_i^\top g_j<0,\quad
+d_{PC}=\textstyle\sum_i p_i\hat g_i,\quad \lambda=p+t^\star\Pz d_{PC},\\
+\textbf{P3++}:\ &\lambda=\argmin_{\lambda\in\Floor}\lambda^\top R^-\lambda=\argmin_{\lambda\in\Floor}C(\lambda).
+\end{aligned}
+\]
+All three are \emph{floor-constrained}: their output is defined by membership in \(\Floor\). Proposition~\ref{prop:class-collapse} shows that this single shared property, and not any defect specific to one of them, determines their behaviour on the geometry measured here.
+\end{definition}
+
+\begin{remark}[Three design rounds, and the lesson that ended them]
+\label{rem:design-rounds}
+An early round of mappings is retained in the derivation only. An \emph{alignment-led} second round, which adds \(p^\top R\lambda\) to every objective, collapses the identities of its members --- all become alignment-max-plus-penalty --- and leaves only a scalar guarantee: in evaluation instances where \(p\) is already proxy-Pareto-efficient, its members raise \(U_p\) slightly but violate the vector floor and \emph{worsen} \(T_p^{\mathrm{norm}}\). A \emph{faithful} third round restores each algorithm's own mechanism, operates on improvements \(\Delta_i\) rather than on absolute alignments \((R\lambda)_i\), and carries the vector guarantee; when no common improvement over \(p\) exists it conservatively returns \(p\). The contrast that makes the lesson precise is between an early mapping that maximized the absolute level \(\min_i(R\lambda)_i\), for which \(p\) need not be optimal so that \(U_p\) could collapse, and Cert, which maximizes the \emph{improvement} \(\min_i\Delta_i\), for which \(p\) is feasible with value \(0\) --- exactly what forces the floor guarantee. The round structure ended not because the design space was exhausted but because Proposition~\ref{prop:class-collapse} showed that its remaining members share one fate.
+\end{remark}
+
+\begin{remark}[Why the portfolio does not grow further, and why the names are what they are]
+\label{rem:portfolio-closed}
+The methods are named for \emph{what they maximize}, not for the design round that produced them. Two apparent additional members are absorbed rather than dropped: the Nash bargaining point is Fair\((1,\varepsilon)\) --- the \(\alpha=1\) instance, which the \(\alpha\)-fairness literature itself identifies as one of several limits recovered by the same regulator \citep{ban2024fairgrad,navon2022nashmtl} --- and the certificate is the \(c\ge1\) end of the MaxMin\((c)\) frontier. Reporting either as a separate method would obscure that both facts are theorems.
+\end{remark}
+
+\section{Provable statements: the unconditional layer}
+\label{sec:unconditional}
+
+The statements in this section hold with no assumption linking \(R\) to reward.
+
+\begin{proposition}[PSD of the relationship matrix]
+\label{prop:psd-R}
+\(R=D^\top D\succeq0\). If all \(\delta_i\ne0\), the cosine variant \(\hat R=\hat D^\top\hat D\succeq0\) has unit diagonal and satisfies \(\hat R=\Diag(R)^{-1/2}R\,\Diag(R)^{-1/2}\).
+\end{proposition}
+
+\begin{proposition}[Family preservation]
+\label{prop:family-preservation}
+Each mapping of Definitions~\ref{def:portfolio} and~\ref{def:retired} returns \(\lambda\in\Delta_m\), hence \(\theta(\lambda)\in\Mfam\). Avg, Cert and Fair\((\alpha,\varepsilon)\) optimize over \(\Delta_m\) or a subset by construction; MaxMin\((c)\) moves along \(\1^\perp\) from \(p\); P3++ optimizes over \(\Floor\subseteq\Delta_m\); for M1++ and P2++, \(\1^\top\Pz=0\) keeps \(\1^\top\lambda=1\) for all \(t\), and \(t^\star\) is well defined because \(t=0\) is admissible.
+\end{proposition}
+
+\begin{proposition}[Displacement identity]
+\label{prop:displacement}
+For \(R=D^\top D\): \(\lambda^\top R\lambda=\norm{\theta(\lambda)-\theta_0}_2^2\) and \((\lambda-p)^\top R(\lambda-p)=\norm{\theta(\lambda)-\theta(p)}_2^2\).
+\end{proposition}
+
+\begin{proposition}[Well-posedness]
+\label{prop:well-posedness}
+\emph{(a)} Cert in epigraph form --- maximize \(t\) subject to \((R(\lambda-p))_i\ge t\), the trust-region constraint, and \(\lambda\in\Delta_m\) --- is a convex QCQP; a maximizer exists, the optimal value \(t^\star=\min_i\Delta_i(\lambda_{\mathrm{Cert}})\) is unique, and the arg-max set is convex and compact. \emph{(b)} The Avg objective is concave on \(\Delta_m\) for \(R\succeq0\), and strictly concave, with a unique maximizer, if \(R\succ0\). \emph{(c)} The \(\alpha^\star\) of M1++ exists and is unique if \(R\succ0\); \(d_M=R\alpha^\star\) is the minimum-norm element of \(\conv\{g_1,\dots,g_m\}\). \emph{(d)} P3++ is well defined but \emph{non-convex}: \(R^-\) is in general indefinite (for \(m=2\) its eigenvalues are \(\pm R^-_{12}\)); for small \(m\) the global minimum is reached by finite search over the face structure of the floor polytope, and for large \(m\) P2++ is the convexity-free surrogate.
+\end{proposition}
+
+\begin{proposition}[Limiting consistency: baseline recovery]
+\label{prop:limiting-consistency}
+Each mapping returns \(p\), or a point reward-equivalent to \(p\) under \eqref{eq:a1-operative} (i.e.\ with \(R(\lambda-p)=0\)), in a limit of its control parameter: Cert as \(c\to0\); MaxMin\((c)\) for every \(c\ge1\); Fair\((\alpha,\varepsilon)\) as \(\varepsilon\to0\) on a collapsed floor; Avg as \(\rho\to\infty\); M1++ and P2++ whenever \(t^\star=0\); P3++ whenever \(p\) already minimizes \(C\) over \(\Floor\). The portfolio is therefore a conservative extension of the baseline \(\lambda=p\).
+\end{proposition}
+
+\begin{proposition}[Faithfulness and bounded excursion]
+\label{prop:faithfulness}
+For Cert: \(\norm{\theta(\lambda_{\mathrm{Cert}})-\theta(p)}_2\le c\max(\norm{Dp}_2,\sqrt{\varepsilon})\); if additionally \(R\succ0\) with smallest eigenvalue \(\sigma_{\min}>0\), then \(\norm{\lambda_{\mathrm{Cert}}-p}_2\le\tfrac{c}{\sqrt{\sigma_{\min}}}\max(\norm{Dp}_2,\sqrt{\varepsilon})\). If \(U_p\) is differentiable with \(\norm{\nabla U_p}_2\le L\) on the segment \([\theta(p),\theta(\lambda_{\mathrm{Cert}})]\), then
+\[
+\bigl\lvert U_p(\theta(\lambda_{\mathrm{Cert}}))-U_p(\theta(p))\bigr\rvert\le L\,c\max(\norm{Dp}_2,\sqrt{\varepsilon}),
+\]
+a two-sided bound on the utility excursion that holds \emph{without} Assumption~\ref{ass:linear-short-horizon-proxy}.
+\end{proposition}
+
+\begin{lemma}[Common-ascent property of the MGDA direction]
+\label{lem:mgda-ascent}
+For all \(i\): \(\langle g_i,d_M\rangle\ge\norm{d_M}^2\ge0\). Hence moving from \(p\) along \(d_M\) (before projection) keeps every improvement non-negative, \(\Delta_i(p+t\,d_M)=t\,\langle g_i,d_M\rangle\ge0\) for \(t\ge0\); that is, \(d_M\) points into \(\Floor\) \citep{sener2018mgda}.
+\end{lemma}
+
+\begin{remark}[Projection caveat]
+\label{rem:projection-caveat}
+Lemma~\ref{lem:mgda-ascent} holds for \(d_M\) itself; the simplex-tangent projection \(\Pz\) needed for \(\1^\top\lambda=1\) does \emph{not} guarantee \(\langle g_i,\Pz d_M\rangle\ge0\) for every \(i\). Floor membership of the realized \(\lambda_{\mathrm{M1++}}\) is therefore guaranteed by the line-search construction, with \(t^\star\) maximal in \(\Floor\cap\Delta_m\) and \(d_M\) serving as the principled direction. The analogous point holds for P2++: the aggregate \(d_{PC}\) is not in general a common-ascent direction --- that is MGDA's property, not PCGrad's \citep{yu2020pcgrad} --- and the surgery output depends on the pair-processing order, which is fixed deterministically (strongest negative conflict first) for reproducibility and permutation equivariance.
+\end{remark}
+
+\begin{proposition}[Conflict minimality of P3++, and its vacuity on a conflict-free geometry]
+\label{prop:conflict-minimality}
+\(\lambda_{\mathrm{P3++}}\) minimizes the conflict energy \(C(\lambda)\) over the floor, so \(C(\lambda_{\mathrm{P3++}})\le C(p)\); it is the only mapping for which conflict non-increase is a theorem rather than an observation. Whenever all off-diagonal entries of \(R\) are positive, \(R^-\equiv0\) and \(C\equiv0\) identically, every \(\lambda\) minimizes \(C\), and the statement is \emph{vacuously true}. The proposition is retained because it is the correct general statement and because its vacuity on such an instance is itself informative: there is no conflict to minimize.
+\end{proposition}
+
+Four further unconditional properties are carried over from the catalogue and proved in Appendix~\ref{app:catalogue}: permutation equivariance of all five mappings, \(f(Pp,PRP^\top)=P f(p,R)\); scale invariance of the coefficient rule under the cosine matrix \(\hat R\), which settles the Gram-versus-cosine question in favour of cosine for a scale-free rule while the realized \(\theta(\lambda)\) still changes; Lipschitz stability of Avg in \(p\) with constant \(\tfrac{(1+2\rho)\sigma_{\max}(R)}{2\rho\,\sigma_{\min}(R)}\) for \(R\succ0\); and the closed form of Avg on the relative interior of \(\Delta_m\),
+\[
+\lambda_{\mathrm{Avg}}=p+\tfrac{1}{2\rho}\bigl(p-\nu R^{-1}\1\bigr),
+\qquad \nu=1/(\1^\top R^{-1}\1),
+\]
+which replaces a quadratic program by a single linear solve.
+
+\section{Floor collapse: when the vector-safe family becomes one point}
+\label{sec:floor-collapse}
+
+\begin{proposition}[Class collapse on a trivial floor --- the unifier]
+\label{prop:class-collapse}
+Let \(K:=\{v\in\R^m:\1^\top v=0,\ Rv\ge0\}\). By Proposition~\ref{prop:floor-collapse-criterion}, \(\Floor=\{p\}\) for every \(p\in\ri(\Delta_m)\) if and only if \(K=\{0\}\). Whenever \(\Floor=\{p\}\), \emph{every} mapping whose output is defined by floor membership returns exactly \(p\) --- simultaneously and for the same reason. This covers Cert, Fair\((\alpha,\varepsilon)\) at \(\varepsilon=0\), SignConf, and all of Definition~\ref{def:retired}, independently of their internal mechanisms. \emph{(catalogue P26)}
+\end{proposition}
+
+\begin{proof}
+The feasible set is the singleton \(\{p\}\); an \(\argmax\) or \(\argmin\) over a singleton is that point. The line-search constructions return their fallback \(t^\star=0\). The criterion itself is a linear program, \(\max\{\min_i(Rv)_i:\1^\top v=0,\norm{v}_\infty\le1\}\), whose optimal value is \(0\) exactly when \(K=\{0\}\).
+\end{proof}
+
+\begin{remark}[What the criterion is, and what it is not]
+\label{rem:lp-criterion}
+The criterion is the \emph{value of that linear program}, not the sign pattern of \(R\). Conflict-freeness (\(R^-\equiv0\)) is neither necessary nor sufficient: a positive definite matrix with a strictly positive off-diagonal can still admit a non-trivial \(K\), as Proposition~\ref{prop:floor-collapse-criterion}(c) exhibits. A sufficient collapse condition that does apply to co-rated attribute data is a near-uniform Perron vector of a PSD \(R\), which is the algebraic signature of co-rating. Reporting a collapse as a property of \emph{the data geometry} rather than of the method class is therefore the accurate framing, and it is what makes the future-work direction of datasets with designed conflict a genuine prediction rather than a hope. \emph{(catalogue R25.1)}
+\end{remark}
+
+\begin{remark}[Movement and vector safety are incompatible once the floor collapses]
+\label{rem:organising}
+If \(\Floor=\{p\}\), then any mapping that returns \(\lambda\ne p\) necessarily has \(\min_i\Delta_i(\lambda)<0\). There is no third option: on such a geometry a method either certifies, by returning \(p\), or moves and gives up vector safety. Avg moves and accepts an a priori unbounded worst-case excursion; MaxMin\((c)\) moves with the excursion bounded by \(\lvert t^\star(c)\rvert\), which shrinks convexly to \(0\) as \(c\uparrow1\); Fair\((\alpha,\varepsilon)\) moves with the excursion bounded by \(\varepsilon\). The portfolio is thus organized by \emph{how much} worst-case degradation each method trades for movement, and this ordering --- not the choice between the methods --- is the structural content of this chapter. \emph{(catalogue R27.1, with Proposition~\ref{prop:movement-violation})}
+\end{remark}
+
+\section{Provable statements: the conditional layer}
+\label{sec:conditional}
+
+The statements in this section hold under \eqref{eq:a1-operative} and are the reward-space content of the portfolio.
+
+\begin{proposition}[Cert: intrinsic floor membership and joint non-degradation]
+\label{prop:cert}
+\(t^\star=\min_i\Delta_i(\lambda_{\mathrm{Cert}})\ge0\), since \(p\) is feasible with value \(0\); hence \(\lambda_{\mathrm{Cert}}\in\Floor\) with no external constraint, and \(t^\star\) is non-decreasing in \(c\). By Lemma~\ref{lem:floor-nondeg}, \(U_p(\theta(\lambda_{\mathrm{Cert}}))\ge U_p(\theta(p))\) and \(T_p^{\mathrm{norm}}(\lambda_{\mathrm{Cert}})\le T_p^{\mathrm{norm}}(p)\). Moreover, within the trust region Cert maximizes a lower bound on \(\Delta U_p=b\,p^\top R(\lambda-p)\), since \(p^\top R(\lambda-p)=\sum_i p_i\Delta_i(\lambda)\ge\min_i\Delta_i(\lambda)\).
+\end{proposition}
+
+\begin{proposition}[Avg: scalar non-degradation only]
+\label{prop:avg}
+\(p^\top R\lambda_{\mathrm{Avg}}\ge p^\top Rp\), hence under \eqref{eq:a1-operative} \(U_p(\theta(\lambda_{\mathrm{Avg}}))\ge U_p(\theta(p))\). Avg is \emph{not} vector-safe in general (Proposition~\ref{prop:vector-implies-scalar}): it can worsen individual objectives and raise \(T_p^{\mathrm{norm}}\) while still raising the average \(U_p\). This is the price of the scalar-only guarantee and is reported as such.
+\end{proposition}
+
+\begin{proposition}[M1++, P2++, P3++: floor membership and joint non-degradation]
+\label{prop:retired-floor}
+\(\lambda_{\mathrm{M1++}},\lambda_{\mathrm{P2++}}\in\Floor\cap\Delta_m\) by the maximal-step construction, with conservative fallback \(\lambda=p\) when \(t^\star=0\), and \(\lambda_{\mathrm{P3++}}\in\Floor\) by definition. In each case Lemma~\ref{lem:floor-nondeg} yields \(U_p(\theta(\lambda))\ge U_p(\theta(p))\) and \(T_p^{\mathrm{norm}}(\lambda)\le T_p^{\mathrm{norm}}(p)\).
+\end{proposition}
+
+\begin{remark}[How the three primary mappings divide the work]
+\label{rem:division-of-work}
+They are not competitors but three answers to one question: how much worst-case risk to accept for how much average gain. \textbf{Cert} accepts none. Its optimal value is intrinsically \(\ge0\) (Proposition~\ref{prop:cert}), so the floor guarantee is a property of the optimum rather than an enforced constraint, and when the floor is collapsed its return of \(p\) is a \emph{certificate} that no common improvement exists --- an informative output, not a failure. \textbf{Avg} accepts all of it: it maximizes the preference-weighted mean improvement \(p^\top R\lambda=\sum_i p_i\Delta_i\) and is scalar-safe only. \textbf{MaxMin\((c)\)} interpolates: its value function \(t^\star(c)\) is non-decreasing and concave (Proposition~\ref{prop:maxmin-frontier}), so the worst-case degradation \(-t^\star(c)\) is convex, non-increasing, and reaches \(0\) at \(c=1\), giving a tunable and \emph{bounded} trade rather than the two poles. The gap between \(\min_i\Delta_i\) and \(\sum_i p_i\Delta_i\) is exactly the average-versus-worst-case tension that CAGrad measures; here it is distributed across a frontier instead of being fixed inside a single algorithm. \textbf{Fair\((\alpha,\varepsilon)\)} is orthogonal to all three: it asks not how much risk to take but how the improvement should be \emph{allocated}, and its \(\alpha\)-regulator carries axiomatic backing --- scale invariance, proportional fairness at \(\alpha=1\) --- that none of the others has.
+\end{remark}
+
+\section{The \(H\)-informed vertex rule}
+\label{sec:h-rule}
+
+Reward information can be added without giving up the one-shot character. Estimate \(H\) by the finite differences or the vertex matrix of Section~\ref{sec:cost-information} --- \(m\) reward evaluations, no gradients --- and solve with the same trust-region regularizer as Cert:
+\[
+\lambda_H:=\argmax_{\lambda\in\Delta_m}\;p^\top H\lambda
+\quad\text{s.t.}\quad
+(\lambda-p)^\top R(\lambda-p)\le c^2\max(p^\top Rp,\varepsilon).
+\]
+This is the concrete local-linearization step along the cost--information spectrum and the comparison class against which the \(R\)-only methods are measured.
+
+The natural regularized counterpart of Avg admits a closed form, and the resulting statement is sharper than anything available on the \(R\) side.
+
+\begin{proposition}[Avg\((H)\): closed form and exact gain identity]
+\label{prop:avg-h}
+Let \(R\succ0\), \(\rho>0\) and
+\[
+\lambda_{\mathrm{Avg}(H)}:=\argmax_{\1^\top\lambda=1}\;p^\top H\lambda-\rho\norm{\lambda-p}_R^2 .
+\]
+Write \(\nu=(\1^\top R^{-1}H^\top p)/(\1^\top R^{-1}\1)\). Then
+
+\emph{(a)} \(\lambda_{\mathrm{Avg}(H)}=p+\tfrac{1}{2\rho}R^{-1}(H^\top p-\nu\1)\) --- one linear solve; the maximizer is unique, the objective being strictly concave.
+
+\emph{(b)} Under endpoint linearity, i.e.\ \(\tilde r_i(\theta(\lambda))=\tilde r_i(\theta_0)+(H\lambda)_i\),
+\[
+\Delta U_p=p^\top H(\lambda_{\mathrm{Avg}(H)}-p)=2\rho\norm{\lambda_{\mathrm{Avg}(H)}-p}_R^2\ \ge 0,
+\]
+with equality if and only if \(\lambda_{\mathrm{Avg}(H)}=p\).
+
+\emph{(c)} At \(H=bR\) the formula reduces identically to \(\lambda_{\mathrm{Avg}}\). \emph{(catalogue P40)}
+\end{proposition}
+
+\begin{proof}
+(a) Stationarity of the Lagrangian gives \(H^\top p-2\rho R(\lambda-p)-\nu\1=0\); imposing \(\1^\top(\lambda-p)=0\) fixes \(\nu\). The Hessian is \(-2\rho R\prec0\). (b) With \(d=\tfrac{1}{2\rho}R^{-1}u\) and \(u:=H^\top p-\nu\1\): \(d^\top Rd=\tfrac{1}{4\rho^2}u^\top R^{-1}u\), and since \(\1^\top d=0\), \(p^\top Hd=u^\top d=\tfrac{1}{2\rho}u^\top R^{-1}u=2\rho\,d^\top Rd\). (c) At \(H=bR\), \(\nu=b/(\1^\top R^{-1}\1)\) and the expression collapses to the Avg closed form.
+\end{proof}
+
+Part (c) is why this is not a sixth mapping. Avg and Avg\((H)\) are one functional form evaluated at two proxies, so the cost--information spectrum becomes a statement \emph{within} a method rather than a comparison \emph{between} methods: zero reward queries against \(m\), with the guarantee in (b) resting on endpoint linearity alone rather than on the full proxy assumption --- a separation made precise by Proposition~\ref{prop:assumption-decomposition}. Part (b) is also strictly sharper than its \(R\)-side counterpart, where scalar non-degradation is exact only at the aggressive pole (Proposition~\ref{prop:maxmin-aggressive}): here the utility gain is not merely non-negative but \emph{equal} to twice the faithfulness penalty, which makes \(\rho\) readable as an exchange rate.
+
+\begin{remark}[What \(H\) does not buy]
+\label{rem:h-limits}
+The \(H\)-family inherits the linearity wall verbatim. Every mapping above is affine in \(\lambda\), so on an axis with \(R^2_i<0\) every affine score is \(L^2\)-non-informative (Proposition~\ref{prop:l2-cap}), and a floor guarantee \(\Delta^H_i\ge-\varepsilon\) holds \emph{inside the fitted linear model} whose transfer to the true reward is exactly what \(R^2_i<0\) refutes. One structural difference does survive: the \(H\)-floor collapses under \emph{constant column sums}, not under the PSD-plus-uniform-Perron condition that closes the \(R\)-floor (Proposition~\ref{prop:floor-collapse-criterion}(b)), so the two collapse criteria are genuinely different and the \(H\)-floor can be open where the \(R\)-floor is not. Whether it is open on a given instance is a free check on the existing vertex rows. \emph{(catalogue R44.1)}
+\end{remark}
+
+\section{The honest boundary}
+\label{sec:honest-boundary}
+
+\begin{remark}[What the catalogue establishes and what it does not]
+\label{rem:honest-boundary}
+Every reward-space guarantee above --- each statement about \(U_p\) and \(T_p^{\mathrm{norm}}\) --- holds \emph{only} under Assumption~\ref{ass:linear-short-horizon-proxy} in the operative form \eqref{eq:a1-operative}, which in the present setup is violated on the counts of Remark~\ref{rem:relationship-limits}. Unconditionally valid are only the structural layer: family preservation (Proposition~\ref{prop:family-preservation}), well-posedness (Proposition~\ref{prop:well-posedness}), limiting consistency (Proposition~\ref{prop:limiting-consistency}), the faithfulness and excursion bounds (Proposition~\ref{prop:faithfulness}), the common-ascent direction (Lemma~\ref{lem:mgda-ascent}), and conflict minimality over the floor (Proposition~\ref{prop:conflict-minimality}).
+
+The correct reading is conditional: if the proxy holds, the guarantees bind; otherwise only the unconditional layer survives. The proxy-validity experiment of Section~\ref{sec:prereg} tests precisely that premise, which converts ``we hope \(R\) relates to reward'' into a genuine if--then guarantee; a negative outcome is itself an empirical finding about the limits of purely geometric coefficient correction. Three further limits are stated for the record: (i) the non-degradation statements concern the proxy quantities, not the reward directly; (ii) the intrinsic-guarantee argument is exclusive to Cert's constrained max--min structure; (iii) validation-based candidate selection over any finite set containing \(p\) guarantees non-worsening only on the selection set, requires reward access at selection time, and transfers to test only empirically. \emph{(catalogue R45)}
+\end{remark}
 
 \chapter{Practical LoRA-Based Implementation}
+\label{chap:lora}
 
-LoRA is a practical implementation choice here, not the theoretical contribution and not part of original Rewarded Soups.
+LoRA is a practical implementation choice here, not the theoretical contribution and not part of original Rewarded Soups \citep{hu2021lora}. Throughout this chapter, \(d\) denotes the flattened dimension of the adapted parameters, i.e.\ the dimension in which the task vectors \(\delta_i\) actually live; no separate symbol \(d_{\mathrm{LoRA}}\) is used, since every quantity in Chapter~\ref{chap:problem} is defined on exactly this space.
 
 \section{LoRA definition}
 
@@ -542,118 +870,124 @@ Let \(\mathcal{L}\) be the set of adapted linear layers. For layer \(\ell\in\mat
 \[
 W'_{i,\ell}=W_\ell+\Delta W_{i,\ell},
 \qquad
-\Delta W_{i,\ell}=B_{i,\ell}A_{i,\ell}.
+\Delta W_{i,\ell}=B_{i,\ell}A_{i,\ell},
 \]
-Optionally, with the usual scaling,
+or, with the usual scaling,
 \[
 \Delta W_{i,\ell}=\frac{\alpha_\ell}{r_\ell}B_{i,\ell}A_{i,\ell}.
 \]
-
 Define the effective multi-layer LoRA update
 \[
 \Delta_i^{\mathrm{LoRA}}:=(\Delta W_{i,\ell})_{\ell\in\mathcal{L}},
 \]
-and define the flattened LoRA task vector by
+and the flattened LoRA task vector
 \[
-\delta_i^{\mathrm{LoRA}}:=
-\vecop\!\Bigl(\concat_{\ell\in\mathcal{L}}\Delta W_{i,\ell}\Bigr)\in\R^{d_{\mathrm{LoRA}}}.
+\delta_i:=\vecop\!\Bigl(\concat_{\ell\in\mathcal{L}}\Delta W_{i,\ell}\Bigr)\in\R^{d}.
 \]
 
 \section{LoRA geometry and merging}
 
-Define the unnormalized LoRA relationship matrix by
+The unnormalized and cosine relationship matrices are
 \[
-R_{ij}=(\delta_i^{\mathrm{LoRA}})^\top \delta_j^{\mathrm{LoRA}}
-\]
-and the cosine LoRA relationship matrix by
-\[
-\hat R_{ij}=
-\cos(\delta_i^{\mathrm{LoRA}},\delta_j^{\mathrm{LoRA}})
-=
-\frac{(\delta_i^{\mathrm{LoRA}})^\top \delta_j^{\mathrm{LoRA}}}
-{\norm{\delta_i^{\mathrm{LoRA}}}_2\norm{\delta_j^{\mathrm{LoRA}}}_2}.
-\]
-
-The effective updates need not be materialized as dense matrices. For two
-adapters (i) and (j), their Frobenius inner product can be accumulated
-layerwise as
-\[
-\left\langle \Delta W_{i,\ell},\Delta W_{j,\ell}\right\rangle_F
-=
-s_{i,\ell}s_{j,\ell}
-\operatorname{tr}\!\left(
-(B_{i,\ell}A_{i,\ell})^\top B_{j,\ell}A_{j,\ell}
-\right),
+R_{ij}=\delta_i^\top\delta_j,
 \qquad
-s_{i,\ell}:=\frac{\alpha_{i,\ell}}{r_{i,\ell}}.
+\hat R_{ij}=\cos(\delta_i,\delta_j)=\frac{\delta_i^\top\delta_j}{\norm{\delta_i}_2\norm{\delta_j}_2}.
 \]
-Equivalently, this quantity can be evaluated from the small factors as
-\(s_{i,\ell}s_{j,\ell}\langle B_{i,\ell}^\top B_{j,\ell},
-A_{i,\ell}A_{j,\ell}^\top\rangle_F\). Consequently,
-the relationship matrix is invariant under any invertible factor
-reparameterization \(B_{i,\ell}\mapsto B_{i,\ell}G\) and
-\(A_{i,\ell}\mapsto G^{-1}A_{i,\ell}\) that leaves the effective update
-unchanged. Raw concatenations of the \(A\)- and \(B\)-factors are therefore
-not used to construct \(R\).
+The effective updates need not be materialized as dense matrices. For two adapters \(i\) and \(j\), their Frobenius inner product can be accumulated layerwise as
+\[
+\left\langle\Delta W_{i,\ell},\Delta W_{j,\ell}\right\rangle_F
+=s_{i,\ell}s_{j,\ell}\tr\!\left((B_{i,\ell}A_{i,\ell})^\top B_{j,\ell}A_{j,\ell}\right),
+\qquad
+s_{i,\ell}:=\frac{\alpha_{i,\ell}}{r_{i,\ell}},
+\]
+or, equivalently and more cheaply, from the small factors as \(s_{i,\ell}s_{j,\ell}\langle B_{i,\ell}^\top B_{j,\ell},A_{i,\ell}A_{j,\ell}^\top\rangle_F\). Consequently the relationship matrix is invariant under any invertible factor reparameterization \(B_{i,\ell}\mapsto B_{i,\ell}G\), \(A_{i,\ell}\mapsto G^{-1}A_{i,\ell}\) that leaves the effective update unchanged. Raw concatenations of the \(A\)- and \(B\)-factors are therefore not used to construct \(R\).
 
-For \(\lambda\in\Delta_m\), define the merged effective LoRA update layerwise by
+For \(\lambda\in\Delta_m\), the merged effective LoRA update is defined layerwise by
 \[
-\Delta W^{\mathrm{LoRA}}_{\mathrm{merged},\ell}
-=
-\sum_{i=1}^m \lambda_i \Delta W_{i,\ell}.
-\]
-Equivalently,
-\[
-\Delta^{\mathrm{LoRA}}_{\mathrm{merged}}
-=
-\sum_{i=1}^m \lambda_i \Delta_i^{\mathrm{LoRA}}.
+\Delta W^{\mathrm{LoRA}}_{\mathrm{merged},\ell}=\sum_{i=1}^m\lambda_i\,\Delta W_{i,\ell},
+\qquad\text{equivalently}\qquad
+\Delta^{\mathrm{LoRA}}_{\mathrm{merged}}=\sum_{i=1}^m\lambda_i\,\Delta_i^{\mathrm{LoRA}}.
 \]
 
-\begin{remark}[Important caveat]
+\section{Two implementation invariants}
+\label{sec:merge-invariants}
+
+The linear interpolation family of Definition~\ref{def:family} is only realized if the implementation actually computes \(\theta(\lambda)=\theta_0+D\lambda\). Two concrete failure modes break it silently, and both are guarded by static checks rather than by convention.
+
+\begin{remark}[Factor averaging is not effective-update averaging]
+\label{rem:merge-caveat}
 In general,
 \[
-\left(\sum_{i=1}^m \lambda_i B_{i,\ell}\right)\left(\sum_{i=1}^m \lambda_i A_{i,\ell}\right)\neq \sum_{i=1}^m \lambda_i B_{i,\ell}A_{i,\ell}.
+\left(\sum_{i=1}^m\lambda_i B_{i,\ell}\right)\left(\sum_{i=1}^m\lambda_i A_{i,\ell}\right)
+\ \neq\
+\sum_{i=1}^m\lambda_i B_{i,\ell}A_{i,\ell},
 \]
-Therefore the thesis must distinguish between linearly combining \emph{effective LoRA updates} and naively averaging \(A_i\) and \(B_i\) separately.
+because the left-hand side introduces cross terms \(B_{i,\ell}A_{j,\ell}\) for \(i\ne j\). The thesis must therefore distinguish between linearly combining \emph{effective LoRA updates} and averaging the factors \(A_i\) and \(B_i\) separately.
+
+This is not a hypothetical distinction. The library routine that names itself as a linear combination of adapters --- \texttt{peft.add\_weighted\_adapter} with \texttt{combination\_type='linear'} --- performs the factor-level combination and therefore does \emph{not} produce the merge of Definition~\ref{def:family}. Every result in this thesis uses an explicit effective-delta accumulation instead: the per-layer products \(B_{i,\ell}A_{i,\ell}\) are formed first, scaled by \(s_{i,\ell}\), and only then summed with weights \(\lambda_i\). Using the library routine would mean that the model actually evaluated is not a member of \(\Mfam\), so that every statement in Chapter~\ref{chap:method} --- all of which quantify over \(\Mfam\) --- would be evaluated off its own domain.
 \end{remark}
 
+\begin{remark}[Merge precision]
+\label{rem:merge-dtype}
+The merge is carried out and stored in \texttt{float32}, not in \texttt{bfloat16}, even where training itself runs in \texttt{bfloat16}. The reason is quantitative rather than stylistic: the differences in \(U_p\) between competing coefficient vectors in this setup are small, and \texttt{bfloat16} has roughly eight mantissa bits, so storing the merged weights at that precision injects rounding noise of the same order as the effect being measured. The primary endpoint is then a measurement of the rounding, not of the method. The merge dtype is fixed to \texttt{float32} throughout, including in the evaluation path.
+\end{remark}
+
+Both invariants are verified statically rather than trusted. The merge implementation is checked end-to-end against an independent oracle that reconstructs \(\theta(\lambda)\) directly from the stored \texttt{safetensors} tensors, and the check is required to \emph{fail} when the factor-averaging routine of Remark~\ref{rem:merge-caveat} is substituted --- a control without which the test would pass vacuously. The precision invariant is enforced by static checks on the merge and evaluation paths, so that a \texttt{bfloat16} cast cannot be reintroduced silently. Verification must exercise the production code path, not a reimplementation of it inside the verifier.
 
 \chapter{Experimental Setup}
+\label{chap:setup}
 
-\section{Candidate datasets}
+\section{Models}
 
-Possible datasets for the thesis include:
-\begin{itemize}
-    \item Anthropic HH-RLHF for helpfulness and harmlessness,
-    \item UltraFeedback and HelpSteer for richer many-objective alignment settings.
-\end{itemize}
+The base model \(\theta_0\) is TinyLlama-1.1B-Chat \citep{zhang2024tinyllama}. Evaluation uses ArmoRM, a Llama-3-8B multi-objective reward model, through its five HelpSteer2 heads --- helpfulness, correctness, coherence, complexity, verbosity \citep{wang2024armorm}. The choice of an absolute-rating multi-objective reward model is what makes the per-axis analysis of Section~\ref{sec:linearity-criterion} possible at all: a scalar preference model would collapse the five axes before they could be examined separately.
 
-\todo{Specify the exact subset, splits, reward models, preprocessing, and evaluation prompts.}
+\section{Data and specialists}
+\label{sec:specialists}
 
-\section{First prototype}
+Five LoRA adapters are trained, one per HelpSteer2 reward dimension \citep{wang2024helpsteer2}, with rank \(r=8\), \(\alpha=16\), on all seven attention and MLP projection modules (q, k, v, o, gate, up, down). Training is byte-identical across adapters: three epochs, cosine decay with warmup, \texttt{bfloat16}, gradient clipping at \(1.0\), and best-by-validation-loss checkpoint selection.
 
-For a first prototype:
-\begin{itemize}
-    \item use GPT-2 or TinyLlama as the shared base model,
-    \item train separate LoRA adapters from the same base model,
-    \item start with two objectives from HH-RLHF: helpfulness and harmlessness,
-    \item merge adapters for different \(\lambda\in\Delta_2\),
-    \item compute \(R\) from adapter geometry,
-    \item later extend to more objectives.
-\end{itemize}
+One design decision in this list is not a default and carries the weight of the whole geometric analysis: all five adapters are trained on a \emph{uniform} sample size \(N=2005\), set by the binding constraint of the smallest objective-filtered selection. The objective-filtered selection sets differ in size --- helpfulness 1918, correctness 1922, coherence 1909, complexity 1347, verbosity 1888 --- and training each adapter on its full set would make the norm \(\norm{\delta_i}\) partly a function of how much data that objective happened to supply. Since \(R=D^\top D\) is built from exactly those norms and their inner products, a training-intensity difference would enter \(R\) as if it were a geometric relationship between objectives. Equalizing \(N\) removes that confound. The resulting task-vector norms are indeed uniform, \(\norm{\delta_i}\in[5.33,5.46]\), and the adapters are frozen for all subsequent experiments.
 
-Evaluation should compare \(\lambda=p\) against corrected \(\lambda=f(p,R)\) and aggregate results over \(\mathcal{P}\subset\Delta_m\).
+\section{Measured geometry}
+\label{sec:geometry}
 
-\todo{Add the concrete compute budget, LoRA ranks, search sets \(\mathcal{B}\), and held-out evaluation protocol.}
+Both \(R=D^\top D\) and the cosine variant \(\hat R\) are computed; the coefficient rule uses \(\hat R\), which is scale-free and therefore makes the rule invariant to per-specialist rescaling (Section~\ref{sec:unconditional}).
+
+On the executed setup, all off-diagonal entries of \(\hat R\) are positive, in the range \([0.299,0.397]\). Two consequences follow immediately from Chapter~\ref{chap:method} and are recorded here because they are properties of the instance rather than of the method. First, \(R^-\equiv0\) and hence \(C(\lambda)\equiv0\) everywhere, so Proposition~\ref{prop:conflict-minimality} is vacuously true and P3++ is indifferent among all floor points. Second, a single dominant eigenvalue accounts for approximately \(46\%\) of the variance in a shared direction, with a near-uniform Perron vector; by Proposition~\ref{prop:floor-collapse-criterion}(b) this is precisely the algebraic condition under which the floor collapses. Whether it does collapse on this instance, and what follows for each mapping, is analysed in Chapter~\ref{chap:results}.
+
+\section{Search set and evaluation prompts}
+\label{sec:search-set}
+
+The evaluated coefficient set is \(\Bset\subset\Delta_m\) with \(\lvert\Bset\rvert=77\): the five vertices (the specialists), the uniform point \(\lambda_i=1/m\), the thirteen evaluation preferences, and sixty-four Dirichlet samples drawn with a fixed seed. Fixing the seed makes \(\Bset\) reproducible and makes the budget-matched random baseline of Definition~\ref{def:regret} well defined, since both the method and the random reference are scored on the same set.
+
+Prompt slices are disjoint by phase, as required by Section~\ref{sec:prereg}: the exploratory analysis uses eighty held-out validation prompts, and the confirmatory run uses the disjoint following slice of eighty. Compute is a single A100-40GB GPU in a Google Colab environment.
+
+\section{Supervised specialization as a deliberate, documented deviation}
+\label{sec:sft-deviation}
+
+The specialists are obtained by supervised fine-tuning on objective-filtered data rather than by the per-reward PPO procedure of Rewarded Soups. This is a deviation, not an equivalence, and it is worded as such. Four grounds support it.
+
+\emph{Task-arithmetic precedent.} The task-vector concept originates in Task Arithmetic, where task vectors are by definition displacements of supervised fine-tuned models from a shared base, \(\delta_i=\theta_i^{\mathrm{SFT}}-\theta_0\) \citep{ilharco2022taskarithmetic}. The \(\delta_i\) used here lie exactly on the line from which the framework --- and the matrix \(R=D^\top D\) built on it --- originates, and the task-vector calculus is agnostic to the specialization source.
+
+\emph{Linear mode connectivity.} The interpolation family is meaningful only if fine-tuned weights from a shared initialization remain linearly connected, which is documented for supervised specialists from a common base. Assumption~\ref{ass:shared-base} is satisfied by construction: all five adapters start from the same \(\theta_0\) with identical parameterization and ordering.
+
+\emph{Measurement control.} A clean rank measurement is the instrument on which the proxy gate depends. Supervised fine-tuning is deterministic at fixed seed, stable, and yields smooth validation-loss curves --- the precondition for reliable best-checkpoint selection and a low-noise rank correlation. PPO's stochastic dynamics (sampling, KL regularization, advantage estimation) would blur the geometric measurement without sharpening the research question.
+
+\emph{Tractability at thesis scale.} PPO on a 1.1B model with a reward model in the loop is disproportionately costly and unstable in the available compute environment, whereas supervised fine-tuning on objective-filtered data delivers the required structure --- five task vectors from a shared base --- at a fraction of the cost.
+
+Crucially, this choice does not invalidate the proxy test. Assumption~\ref{ass:linear-short-horizon-proxy} was never a premise but the hypothesis under test, and both supervised and reinforcement specialization violate its exact form (Remark~\ref{rem:relationship-limits}). What the gate answers is the graded question of whether \(R\) is nonetheless a useful, positively rank-correlated proxy; the specialization source changes the size of the violation, not its existence.
+
+\section{The reward-model firewall}
+\label{sec:firewall}
+
+ArmoRM is used strictly read-only. It is never used for checkpoint selection, for hyperparameter choice, or for any within-training decision; only held-out validation loss governs training. Nothing in the training pipeline reads a reward value.
+
+This is not a precaution but the validity condition of the entire proxy experiment. Selecting adapters against the same model on which the proxy is subsequently validated would make the measured correlation partly a measurement of the selection procedure, and the overoptimization literature documents exactly this pattern: a proxy that keeps improving while the quantity it stands for does not \citep{gao2023overoptimization}. Because the firewall is what licenses reading the gate outcome as evidence about \(R\), it is stated as a pre-registered constraint (Section~\ref{sec:prereg}) rather than as an implementation detail.
 
 \chapter{Results}
-
-This draft contains no experimental results.
-
+\label{chap:results}
 
 \chapter{Discussion}
-
-
 
 \chapter{Conclusion}
 
@@ -662,6 +996,246 @@ This thesis draft formalizes the problem around the pipeline
 (\delta_i)_{i=1}^m \longrightarrow R \longrightarrow \lambda=f(p,R) \longrightarrow \theta(\lambda),
 \]
 with all methods restricted to the same fixed interpolation family.
+
+\appendix
+
+\chapter{Catalogue of Provable Statements}
+\label{app:catalogue}
+
+This appendix collects the statements that Chapter~\ref{chap:method} uses but does not prove in place. Each carries its identifier in the project's provable-statement catalogue. Two catalogue entries are stated in the main text instead of here, because the argument of Chapter~\ref{chap:method} turns on them directly: the class-collapse unifier (Proposition~\ref{prop:class-collapse}, catalogue P26) and the closed form of Avg\((H)\) (Proposition~\ref{prop:avg-h}, catalogue P40). They are not restated below.
+
+\section{Unconditional statements}
+
+\begin{proposition}[MaxMin\((c)\): well-posedness]
+\label{prop:maxmin-wellposed}
+Write the mapping, with the simplex constraint explicit, as
+\[
+d^\star=\argmax_{d\in\R^m}\ \min_i (Rd)_i
+\quad\text{s.t.}\quad
+\1^\top d=0,\ \ p+d\in\Delta_m,\ \ \norm{d-d_0}_R\le c\norm{d_0}_R,
+\]
+with \(d_0:=\Pz(Rp)\) and \(\lambda:=p+d^\star\). In epigraph form this is a convex QCQP. Whenever the feasible set is non-empty, a maximizer exists, the optimal value \(t^\star=\min_i(Rd^\star)_i\) is unique, and the arg-max set in \(d\) is convex and compact. \emph{(catalogue P23)}
+\end{proposition}
+
+\begin{proof}
+The epigraph objective \(t\) is linear; \((Rd)_i\ge t\), \(\1^\top d=0\) and \(p+d\ge0\) are linear in \((d,t)\); \(\norm{d-d_0}_R^2\le c^2\norm{d_0}_R^2\) is convex quadratic since \(R\succeq0\). The feasible set is contained in the compact shifted simplex \(\{d:\1^\top d=0,\ d\ge-p\}\) and is an intersection of closed sets, hence compact, so Weierstrass gives an attained maximum; the optimal value of a convex program is unique. The arg-max set is an intersection of closed convex sets inside a compact set.
+\end{proof}
+
+\begin{remark}[Feasibility and degeneracy]
+\label{rem:maxmin-feasibility}
+At \(c=0\) the ball is the singleton \(\{d_0\}\), and the program is feasible if and only if \(p+d_0\in\Delta_m\), which is an instance fact. For every \(c\ge1\), \(d=0\) is feasible, so feasibility is automatic there. If \(Rp\parallel\1\) then \(d_0=0\), the ball collapses, the aggressive pole degenerates and there is no movement. As for Cert (Proposition~\ref{prop:well-posedness}(a)), only the value \(t^\star\) and the compact convex arg-max set are guaranteed, not a unique \(d^\star\). \emph{(catalogue R23.1)}
+\end{remark}
+
+\begin{proposition}[MaxMin\((c)\): faithfulness and bounded excursion]
+\label{prop:maxmin-faithfulness}
+For any feasible \(d^\star\), \(\norm{\theta(\lambda)-\theta(p)}_2=\norm{d^\star}_R\le(1+c)\norm{\Pz(Rp)}_R\). If \(R\succ0\) with \(\sigma_{\min}>0\) then \(\norm{\lambda-p}_2\le\tfrac{1+c}{\sqrt{\sigma_{\min}}}\norm{\Pz(Rp)}_R\). If \(U_p\) is differentiable with \(\norm{\nabla U_p}_2\le L\) on the segment \([\theta(p),\theta(\lambda)]\), then \(\lvert U_p(\theta(\lambda))-U_p(\theta(p))\rvert\le L(1+c)\norm{\Pz(Rp)}_R\). All three bounds hold without Assumption~\ref{ass:linear-short-horizon-proxy}. \emph{(catalogue P24)}
+\end{proposition}
+
+\begin{proof}
+By Proposition~\ref{prop:displacement}, \(\norm{\theta(\lambda)-\theta(p)}_2^2=d^{\star\top}Rd^\star=\norm{d^\star}_R^2\). The triangle inequality for the \(R\)-seminorm gives \(\norm{d^\star}_R\le\norm{d^\star-d_0}_R+\norm{d_0}_R\le(1+c)\norm{d_0}_R\). If \(R\succ0\), \(\norm{d^\star}_R^2\ge\sigma_{\min}\norm{d^\star}_2^2\). The utility bound is the mean-value inequality along the segment.
+\end{proof}
+
+\begin{proposition}[Floor collapse is instance-specific, not generic]
+\label{prop:floor-collapse-criterion}
+Let \(K:=\{v\in\R^m:\1^\top v=0,\ Rv\ge0\}\).
+
+\emph{(a)} \(\Floor=\{p\}\) for every \(p\in\ri(\Delta_m)\) if and only if \(K=\{0\}\).
+
+\emph{(b)} If \(\1\) is an eigenvector of \(R\) (constant row sums, i.e.\ a uniform Perron vector) and the remaining spectrum on \(\1^\perp\) is strictly positive, then \(K=\{0\}\) and the floor collapses.
+
+\emph{(c)} Conflict-freeness is not sufficient: \(R=\bigl(\begin{smallmatrix}4&1\\1&1\end{smallmatrix}\bigr)\succ0\) has off-diagonal \(1>0\), yet \(v=(1,-1)\) gives \(Rv=(3,0)\ge0\), so \(v\in K\setminus\{0\}\). \emph{(catalogue P25)}
+\end{proposition}
+
+\begin{proof}
+(a) For \(\lambda,p\in\Delta_m\), \(v:=\lambda-p\in\1^\perp\), and \(\lambda\in\Floor\) iff \(Rv\ge0\) iff \(v\in K\). If \(K=\{0\}\) then \(\lambda=p\). Conversely, for \(v\in K\setminus\{0\}\) and \(p\in\ri(\Delta_m)\), small \(t>0\) gives \(\lambda=p+tv\in\Delta_m\) with \(R(\lambda-p)=tRv\ge0\), a non-trivial floor point. (b) Decompose with \(v_1=\tfrac{1}{\sqrt m}\1\) and \(v_2,\dots,v_m\in\1^\perp\) with eigenvalues \(\sigma_k>0\). For \(v\in\1^\perp\), \(Rv=\sum_{k\ge2}\sigma_k c_k v_k\in\1^\perp\). Any \(w\in\1^\perp\) with \(w\ge0\) is \(0\), since a non-zero vector summing to zero has a negative entry; hence \(Rv\ge0\Rightarrow Rv=0\Rightarrow v=0\). (c) \(\det R=3>0\) and \(\tr R=5>0\), so \(R\succ0\); the exhibited \(v\) lies in \(K\), and the Perron eigenvector is not uniform.
+\end{proof}
+
+\begin{proposition}[Movement forces a vector-safety violation on a collapsed floor]
+\label{prop:movement-violation}
+Suppose \(\Floor=\{p\}\). Then every mapping returning \(\lambda\ne p\) satisfies \(\min_i\Delta_i(\lambda)<0\). The size of the violation is method-controlled: Avg has no floor constraint and hence no a priori bound; MaxMin\((c)\) with \(c<1\) attains \(\min_i\Delta_i=t^\star(c)\in[t^\star(0),0)\); Fair\((\alpha,\varepsilon)\) satisfies \(\min_i\Delta_i\ge-\varepsilon\). \emph{(catalogue P27)}
+\end{proposition}
+
+\begin{proof}
+If \(\lambda\ne p\) then \(\lambda\notin\Floor=\{p\}\), so \(\Delta_i(\lambda)\ge0\ \forall i\) fails. For MaxMin\((c)\), \(\min_i\Delta_i(\lambda)=\min_i(Rd^\star)_i=t^\star(c)\), which is negative for \(c<1\) and non-decreasing in \(c\) by Proposition~\ref{prop:maxmin-frontier}(b). For Fair\((\alpha,\varepsilon)\), membership in \(\Floor^\varepsilon\) is the stated bound.
+\end{proof}
+
+\begin{proposition}[SignConf: well-definedness and secondary-only status]
+\label{prop:signconf}
+Let \(S=S^\top\) be a sign-conflict matrix, e.g.\ \(S_{ij}=\1[R_{ij}<0]\) for \(i\ne j\) and \(0\) otherwise, and let \(\mathrm{SignConf}:=\argmin_{\lambda\in\Floor}\lambda^\top S\lambda\). Then (i) a minimizer exists; (ii) if \(\Floor=\{p\}\) then \(\mathrm{SignConf}=p\) for every \(S\); (iii) the primary score \(\lambda\mapsto p^\top R\lambda\) does not involve \(S\), so SignConf cannot change any primary ranking or guarantee. \emph{(catalogue P28)}
+\end{proposition}
+
+\begin{proof}
+(i) A continuous objective on the compact \(\Floor\). (ii) Proposition~\ref{prop:class-collapse} with \(\Psi=\lambda^\top S\lambda\). (iii) Immediate, since \(p^\top R\lambda\) is independent of \(S\).
+\end{proof}
+
+Part (iii) is the formal encoding of a methodological constraint rather than a mathematical curiosity: auxiliary conflict statistics are admissible only as documented secondary diagnostics, and (iii) proves that adding one cannot displace the primary map or manufacture a conflict signal that \(R\) does not contain.
+
+\begin{proposition}[Equivariance and scale invariance]
+\label{prop:equivariance}
+For every permutation matrix \(P\), \(\Xi(Pp,PRP^\top)=P\,\Xi(p,R)\) for \(\Xi\in\{\mathrm{MaxMin}(c),\ \mathrm{Fair}(\alpha,\varepsilon),\ H\text{-vertex}\}\), where \(H\mapsto PHP^\top\) under relabelling. Under the cosine matrix \(\hat R\), the MaxMin\((c)\) and Fair\((\alpha,\varepsilon)\) coefficient rules are invariant to per-specialist rescaling \(\delta_i\mapsto s_i\delta_i\) with \(s_i>0\), while the realized \(\theta(\lambda)\) still changes. \emph{(catalogue P29)}
+\end{proposition}
+
+\begin{proof}
+\(\Pz\) commutes with \(P\), since \(P\1=\1\) and \(\1^\top P=\1^\top\) give \(P\Pz=P-\tfrac1m\1\1^\top=\Pz P\). Hence \(d_0(Pp,PRP^\top)=\Pz(PRp)=P\,d_0\), and every constraint maps to its \(P\)-image, so \(d^\star\mapsto Pd^\star\) and \(\lambda\mapsto P\lambda\); the same applies to Fair\((\alpha,\varepsilon)\), whose floor, welfare and trust region are permutation-covariant, and to the \(H\)-vertex program, whose objective satisfies \((Pp)^\top(PHP^\top)(P\lambda)=p^\top H\lambda\). For scale invariance, \(\hat R_{ij}\) is invariant to \(\delta_i\mapsto s_i\delta_i\), so any rule depending on the task vectors only through \(\hat R\) is invariant, whereas \(\theta(\lambda)\) depends on the unnormalized \(\delta_i\).
+\end{proof}
+
+\section{Conditional statements}
+
+The statements in this section hold under \eqref{eq:a1-operative}.
+
+\begin{proposition}[MaxMin\((c)\): frontier structure and value-function concavity]
+\label{prop:maxmin-frontier}
+Assume \(\Floor=\{p\}\) and \(Rp\not\parallel\1\), so \(\norm{d_0}_R>0\).
+
+\emph{(a)} For \(c<1\), \(d^\star\ne0\) (strict movement); for \(c\ge1\) the optimal value is \(0\), attained at \(d=0\), so \(\lambda=p\) --- the certificate.
+
+\emph{(b)} \(t^\star(c)=\min_i\Delta_i(\lambda^\star(c))\) is non-decreasing and concave on \([0,\infty)\), with \(t^\star(c)<0\) for \(c<1\) and \(t^\star(c)=0\) for \(c\ge1\). Consequently the worst-case degradation \(-t^\star(c)\) is convex, non-increasing, and reaches \(0\) at \(c=1\).
+
+\emph{(c)} Under \eqref{eq:a1-operative} the per-objective shortfall is bounded by \(b\,\lvert t^\star(c)\rvert\) and shrinks convexly to \(0\) as \(c\uparrow1\); the certificate at \(c\ge1\) states that no floor-feasible common improvement exists. Parts (a) and (b) are unconditional. \emph{(catalogue P30)}
+\end{proposition}
+
+\begin{proposition}[MaxMin\((c)\): \(U_p\) non-degradation at the aggressive pole]
+\label{prop:maxmin-aggressive}
+At \(c=0\), assuming \(p+d_0\in\Delta_m\) and \(Rp\not\parallel\1\), under \eqref{eq:a1-operative}
+\[
+U_p(\theta(\lambda))-U_p(\theta(p))=b\,p^\top R\,d_0=b\,\norm{\Pz(Rp)}_2^2>0 .
+\]
+If \(Rp\parallel\1\) then \(d_0=0\), \(\lambda=p\) and the gain is \(0\). For \(c\in(0,1)\), \(U_p\) non-degradation is \emph{not} implied by the frontier objective, which controls the worst axis rather than the weighted average; it holds under the sufficient condition \(p^\top R\,d^\star\ge0\). \emph{(catalogue P31)}
+\end{proposition}
+
+\begin{proof}
+\(p^\top R\,d_0=(Rp)^\top\Pz(Rp)=\norm{\Pz(Rp)}_2^2\ge0\), by symmetry of \(R\) and idempotence of the orthogonal projector \(\Pz\); strict unless \(\Pz(Rp)=0\). For \(c\in(0,1)\), \(p^\top R\,d^\star\ge\min_i(Rd^\star)_i=t^\star(c)\), but \(t^\star(c)<0\) by Proposition~\ref{prop:maxmin-frontier}(b), so the inequality does not deliver non-negativity; hence the conditional status.
+\end{proof}
+
+\begin{proposition}[Fair\((\alpha,\varepsilon)\): uniqueness, activation, bounded degradation]
+\label{prop:fair}
+Let \(\varepsilon>0\) and \(\lambda^\star=\argmax\{U_\alpha(\Delta(\lambda)+\varepsilon\1):\lambda\in\Floor^\varepsilon,\ (\lambda-p)^\top R(\lambda-p)\le c^2\}\), with \(U_1=\sum_i\log(\Delta_i+\varepsilon)\) the Nash point.
+
+\emph{(a)} For \(\alpha>0\), \(U_\alpha\) is strictly concave on the positive orthant; if \(R\) is non-singular on \(\1^\perp\), the objective is strictly concave in \(\lambda\) over the convex compact feasible set, so \(\lambda^\star\) is unique.
+
+\emph{(b)} \(p\) lies in the relative interior of \(\Floor^\varepsilon\), since \(\Delta_i(p)=0>-\varepsilon\); hence \(\Floor^\varepsilon\) has non-empty relative interior even when \(\Floor=\{p\}\).
+
+\emph{(c)} For \(\alpha\ge1\) the maximizer is interior, and \(\lambda^\star\ne p\) if and only if \(\Pz(R\1)\ne0\), i.e.\ \(R\) has non-constant row sums.
+
+\emph{(d)} Under \eqref{eq:a1-operative}, \(\tilde r_i(\theta(\lambda^\star))\ge\tilde r_i(\theta(p))-b\varepsilon\) for all \(i\), and \(U_p(\theta(\lambda^\star))\ge U_p(\theta(p))-b\varepsilon\). \emph{(catalogue P32)}
+\end{proposition}
+
+\begin{proof}
+(a) \(U_\alpha\) has Hessian \(\Diag(-\alpha x_i^{-\alpha-1})\prec0\) on \(x>0\); composing with the affine map \(\lambda\mapsto\Delta(\lambda)+\varepsilon\1\), injective on \(\1^\perp\) when \(R\) is non-singular there, preserves strict concavity. (b) Immediate. (c) For \(\alpha\ge1\) the welfare tends to \(-\infty\) as any \(\Delta_i+\varepsilon\to0^+\), so no boundary point is optimal; at the interior point \(p\) the feasible tangent is \(\1^\perp\), and the gradient is \(\sum_i\varepsilon^{-\alpha}g_i=\varepsilon^{-\alpha}R\1\), whose tangent projection is \(\varepsilon^{-\alpha}\Pz(R\1)\). By concavity, \(p\) is optimal iff that projection vanishes. (d) \(\Delta_i(\lambda^\star)\ge-\varepsilon\) with \eqref{eq:a1-operative} gives the per-objective bound; weighting by \(p\) gives the utility bound.
+\end{proof}
+
+\begin{remark}[Activation is throttled by the same structure that collapses the floor]
+\label{rem:fair-activation}
+The \(\varepsilon\)-relaxation supplies the interior that the \(\varepsilon=0\) floor lacks, which is necessary for movement, but movement additionally requires \(\Pz(R\1)\ne0\) by Proposition~\ref{prop:fair}(c). A near-uniform Perron vector makes \(\1\) approximately an eigenvector of \(R\), so \(\Pz(R\1)\) is small but non-zero: the family activates weakly. The structure that collapses the floor in Proposition~\ref{prop:floor-collapse-criterion}(b) is therefore the same structure that throttles the relaxed activation --- one mechanism, not two coincidences. \emph{(catalogue R32.1)}
+\end{remark}
+
+\begin{proposition}[Conservative extension: the movers recover the baseline]
+\label{prop:conservative-extension}
+Each mapping that is not floor-constrained returns \(p\), or a point reward-equivalent to \(p\) under \eqref{eq:a1-operative}, in a limit of its control parameter: Avg as \(\rho\to\infty\), MaxMin\((c)\) for every \(c\ge1\), and Fair\((\alpha,\varepsilon)\) as \(\varepsilon\to0\) on a collapsed floor. Together with Proposition~\ref{prop:limiting-consistency} this places every portfolio member inside the conservative-extension property. \emph{(catalogue P33)}
+\end{proposition}
+
+\begin{proposition}[\(H\)-informed vertex rule: well-posedness and the shared \(L^2\) cap]
+\label{prop:l2-cap}
+Let \(H\) be estimated by the vertex matrix \(M_{ij}=r_i(\theta_j)\) or by finite differences, and let
+\[
+\lambda_H=\argmax_{\lambda\in\Delta_m}p^\top H\lambda
+\quad\text{s.t.}\quad
+(\lambda-p)^\top R(\lambda-p)\le c^2\max(p^\top Rp,\varepsilon).
+\]
+
+\emph{(a)} A maximizer exists: a linear objective over the compact convex intersection of \(\Delta_m\) with an ellipsoid.
+
+\emph{(b)} Let \(R^2_i\) be the coefficient of determination of the \emph{best} affine fit of \(\tilde r_i\) over \(\Bset\), anchored at the vertices. If \(R^2_i<0\), then \emph{every} affine score \(s(\lambda)=a^\top\lambda+\mathrm{const}\) has coefficient of determination \(\le R^2_i<0\) for \(\tilde r_i\) on \(\Bset\), i.e.\ is \(L^2\)-non-informative. In particular the \(R\)-score \(a=Rp\) and the \(H\)-score \(a=H^\top p\) are both \(L^2\)-non-informative on axis \(i\): switching from \(R\) to \(H\) relocates within a class that the linearity indicator has already certified as uninformative. \emph{(catalogue P34)}
+\end{proposition}
+
+\begin{proof}
+(a) Weierstrass. (b) By definition \(R^2_i=\max_{s\ \text{affine}}\{1-\MSE(s)/\Var(\tilde r_i)\}\) over \(\Bset\), the best affine fit maximizing explained variance. Hence for any affine \(s\), \(1-\MSE(s)/\Var(\tilde r_i)\le R^2_i<0\). Both \(p^\top R\lambda=(Rp)^\top\lambda\) and \(p^\top H\lambda=(H^\top p)^\top\lambda\) are affine in \(\lambda\).
+\end{proof}
+
+This is the formal content of the claim that reward information moves a method along the cost--information spectrum but not past the linearity wall: \(H\) helps only where the reward is already near-affine, and is \(L^2\)-capped exactly where \(R\) fails. The corresponding rank-level statement --- a Spearman ceiling rather than an \(L^2\) one --- would require a sampling model on \(\Bset\) and is not claimed here.
+
+\begin{proposition}[\(T_p^{\mathrm{norm}}\) unreachability under the linearity wall]
+\label{prop:t-unreachable}
+Let \(i^\star=i^\star(p,\Bset)\) be the Tchebycheff-active axis for \(p\) over \(\Bset\), and suppose \(R^2_{i^\star}<0\). To the extent that \(T_p^{\mathrm{norm}}\) on \(\Bset\) is governed by the shortfall on axis \(i^\star\), any endpoint-linear proxy of that shortfall --- in particular the pointwise geometric scores that feed the worst-case rules --- is \(L^2\)-non-informative by Proposition~\ref{prop:l2-cap}. Hence \(T_p^{\mathrm{norm}}\) is not optimizable by any endpoint-linear rule built from \(R\) or from a measured \(H\), and is a diagnostic quantity only on such an instance. \emph{(catalogue P35)}
+\end{proposition}
+
+\begin{proof}[Status]
+The worst-case scores \(\min_i(R\lambda)_i\) and \(\min_i(H\lambda)_i\) are concave piecewise-linear rather than globally affine, so this is a structural consequence of Proposition~\ref{prop:l2-cap} on the active axis rather than a closed theorem. A fully distributional version --- a Spearman ceiling \(\rho\le\phi(R^2_{i^\star})\le0\) under a stated law on \(\Bset\) --- is not claimed. The identification of \(i^\star\) with a particular axis is instance-specific; the structural logic is general.
+\end{proof}
+
+\begin{corollary}[The double wall]
+\label{cor:double-wall}
+On an instance that is simultaneously (i) co-rated with a near-uniform dominant Perron vector, so that \(\Floor=\{p\}\) by Proposition~\ref{prop:floor-collapse-criterion}(b), and (ii) non-affine on its worst-case axis, \(R^2_{i^\star}<0\), no method in the union of the \(R\)-based vector-safe mappings and the \(H\)-informed endpoint-linear mappings improves \(T_p^{\mathrm{norm}}\) over the baseline: the first family returns \(p\) by Proposition~\ref{prop:class-collapse}, and any mover breaks vector safety by Proposition~\ref{prop:movement-violation}, while the second is \(L^2\)-capped on the worst axis by Propositions~\ref{prop:l2-cap} and~\ref{prop:t-unreachable}. The two walls are logically independent --- (i) is purely geometric, (ii) is a property of the reward landscape --- yet both can bind on the same instance. \emph{(catalogue C36)}
+\end{corollary}
+
+\section{The \(H\)-informed family}
+
+\begin{proposition}[Assumption decomposition]
+\label{prop:assumption-decomposition}
+On the simplex, the operative proxy relation \eqref{eq:a1-operative} holds together with endpoint linearity --- \(\tilde r_i(\theta(\lambda))=\tilde r_i(\theta_0)+(H\lambda)_i\) --- if and only if \(H=bR+w\1^\top\) for some \(w\in\R^m\), the rank-one term acting as zero on the simplex tangent. Equivalently, the proxy assumption is the conjunction of endpoint linearity and \(H\equiv bR\). \emph{(catalogue P37)}
+\end{proposition}
+
+\begin{proof}
+If endpoint linearity holds and \(H=bR+w\1^\top\), then for \(v=\lambda-p\in\1^\perp\) we have \(Hv=bRv+w(\1^\top v)=bRv\), which is \eqref{eq:a1-operative}. Conversely, if both hold then \((H-bR)v=0\) for all such \(v\); these span \(\1^\perp\), so \(H-bR=w\1^\top\) with \(w=\tfrac1m(H-bR)\1\).
+\end{proof}
+
+This decomposition separates two questions that are easily conflated. A proxy gate tests the second conjunct, \(H\propto R\) --- whether parameter geometry tracks reward. The per-axis linearity indicator of Definition~\ref{def:linearity-indicator} tests the first. They can fail independently, and the convergence violation of Remark~\ref{rem:relationship-limits}(i) is precisely a mechanism for failure of the second: a converged displacement is not a reward gradient, so \(R\) is not the Gram matrix of reward gradients.
+
+\begin{proposition}[\(H\)--\(M\) equivalence on the tangent]
+\label{prop:h-m-equivalence}
+Write \(H=M-r_0\1^\top\) with \(r_{0,i}=r_i(\theta_0)\). Then for all \(\lambda,p\in\Delta_m\): (a) \(H(\lambda-p)=M(\lambda-p)\); (b) \(p^\top H\lambda-p^\top Hp=p^\top M\lambda-p^\top Mp\); (c) the tangent reward gradients coincide, \(\Pz H_{i\cdot}^\top=\Pz M_{i\cdot}^\top\). Hence every \(H\)-method is computable from the \(m\) vertex evaluations alone, and \(r(\theta_0)\) is never required. The caveat is that \(HH^\top\ne MM^\top\), so any inner-product criterion must use the tangent-projected rows of (c), not the raw rows. \emph{(catalogue P38)}
+\end{proposition}
+
+\begin{proof}
+(a) For \(v:=\lambda-p\in\1^\perp\), \(Hv=Mv-r_0(\1^\top v)=Mv\). (b) Left-multiply (a) by \(p^\top\). (c) \(\Pz H_{i\cdot}^\top=\Pz(M_{i\cdot}^\top-r_{0,i}\1)=\Pz M_{i\cdot}^\top\) since \(\Pz\1=0\). The caveat follows because \(HH^\top\) and \(MM^\top\) differ by terms in \(r_0\) that the projection removes but the raw product does not.
+\end{proof}
+
+\begin{proposition}[Asymmetry of \(H\): where it matters and where it does not]
+\label{prop:h-asymmetry}
+\emph{(a)} Any linear objective \(p^\top H\lambda\) is well defined and linear in \(\lambda\) regardless of asymmetry; its gradient is \(H^\top p\), which uses the full \(H\), so replacing \(H\) by \(\tfrac12(H+H^\top)\) changes the direction and is not admissible. \emph{(b)} Any quadratic form \(\lambda^\top H\lambda\) depends only on \(\tfrac12(H+H^\top)\), which is in general indefinite; such objectives are non-convex and are excluded from the portfolio. \emph{(c)} The floor constraints \(\Delta^H(\lambda)\ge-\varepsilon\) are linear in \(\lambda\), hence convex, asymmetry notwithstanding. \emph{(catalogue P39)}
+\end{proposition}
+
+\begin{proof}
+(a) \(\nabla_\lambda(p^\top H\lambda)=H^\top p\). (b) The skew part contributes \(\lambda^\top S\lambda=0\) for \(S=-S^\top\). (c) Each constraint is an affine inequality.
+\end{proof}
+
+Parts (a) and (c) are why the \(H\)-side programs are convex; only (b) is excluded, and no member of the family requires it. The asymmetry of \(H\) is therefore not an obstacle to the formulation.
+
+\begin{proposition}[\(H\)-side trust region: \(U_p\) non-degradation for every \((c,\varepsilon)\)]
+\label{prop:h-nondeg}
+Let \(\lambda^\star\) solve \(\max_{\lambda\in\Delta_m}p^\top H\lambda\) subject to \(\Delta^H_i(\lambda)\ge-\varepsilon\) for all \(i\) and \(\norm{\lambda-p}_R^2\le c^2\). Then (a) the program is a convex QCQP and a maximizer exists; (b) \(p\) is feasible for every \(c\ge0,\varepsilon\ge0\), hence \(p^\top H\lambda^\star\ge p^\top Hp\), i.e.\ \(\Delta U_p\ge0\) unconditionally in \((c,\varepsilon)\) under endpoint linearity; (c) per-objective degradation is bounded in reward units directly, \(\tilde r_i(\theta(\lambda^\star))\ge\tilde r_i(\theta(p))-\varepsilon\), with no constant \(b\). \emph{(catalogue P41)}
+\end{proposition}
+
+\begin{proof}
+(a) By Proposition~\ref{prop:h-asymmetry}(a),(c) the objective is linear and the floor constraints affine; the trust region is convex quadratic since \(R\succeq0\); the feasible set is a closed subset of the compact \(\Delta_m\). (b) \(\Delta^H(p)=0\ge-\varepsilon\) and \(\norm{p-p}_R=0\le c\), so \(p\) is feasible with value \(p^\top Hp\). (c) Directly from \(\Delta^H_i(\lambda^\star)\ge-\varepsilon\).
+\end{proof}
+
+The contrast with Propositions~\ref{prop:maxmin-frontier} and~\ref{prop:maxmin-aggressive} is structural. On the \(R\) side the frontier had to trade \(U_p\) against worst-case protection, because its objective \emph{was} the worst axis. Here the two are decoupled: the objective protects \(U_p\), the \(\varepsilon\)-floor protects the individual axes, so the guarantee survives the entire frontier.
+
+\begin{proposition}[The \(H\)-floor collapse criterion is not the \(R\)-criterion]
+\label{prop:h-floor-collapse}
+Let \(K^H:=\{v\in\R^m:\1^\top v=0,\ Hv\ge0\}\), so that \(\Floor^H=\{p\}\) for all interior \(p\) iff \(K^H=\{0\}\). \emph{(a)} If \(H\) has constant column sums, \(\1^\top H=\kappa\1^\top\), and \(H\) is injective on \(\1^\perp\), then \(K^H=\{0\}\). \emph{(b)} The \(R\)-mechanism does not transfer: Proposition~\ref{prop:floor-collapse-criterion}(b) collapses the \(R\)-floor from PSD symmetry plus a near-uniform Perron vector, and \(H\) is in general neither symmetric nor PSD, so that argument is unavailable. The operative condition (a) is a statement about \emph{column} sums --- every specialist raises the total reward across objectives by the same amount --- which does not follow from the co-rating redundancy that produces a uniform Perron vector for \(R\). \emph{(catalogue P42)}
+\end{proposition}
+
+\begin{proposition}[PCGrad on \(H\): the conflict criterion is symmetric]
+\label{prop:pcgrad-h}
+The tangent reward gradient of objective \(i\) in coefficient space is \(g_i^H:=\Pz H_{i\cdot}^\top\), equivalently \(\Pz M_{i\cdot}^\top\) by Proposition~\ref{prop:h-m-equivalence}(c). The PCGrad conflict criterion is \(\langle g_i^H,g_j^H\rangle<0\), and the matrix \((\langle g_i^H,g_j^H\rangle)_{ij}=(\Pz H^\top)^\top(\Pz H^\top)\) is symmetric positive semidefinite by construction. Hence (a) the asymmetry of \(H\) does not generate asymmetric pairwise PCGrad conflicts, and no symmetrization device is needed or appropriate; (b) the entry sign \(H_{ij}<0\), meaning that specialist \(j\) lowers reward \(i\), is a different object --- directional negative transfer --- whose faithful lineage is the GradDrop/TIES sign conflict rather than PCGrad \citep{chen2020graddrop,yadav2023ties}; (c) the \(H\)-analogue is therefore a genuinely different matrix from the \(R\)-analogue and may carry negative off-diagonals where the latter does not. \emph{(catalogue P43)}
+\end{proposition}
+
+\begin{proof}
+(a) \(G:=\Pz H^\top\) has columns \(g_i^H\), and \(G^\top G\) is symmetric PSD for any \(G\). (b) The two objects are \(\langle g_i^H,g_j^H\rangle\) and \(H_{ij}\); neither determines the other. (c) Follows from (a) together with the recorded \(R\)-side fact.
+\end{proof}
+
+This corrects a working hypothesis that suggests itself naturally --- that the asymmetry of \(H\) would give PCGrad a directional conflict invisible to \(R\). The asymmetry is real, but it lives in the entries, not in the pairwise inner products; the hypothesis survives only in its GradDrop form.
+
+\begin{proposition}[\(H\) inherits the linearity wall verbatim]
+\label{prop:h-wall}
+Every \(H\)-informed mapping above produces \(\lambda\) from objects that are affine in \(\lambda\). By Proposition~\ref{prop:l2-cap}(b), on any axis \(i\) with \(R^2_i<0\) every affine score is \(L^2\)-non-informative for \(\tilde r_i\) over \(\Bset\). Consequently (a) no such mapping can rank coefficients on that axis better than the constant predictor; (b) a floor guarantee \(\Delta^H_i\ge-\varepsilon\) is a statement within the fitted linear model, whose transfer to the true reward requires endpoint linearity on axis \(i\) --- exactly what \(R^2_i<0\) refutes; (c) by Corollary~\ref{cor:double-wall}, \(T_p^{\mathrm{norm}}\) remains unreachable over \(R\) and over a measured \(H\) alike, so no worst-case-motivated \(H\)-method can deliver its rationale on such an instance. \emph{(catalogue P44)}
+\end{proposition}
+
+\begin{proof}
+(a) Proposition~\ref{prop:l2-cap}(b) applied to \(a=H^\top p\) and to each affine constraint function. (b) Endpoint linearity is exactly the hypothesis under which \(\Delta^H\) equals the true reward change, and \(R^2_i<0\) certifies that the best affine fit underperforms the mean. (c) Corollary~\ref{cor:double-wall}.
+\end{proof}
 
 \bibliographystyle{plainnat}
 \bibliography{references}
