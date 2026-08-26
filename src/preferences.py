@@ -18,7 +18,7 @@ PREFERENCES = OrderedDict({
     "dominant_verbosity": [0.125, 0.125, 0.125, 0.125, 0.5],
     "only_complexity": [0.0, 0.0, 0.0, 1.0, 0.0],
     "only_verbosity": [0.0, 0.0, 0.0, 0.0, 1.0],
-    "uniform": [0.2, 0.2, 0.2, 0.2, 0.2],
+    "balanced": [0.2, 0.2, 0.2, 0.2, 0.2],
 })
 
 QUALITY_PREFS = [
@@ -44,4 +44,4 @@ def preference_regime(name: str) -> str:
         return "quality"
     if name in CV_PREFS:
         return "complexity/verbosity"
-    return "uniform"
+    return "balanced"

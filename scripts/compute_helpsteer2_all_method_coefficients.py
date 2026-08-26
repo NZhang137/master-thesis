@@ -44,8 +44,6 @@ OBJECTIVE_NAMES = (
 
 PREFERENCES = {
     "balanced": (0.2, 0.2, 0.2, 0.2, 0.2),
-    "quality_focused": (0.15, 0.35, 0.25, 0.10, 0.15),
-    "detailed_answer": (0.15, 0.15, 0.20, 0.25, 0.25),
     "dominant_helpfulness": (0.5, 0.125, 0.125, 0.125, 0.125),
     "dominant_correctness": (0.125, 0.5, 0.125, 0.125, 0.125),
     "dominant_coherence": (0.125, 0.125, 0.5, 0.125, 0.125),
