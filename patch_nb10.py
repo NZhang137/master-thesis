@@ -554,10 +554,14 @@ NEW_GEN_TAIL = '''    _probe = generation_tokenizer.apply_chat_template(
 
 NEW_REWARD_CELL = '''if RUN_REWARD_COLLECTION:
     import logging
+    import time
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
     from src.armorm_objectives import ARMORM_HELPSTEER_OBJECTIVE_NAMES
     from src.armorm_scorer import make_score_prompt_answer
     from src.proxy_validation import collect_reward_tensor
     from src.tinyllama_training_utils import load_reward_prompts
+    _cell38_started = time.perf_counter()
 
     # bitsandbytes meldet dieselbe bekannte BF16->FP16-Konvertierung fuer viele
     # Schichten erneut. Nur diese Meldung filtern; andere Warnungen bleiben sichtbar.
@@ -585,9 +589,47 @@ NEW_REWARD_CELL = '''if RUN_REWARD_COLLECTION:
     assert scorer.describe()["precision"] == ("int8" if ARMORM_PRECISION == "8bit" else "bfloat16")
     scorer.assert_golden_sample()          # VOR dem ersten echten Scoring
     print("Scorer:", scorer.describe())
+    print(f"[time] ArmoRM-Setup inklusive Golden-Test: "
+          f"{time.perf_counter() - _cell38_started:.1f} s")
+
+    def _format_duration(seconds):
+        seconds = max(0, int(round(seconds)))
+        hours, remainder = divmod(seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+    # Zeitmessung nur fuer noch nicht gecachte Merge-Punkte. Die Zuordnung ueber
+    # coefficient_key bleibt auch bei einem unterbrochenen Lauf korrekt.
+    _cached_keys = set()
+    if REWARD_CACHE.is_file():
+        for _line in REWARD_CACHE.read_text(encoding="utf-8").splitlines():
+            if not _line.strip():
+                continue
+            try:
+                _record = json.loads(_line)
+            except json.JSONDecodeError:
+                continue
+            if "key" in _record:
+                _cached_keys.add(str(_record["key"]))
+    _eval_index_by_key = {coefficient_key(lam): i + 1
+                          for i, lam in enumerate(EVAL_POINTS)}
+    _cached_eval_count = sum(key in _cached_keys for key in _eval_index_by_key)
+    _missing_initial = n_unique - _cached_eval_count
+    _progress = {"started": time.perf_counter(), "new_done": 0}
+    _nominal_remaining = _missing_initial * n_prompts * 2.5
+    print(f"[time] Zelle 38: {n_unique} Merge-Punkte x {n_prompts} Prompts; "
+          f"{_cached_eval_count} aus Cache, {_missing_initial} noch offen.")
+    print(f"[time] Erste Restzeitschaetzung bei 2.5 s je Promptpaar: "
+          f"{_format_duration(_nominal_remaining)}.")
 
     def reward_of_lambda(lam):
         """Per-prompt ArmoRM rewards for one merge point, shape (n_prompts, m)."""
+        _point_started = time.perf_counter()
+        _key = coefficient_key(lam)
+        _position = _eval_index_by_key[_key]
+        _new_number = _progress["new_done"] + 1
+        print(f"[time] Starte Merge-Punkt {_position}/{n_unique} "
+              f"(offener Punkt {_new_number}/{_missing_initial}).")
         with merged_model(base_model, DELTAS, lam):
             answers = [generate_answer(record["prompt"]) for record in reward_prompts]
         scores = np.asarray([
@@ -595,6 +637,19 @@ NEW_REWARD_CELL = '''if RUN_REWARD_COLLECTION:
             for record, answer in zip(reward_prompts, answers)
         ], dtype=np.float64)
         assert scores.shape == (len(reward_prompts), m), scores.shape
+        _progress["new_done"] += 1
+        _point_elapsed = time.perf_counter() - _point_started
+        _reward_elapsed = time.perf_counter() - _progress["started"]
+        _cell_elapsed = time.perf_counter() - _cell38_started
+        _average = _reward_elapsed / _progress["new_done"]
+        _remaining = _missing_initial - _progress["new_done"]
+        _eta_seconds = _average * _remaining
+        _finish = (datetime.now(ZoneInfo("Europe/Berlin")) + timedelta(seconds=_eta_seconds)).strftime("%d.%m. %H:%M %Z")
+        print(f"[time] Fertig {_progress['new_done']}/{_missing_initial} offen | "
+              f"letzter Punkt {_format_duration(_point_elapsed)} | "
+              f"Reward-Zeit {_format_duration(_reward_elapsed)} | "
+              f"Zellzeit {_format_duration(_cell_elapsed)} | "
+              f"Rest {_format_duration(_eta_seconds)} | erwartet {_finish}")
         return scores          # NICHT mitteln: der gepaarte Bootstrap braucht die Rohwerte
 
     REWARD_TENSOR = collect_reward_tensor(
