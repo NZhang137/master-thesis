@@ -734,6 +734,8 @@ if RUN_REWARD_COLLECTION:
         for pname, p_vec in PREF_SET_B:
             search_utilities = (REWARD_MATRIX @ np.asarray(p_vec, dtype=float)).tolist()
             mask = stats_df["p_name"] == pname
+            if not bool(mask.any()):
+                continue  # keine bewegende Methode fuer diese Praeferenz
             stats_df.loc[mask, "selection_regret"] = [
                 selection_regret(u, search_utilities) for u in stats_df.loc[mask, "U_p_lambda"]]
             stats_df.loc[mask, "baseline_regret"] = selection_regret(
