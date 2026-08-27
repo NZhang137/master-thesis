@@ -553,10 +553,24 @@ NEW_GEN_TAIL = '''    _probe = generation_tokenizer.apply_chat_template(
 # =============================================================================
 
 NEW_REWARD_CELL = '''if RUN_REWARD_COLLECTION:
+    import logging
     from src.armorm_objectives import ARMORM_HELPSTEER_OBJECTIVE_NAMES
     from src.armorm_scorer import make_score_prompt_answer
     from src.proxy_validation import collect_reward_tensor
     from src.tinyllama_training_utils import load_reward_prompts
+
+    # bitsandbytes meldet dieselbe bekannte BF16->FP16-Konvertierung fuer viele
+    # Schichten erneut. Nur diese Meldung filtern; andere Warnungen bleiben sichtbar.
+    class _BnbCastMessageFilter(logging.Filter):
+        def filter(self, record):
+            return ("MatMul8bitLt: inputs will be cast from torch.bfloat16 "
+                    "to float16 during quantization") not in record.getMessage()
+
+    _bnb_logger = logging.getLogger("bitsandbytes.autograd._functions")
+    if not any(getattr(f, "_nb10_bnb_cast_filter", False) for f in _bnb_logger.filters):
+        _bnb_filter = _BnbCastMessageFilter()
+        _bnb_filter._nb10_bnb_cast_filter = True
+        _bnb_logger.addFilter(_bnb_filter)
 
     reward_prompts = load_reward_prompts(REWARD_PROMPT_PATH)
     assert len(reward_prompts) == n_prompts, "Promptzahl weicht von der Vorregistrierung ab."
