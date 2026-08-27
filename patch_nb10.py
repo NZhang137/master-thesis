@@ -344,6 +344,16 @@ def _sha256_dir(path, patterns=("*.safetensors", "*.bin", "adapter_config.json")
             digest.update(_sha256_file(file_path).encode())
     return digest.hexdigest()
 
+def _runtime_versions():
+    """Record the numerical software path in the frozen binding."""
+    import platform
+    from importlib import metadata
+
+    packages = ("torch", "transformers", "tokenizers", "peft", "accelerate",
+                "bitsandbytes", "numpy", "pandas", "scipy")
+    return {"python": platform.python_version(),
+            **{name: metadata.version(name) for name in packages}}
+
 def _model_revisions():
     """Best-effort exact revisions of the two external models."""
     revisions = {}
@@ -379,6 +389,7 @@ BINDING = {
         "merge.py", "proxy_validation.py", "metrics.py", "lambda_utils.py",
         "armorm_objectives.py", "eval_prompts.py")},
     "model_revisions": _model_revisions(),
+    "runtime_versions": _runtime_versions(),
 }
 
 # Ein einziger Hash ueber den gesamten Nachweis. Er wandert in den Reward-Cache, damit
