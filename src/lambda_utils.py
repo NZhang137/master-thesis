@@ -7,7 +7,9 @@ import numpy as np
 
 def lambda_key(lmbda: np.ndarray | list[float] | tuple[float, ...], decimals: int = 8) -> str:
     """Stable hex key for a simplex vector rounded to fixed precision."""
-    arr = np.round(np.asarray(lmbda, dtype=np.float64), decimals)
+    # `+ 0.0` normalizes -0.0 to +0.0 so numerically identical vectors
+    # cannot produce different byte patterns (cache-resume correctness).
+    arr = np.round(np.asarray(lmbda, dtype=np.float64), decimals) + 0.0
     return arr.tobytes().hex()
 
 
