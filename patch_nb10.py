@@ -224,7 +224,7 @@ haben die RS-PPO-Adapter in ihren PPO-Schritten gesehen. Prompttexte aus frueher
 Promptdateien werden ausgeschlossen, und die Zusammenfassung berichtet, wie viele es waren.
 '''
 
-CODE_PROMPTS = '''from src.eval_prompts import build_eval_prompt_file
+CODE_PROMPTS = '''from src.eval_prompts import build_eval_prompt_file, ensure_nb06_prompt_files
 
 N_EVAL_PROMPTS = 80
 EVAL_PROMPT_SEED = 137
@@ -234,6 +234,18 @@ EVAL_PROMPT_SEED = 137
 # Waechter verhindern soll. Fehlt eine laut Projektverlauf wirklich, bewusst
 # ALLOW_MISSING_EXCLUSIONS = True setzen UND die Luecke berichten.
 ALLOW_MISSING_EXCLUSIONS = False
+
+# In einem frischen Clone fehlen die beiden historischen NB06-Dateien. Sie werden
+# mit der eingefrorenen NB06.1-Regel (Validation-Split, Seed 137, 80+80)
+# reproduziert; vorhandene Dateien werden geprueft und nie ueberschrieben.
+NB06_PROMPT_SUMMARY = ensure_nb06_prompt_files(
+    PROJECT_ROOT,
+    dataset_name=str(config["dataset_name"]),
+    split="validation",
+    seed=EVAL_PROMPT_SEED,
+    n_per_set=80,
+)
+print(json.dumps(NB06_PROMPT_SUMMARY, indent=2, ensure_ascii=False))
 
 REWARD_PROMPT_PATH.parent.mkdir(parents=True, exist_ok=True)
 PROMPT_SUMMARY = build_eval_prompt_file(
@@ -813,7 +825,7 @@ def main() -> int:
                    "phase B markdown", notes)
     else:
         notes.append("skip    phase B markdown")
-    i_prereg = find_cell(cells, "PREREG_CONFIRM = False", "pre-registration")
+    i_prereg = find_cell(cells, "PREREG_CONFIRM =", "pre-registration")
     replace_in(cells, i_prereg, OLD_PREREG, NEW_PREREG, "pre-registration fields", notes)
     replace_in(cells, i_prereg, OLD_ROLE, NEW_ROLE, "circularity stated regime-dependently", notes)
     replace_in(cells, i_prereg, OLD_DECISION_RULE, NEW_DECISION_RULE,
@@ -848,7 +860,7 @@ def main() -> int:
     # Insertions last, from the back, so earlier indices stay valid.
     insert_pair(cells, find_cell(cells, "## 10. Export", "export heading"),
                 MD_STATS, CODE_STATS, "STATS_CSV = ", "statistics before export", notes)
-    insert_pair(cells, find_cell(cells, "PREREG_CONFIRM = False", "pre-registration"),
+    insert_pair(cells, find_cell(cells, "PREREG_CONFIRM =", "pre-registration"),
                 MD_BINDING, CODE_BINDING, "BINDING = {", "binding record", notes)
     insert_pair(cells, find_cell(cells, "eval_points, origins = [], {}", "budget"),
                 MD_PROMPTS, CODE_PROMPTS, "build_eval_prompt_file(", "prompt file", notes)

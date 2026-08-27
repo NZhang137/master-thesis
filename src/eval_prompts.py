@@ -126,6 +126,85 @@ def load_candidate_prompts(split: str = "validation") -> list[str]:
     return prompts
 
 
+def ensure_nb06_prompt_files(
+    project_root: str | Path = ".",
+    *,
+    dataset_name: str = "nvidia/HelpSteer2",
+    split: str = "validation",
+    seed: int = 137,
+    n_per_set: int = 80,
+) -> dict[str, Any]:
+    """Reconstruct missing NB06 prompt sets with NB06.1's frozen selection rule.
+
+    The original proxy set is the first 80 entries of the seeded permutation;
+    the confirmatory set is the following 80. Existing files are checked against
+    that deterministic selection and are never overwritten.
+    """
+    from datasets import load_dataset
+    import numpy as np
+
+    root = Path(project_root)
+    names_and_offsets = {
+        "proxy_validation_fixed_prompts.jsonl": 0,
+        "confirmatory_fixed_prompts.jsonl": n_per_set,
+    }
+    found, missing = find_prompt_files(root, tuple(names_and_offsets))
+    if not missing:
+        return {"created": [], "found": {name: str(path) for name, path in found.items()}}
+
+    dataset = load_dataset(dataset_name, split=split)
+    seen: set[str] = set()
+    candidates: list[dict[str, str]] = []
+    for index, example in enumerate(dataset):
+        prompt = str(example.get("prompt", "")).strip()
+        if not prompt or prompt in seen:
+            continue
+        seen.add(prompt)
+        candidates.append({"prompt_id": f"helpsteer2_{split}_{index}", "prompt": prompt})
+    required = 2 * n_per_set
+    if len(candidates) < required:
+        raise RuntimeError(f"Need {required} unique {split} prompts, found {len(candidates)}.")
+    order = np.random.default_rng(seed).permutation(len(candidates))
+
+    destination_root = root / "results" / "tinyllama_helpsteer2_proxy_validation"
+    created: list[str] = []
+    for name, offset in names_and_offsets.items():
+        expected = [candidates[int(index)] for index in order[offset : offset + n_per_set]]
+        if name in found:
+            actual = [
+                json.loads(line)
+                for line in found[name].read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            actual_core = [
+                {"prompt_id": str(row.get("prompt_id", "")), "prompt": str(row.get("prompt", ""))}
+                for row in actual
+            ]
+            if actual_core != expected:
+                raise RuntimeError(
+                    f"Existing {found[name]} does not match the frozen NB06.1 "
+                    f"selection (split={split}, seed={seed}, offset={offset})."
+                )
+            continue
+
+        destination = destination_root / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with destination.open("w", encoding="utf-8") as output_file:
+            for row in expected:
+                output_file.write(json.dumps(row, ensure_ascii=False) + "\n")
+        created.append(str(destination))
+
+    resolved, still_missing = find_prompt_files(root, tuple(names_and_offsets))
+    if still_missing:
+        raise RuntimeError(f"Prompt reconstruction incomplete: {still_missing}")
+    proxy_texts, _ = collect_excluded_texts([resolved["proxy_validation_fixed_prompts.jsonl"]])
+    confirm_texts, _ = collect_excluded_texts([resolved["confirmatory_fixed_prompts.jsonl"]])
+    overlap = proxy_texts & confirm_texts
+    if overlap:
+        raise RuntimeError(f"Reconstructed NB06 prompt sets overlap in {len(overlap)} texts.")
+    return {"created": created, "found": {name: str(path) for name, path in resolved.items()}}
+
+
 def build_eval_prompt_file(
     out_path: str | Path,
     *,

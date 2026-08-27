@@ -214,6 +214,75 @@ def collect_reward_matrix(
     return rewards
 
 
+def preference_utility(
+    reward_matrix: np.ndarray,
+    preference: Sequence[float],
+    normalization: str = "identity",
+    eps: float = 1e-8,
+) -> np.ndarray:
+    """Return one preference-weighted utility per reward-matrix row.
+
+    ``identity`` is NB10's primary raw-score metric. ``minmax`` and ``rank``
+    reuse the same evaluated matrix and are reported only as robustness checks.
+    """
+    rewards = np.asarray(reward_matrix, dtype=np.float64)
+    if rewards.ndim != 2:
+        raise ValueError("reward_matrix must be a two-dimensional array.")
+    if not np.all(np.isfinite(rewards)):
+        raise ValueError("reward_matrix contains non-finite values.")
+    p = validate_simplex_vector(preference, name="preference")
+    if p.size != rewards.shape[1]:
+        raise ValueError(
+            f"preference has length {p.size}, reward_matrix has "
+            f"{rewards.shape[1]} objectives."
+        )
+
+    if normalization == "identity":
+        normalized = rewards
+    elif normalization == "minmax":
+        normalized, _, _ = normalize_rewards(rewards, eps=eps)
+    elif normalization == "rank":
+        from scipy.stats import rankdata
+
+        normalized = np.column_stack(
+            [
+                rankdata(rewards[:, index]) / rewards.shape[0]
+                for index in range(rewards.shape[1])
+            ]
+        )
+    else:
+        raise ValueError(
+            f"Unknown normalization {normalization!r}; use 'identity', "
+            "'minmax' or 'rank'."
+        )
+    return normalized @ p
+
+
+def normalization_agreement(
+    reward_matrix: np.ndarray,
+    preference: Sequence[float],
+) -> dict[str, Any]:
+    """Compare orderings induced by identity, min-max and rank utility."""
+    utilities = {
+        name: preference_utility(reward_matrix, preference, normalization=name)
+        for name in ("identity", "minmax", "rank")
+    }
+    result: dict[str, Any] = {
+        "argmax_index": {
+            name: int(np.argmax(values)) for name, values in utilities.items()
+        },
+        "spearman": {},
+    }
+    names = list(utilities)
+    for index, left in enumerate(names):
+        for right in names[index + 1 :]:
+            result["spearman"][f"{left}_vs_{right}"] = safe_spearman(
+                utilities[left], utilities[right]
+            )
+    result["argmax_agrees"] = len(set(result["argmax_index"].values())) == 1
+    return result
+
+
 def coefficient_key(coefficient: Sequence[float]) -> str:
     """Return a stable cache key for a coefficient vector."""
     # Round FIRST, then normalize the sign: `+ 0.0` turns -0.0 into +0.0,
