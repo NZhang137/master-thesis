@@ -1,0 +1,318 @@
+{
+  "run_tag": "nb10_1_pilot29_run1",
+  "created_utc": "2026-08-27T03:29:49.288223+00:00",
+  "notebook": "NB10.1 shortened method comparison (29 merge points)",
+  "lambda_table_sha256": "e74335c3e92f45eebb50f981a3b6163eda5c3e6b9163ef1aeb22dbda2720f00f",
+  "primary_matrix": "R_cos",
+  "methods": {
+    "Avg": {
+      "source": "src.coefficient_portfolio.m1_plus",
+      "rho": 0.5
+    },
+    "Cert": {
+      "source": "src.coefficient_portfolio.c1_plus_plus",
+      "c": 0.5,
+      "eps": 1e-08,
+      "note": "certificate row: lambda = p by NB09.1 run1 (t*=0 for 77/77, R^-1 1 > 0); not measured separately"
+    },
+    "MaxMin": {
+      "source": "src.coefficient_portfolio.maxmin_c",
+      "phase_a_c_grid": [
+        0.0,
+        0.25,
+        0.5,
+        0.75,
+        0.9,
+        1.0
+      ],
+      "phase_b_c": 0.5,
+      "phase_b_preferences": [
+        "balanced",
+        "dominant_coherence",
+        "dominant_complexity",
+        "dominant_correctness",
+        "dominant_helpfulness",
+        "dominant_verbosity"
+      ]
+    },
+    "Fair": {
+      "source": "src.coefficient_portfolio.fair_alpha_eps",
+      "phase_a_alpha_grid": [
+        0.0,
+        1.0,
+        2.0
+      ],
+      "phase_a_eps_grid": [
+        0.02,
+        0.05,
+        0.1
+      ],
+      "phase_b_alpha": 1.0,
+      "phase_b_eps": 0.05,
+      "phase_b_preferences": [
+        "balanced",
+        "dominant_coherence",
+        "dominant_complexity",
+        "dominant_correctness",
+        "dominant_helpfulness",
+        "dominant_verbosity"
+      ],
+      "note": "objective depends on the displacement only; p enters through the simplex bounds. NOT preference-aware in the sense of RQ1."
+    }
+  },
+  "baseline": "lambda = p",
+  "n_preferences_phase_a": 75,
+  "n_preferences_phase_b": 11,
+  "phase_b_preference_rule": "29-point pilot: 11 named baselines; Avg on all named preferences; MaxMin(c=0.5) and Fair(alpha=1,eps=0.05) on the six interior named preferences; Cert is the baseline certificate",
+  "preference_names": [
+    "balanced",
+    "dominant_helpfulness",
+    "dominant_correctness",
+    "dominant_coherence",
+    "dominant_complexity",
+    "dominant_verbosity",
+    "only_helpfulness",
+    "only_correctness",
+    "only_coherence",
+    "only_complexity",
+    "only_verbosity",
+    "dirichlet_11",
+    "dirichlet_12",
+    "dirichlet_13",
+    "dirichlet_14",
+    "dirichlet_15",
+    "dirichlet_16",
+    "dirichlet_17",
+    "dirichlet_18",
+    "dirichlet_19",
+    "dirichlet_20",
+    "dirichlet_21",
+    "dirichlet_22",
+    "dirichlet_23",
+    "dirichlet_24",
+    "dirichlet_25",
+    "dirichlet_26",
+    "dirichlet_27",
+    "dirichlet_28",
+    "dirichlet_29",
+    "dirichlet_30",
+    "dirichlet_31",
+    "dirichlet_32",
+    "dirichlet_33",
+    "dirichlet_34",
+    "dirichlet_35",
+    "dirichlet_36",
+    "dirichlet_37",
+    "dirichlet_38",
+    "dirichlet_39",
+    "dirichlet_40",
+    "dirichlet_41",
+    "dirichlet_42",
+    "dirichlet_43",
+    "dirichlet_44",
+    "dirichlet_45",
+    "dirichlet_46",
+    "dirichlet_47",
+    "dirichlet_48",
+    "dirichlet_49",
+    "dirichlet_50",
+    "dirichlet_51",
+    "dirichlet_52",
+    "dirichlet_53",
+    "dirichlet_54",
+    "dirichlet_55",
+    "dirichlet_56",
+    "dirichlet_57",
+    "dirichlet_58",
+    "dirichlet_59",
+    "dirichlet_60",
+    "dirichlet_61",
+    "dirichlet_62",
+    "dirichlet_63",
+    "dirichlet_64",
+    "dirichlet_65",
+    "dirichlet_66",
+    "dirichlet_67",
+    "dirichlet_68",
+    "dirichlet_69",
+    "dirichlet_70",
+    "dirichlet_71",
+    "dirichlet_72",
+    "dirichlet_73",
+    "dirichlet_74"
+  ],
+  "phase_b_preference_names": [
+    "balanced",
+    "dominant_helpfulness",
+    "dominant_correctness",
+    "dominant_coherence",
+    "dominant_complexity",
+    "dominant_verbosity",
+    "only_helpfulness",
+    "only_correctness",
+    "only_coherence",
+    "only_complexity",
+    "only_verbosity"
+  ],
+  "preference_set_note": "11 named preferences. Deviates from the 13 pre-registered in NB09.1: quality_focused and detailed_answer removed, uniform renamed to balanced. Phase B is additionally restricted to the frozen 29-point pilot shortlist. Report both deviations explicitly.",
+  "scope": "shortened 29-point pilot; not a replacement for the full NB10 grid",
+  "binding": {
+    "regime": "rs_ppo",
+    "adapter_pattern": "results/rs_ppo_armorm_circular/rs_runs/ppo_{axis}/adapter",
+    "adapters_sha256": {
+      "helpfulness": "6018ccd89d4e4fd35e5f4b29d7f1512614976ee3694083d329669897693b6769",
+      "correctness": "bb38753526e141fa4cee458e29bb94bbdc4638fd78dd8dc682becfc7eb82b8d9",
+      "coherence": "92a7bece8959e3d0c97c407aebef26b5da4d4f3b844859fa684b3f84b28effcb",
+      "complexity": "ba21f2517b40f61e44a6f38ad5c3add1d9bfe665b13d3ce3ff583061c37645f8",
+      "verbosity": "2114706704b4b887bb73425c16e02c72247e9ae935f7fcd26ad9942bec061b3d"
+    },
+    "matrix_cos_sha256": "cfc5c68a08185e2ccf6dbeff67f572aeaa9217537b5aea7a7b5f0b6b65e9dc8d",
+    "matrix_gram_sha256": "159a476bbe8433424e842619cb65443c8b5f1fe8b307b8492d703eee8c7820f5",
+    "prompts_sha256": "de299292d40479b76b357bef5ed5955ae01aeebe3326b98deedb6b27a6e0bfbc",
+    "scorer_sha256": "7b386538ebd8df6433d56159323e36a71e0d1e0efd81e81abdd3851818d2bfd8",
+    "portfolio_sha256": "3526eb599376c6af342ef1d91642c9ac8d5b6a02449327e22c94ba6760529e09",
+    "base_model_name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "armorm_precision": "8bit",
+    "attribute_order": [
+      "helpfulness",
+      "correctness",
+      "coherence",
+      "complexity",
+      "verbosity"
+    ],
+    "generation": {
+      "max_new_tokens": 256,
+      "repetition_penalty": 1.15,
+      "no_repeat_ngram_size": 5,
+      "decoding": "greedy, do_sample=False, num_beams=1"
+    },
+    "grids": {
+      "rho_avg": 0.5,
+      "cert_c": 0.5,
+      "cert_eps": 1e-08,
+      "c_grid": [
+        0.0,
+        0.25,
+        0.5,
+        0.75,
+        0.9,
+        1.0
+      ],
+      "alpha_grid": [
+        0.0,
+        1.0,
+        2.0
+      ],
+      "eps_grid": [
+        0.02,
+        0.05,
+        0.1
+      ]
+    },
+    "phase_b_shortlist": {
+      "expected_unique_points": 29,
+      "baseline_preferences": [
+        "balanced",
+        "dominant_coherence",
+        "dominant_complexity",
+        "dominant_correctness",
+        "dominant_helpfulness",
+        "dominant_verbosity",
+        "only_coherence",
+        "only_complexity",
+        "only_correctness",
+        "only_helpfulness",
+        "only_verbosity"
+      ],
+      "method_preferences": [
+        "balanced",
+        "dominant_coherence",
+        "dominant_complexity",
+        "dominant_correctness",
+        "dominant_helpfulness",
+        "dominant_verbosity"
+      ],
+      "avg_rho": 0.5,
+      "maxmin_c": 0.5,
+      "fair_alpha": 1.0,
+      "fair_eps": 0.05
+    },
+    "src_sha256": {
+      "merge.py": "0020bc0b0c4566304a9404645cbd579285cfd6efc5e879e488515ceec7589d25",
+      "proxy_validation.py": "845c232d66d27e80085c710a93fa5f3c0af7f4022652b2066c1eb1f72828fdc1",
+      "metrics.py": "655e9924cea75c5ce14270cabcfd8020279b9ecde3f56614a75ba85108384b89",
+      "lambda_utils.py": "a0cdd2cf1103ca3deb5ddb20b6b952e33b353b168c1d8df3c594c8f0caac7e27",
+      "armorm_objectives.py": "4eb7df3daa324a7284d79650bbacf4fb20d4c84acea2c5c90cb4b0edb741539e",
+      "eval_prompts.py": "9320e855117b5500f31fc9db80b40e45707398fcbe7811c49a7d8e7c46db637d"
+    },
+    "model_revisions": {
+      "base_model": "fe8a4ea1ffedaf415f4da2f062534de366a451e6",
+      "armorm": "eb2676d20da2f2d41082289d23c59b9f7427f955"
+    },
+    "runtime_versions": {
+      "python": "3.13.15",
+      "torch": "2.11.0+cu128",
+      "transformers": "4.46.3",
+      "tokenizers": "0.20.3",
+      "peft": "0.13.2",
+      "accelerate": "1.1.1",
+      "bitsandbytes": "0.50.2",
+      "numpy": "2.1.3",
+      "pandas": "2.2.3",
+      "scipy": "1.14.1"
+    }
+  },
+  "binding_sha256": "5b0fb32f313f7394a5b77e9173265505c7d80d61c391492807b178b54b60ec63",
+  "prompt_provenance": {
+    "path": "/content/master-thesis/results/nb10_method_comparison_nb10_1_pilot29_run1/nb10_reward_prompts.jsonl",
+    "n": 80,
+    "created": true,
+    "split": "validation",
+    "seed": 137,
+    "n_candidates_after_exclusion": 251,
+    "n_excluded_texts": 191,
+    "exclusion_files_read": [
+      "/content/master-thesis/results/tinyllama_helpsteer2_proxy_validation/proxy_validation_fixed_prompts.jsonl",
+      "/content/master-thesis/results/tinyllama_helpsteer2_proxy_validation/confirmatory_fixed_prompts.jsonl",
+      "/content/master-thesis/data/evaluation_prompts/helpsteer2_fixed_prompts.jsonl"
+    ],
+    "exclusion_files_missing": [],
+    "disjointness_verified": true,
+    "categories": {
+      "explanation": 37,
+      "general": 21,
+      "writing": 20,
+      "code": 2
+    },
+    "provenance": "HelpSteer2 validation split, seed=137, 40<=len<=1200; disjoint from 191 texts in 3 earlier prompt file(s)"
+  },
+  "reward_model": {
+    "name": "RLHFlow/ArmoRM-Llama3-8B-v0.1",
+    "precision": "8bit",
+    "batch_size": 1,
+    "head_mapping": "src.armorm_objectives.helpsteer_head_indices (external golden sample)",
+    "scoring_format": "apply_chat_template(user + assistant)"
+  },
+  "generation_format": "apply_chat_template(user, add_generation_prompt=True) - identical to NB08",
+  "raw_scores_retained": true,
+  "error_layer": "paired bootstrap over prompts, 10000 draws, alpha=0.05",
+  "multiplicity": "Holm-Bonferroni over all shortlisted moving (method, preference) comparisons",
+  "n_unique_merge_points": 29,
+  "metric_primary": "raw preference-weighted sum U_p = sum_i p_i r_i; identity normalization r~_i := r_i",
+  "metric_implementation": "src.proxy_validation.preference_utility(..., normalization='identity')",
+  "metric_robustness": [
+    "minmax",
+    "rank"
+  ],
+  "metric_note": "supersedes rank-U_p from NB06.1 metric set v2",
+  "prompts": {
+    "path": "results/nb10_method_comparison_nb10_1_pilot29_run1/nb10_reward_prompts.jsonl",
+    "n": 80,
+    "max_new_tokens": 256,
+    "repetition_penalty": 1.15,
+    "no_repeat_ngram_size": 5,
+    "decoding": "greedy, do_sample=False, num_beams=1"
+  },
+  "decision_rule": "Primary: sign and magnitude of Delta U_p = U_p(lambda) - U_p(p) per method. Confirmatory improvement requires Delta U_p > 0 and a Holm-adjusted p-value < 0.05 across all shortlisted method/preference comparisons; harm is defined analogously for Delta U_p < 0. The unadjusted percentile bootstrap CI is descriptive only. No threshold is lowered after seeing the numbers. Cert is reported as a certificate row with Delta U_p = 0 by construction. Infeasible MaxMin cells are reported as infeasible and are not counted as collapses. Conclusions apply to the frozen 29-point pilot only, not to omitted grid settings.",
+  "armorm_role": "REGIME-DEPENDENT. In the RS-PPO regime ArmoRM is frozen during evaluation but was ALSO the PPO reward model, so this evaluation is circular and supports only upper-bound and diagnostic claims, not held-out proxy validity. The read-only firewall claim holds for the SFT regime only, and there only pending the AKUT #6 audit. Do not restate the firewall as a global property of the thesis."
+}
