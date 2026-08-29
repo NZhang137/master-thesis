@@ -6,6 +6,8 @@
 # scoring. Use this collector for Phase B; `collect_reward_matrix` remains for
 # callers that genuinely only need means.
 
+import os
+
 
 def collect_reward_tensor(
     coefficients: np.ndarray,
@@ -105,6 +107,7 @@ def collect_reward_tensor(
                 + "\n"
             )
             cache_file.flush()
+            os.fsync(cache_file.fileno())
             print(
                 f"[reward] {index + 1}/{num_rows} "
                 f"lambda={np.round(coefficient, 3)} "

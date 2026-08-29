@@ -554,14 +554,105 @@ NEW_GEN_TAIL = '''    _probe = generation_tokenizer.apply_chat_template(
 
 NEW_REWARD_CELL = '''if RUN_REWARD_COLLECTION:
     import logging
+    import os
+    import shutil
     import time
+    import traceback
     from datetime import timedelta
+    from pathlib import Path
     from zoneinfo import ZoneInfo
     from src.armorm_objectives import ARMORM_HELPSTEER_OBJECTIVE_NAMES
     from src.armorm_scorer import make_score_prompt_answer
     from src.proxy_validation import collect_reward_tensor
     from src.tinyllama_training_utils import load_reward_prompts
     _cell38_started = time.perf_counter()
+
+    # Colab kann die VM ohne eine Python-Ausnahme beenden. Cache und Diagnose liegen
+    # deshalb auf Google Drive. Bleibt das letzte Ereignis ohne Abschluss/Exception,
+    # war der Abbruch ausserhalb von Python (Host-Reclaim, harter Prozess-Kill o.Ae.).
+    _local_reward_cache = Path(REWARD_CACHE)
+    DIAGNOSTIC_LOG = RESULTS_DIR / "nb10_runtime_diagnostics.jsonl"
+    try:
+        from google.colab import drive
+
+        drive.mount("/content/drive", force_remount=False)
+        _drive_root = Path("/content/drive/MyDrive")
+        if not _drive_root.is_dir():
+            raise RuntimeError("Google Drive wurde nicht unter /content/drive/MyDrive eingebunden.")
+        _persistent_dir = _drive_root / "master-thesis-nb10" / RUN_TAG
+        _persistent_dir.mkdir(parents=True, exist_ok=True)
+        _persistent_cache = _persistent_dir / "reward_cache.jsonl"
+        if (_local_reward_cache.is_file() and not _persistent_cache.exists()
+                and _local_reward_cache.stat().st_size > 0):
+            shutil.copy2(_local_reward_cache, _persistent_cache)
+        REWARD_CACHE = _persistent_cache
+        DIAGNOSTIC_LOG = _persistent_dir / "runtime_diagnostics.jsonl"
+        print(f"[persistent] Reward-Cache: {REWARD_CACHE}")
+        print(f"[persistent] Diagnose:    {DIAGNOSTIC_LOG}")
+    except Exception as _drive_error:
+        print("[WARNUNG] Google-Drive-Persistenz nicht verfuegbar; /content kann bei "
+              f"einem Runtime-Abbruch verloren gehen: {_drive_error}")
+
+    def _resource_snapshot():
+        snapshot = {}
+        try:
+            import psutil
+
+            vm = psutil.virtual_memory()
+            snapshot.update({
+                "ram_used_gib": round((vm.total - vm.available) / 2**30, 3),
+                "ram_total_gib": round(vm.total / 2**30, 3),
+                "ram_percent": float(vm.percent),
+            })
+        except Exception as error:
+            snapshot["ram_error"] = f"{type(error).__name__}: {error}"
+        try:
+            if torch.cuda.is_available():
+                free, total = torch.cuda.mem_get_info()
+                snapshot.update({
+                    "gpu_name": torch.cuda.get_device_name(),
+                    "vram_used_gib": round((total - free) / 2**30, 3),
+                    "vram_total_gib": round(total / 2**30, 3),
+                    "torch_allocated_gib": round(torch.cuda.memory_allocated() / 2**30, 3),
+                    "torch_reserved_gib": round(torch.cuda.memory_reserved() / 2**30, 3),
+                })
+        except Exception as error:
+            snapshot["vram_error"] = f"{type(error).__name__}: {error}"
+        return snapshot
+
+    def _diagnostic_event(event, **details):
+        record = {
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "event": event,
+            "run_tag": RUN_TAG,
+            "binding_sha256": BINDING_SHA256,
+            "resources": _resource_snapshot(),
+            **details,
+        }
+        try:
+            DIAGNOSTIC_LOG.parent.mkdir(parents=True, exist_ok=True)
+            with DIAGNOSTIC_LOG.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+        except Exception as error:
+            print(f"[WARNUNG] Diagnoseereignis konnte nicht gespeichert werden: {error}")
+
+    _previous_event = None
+    if DIAGNOSTIC_LOG.is_file():
+        for _line in reversed(DIAGNOSTIC_LOG.read_text(encoding="utf-8").splitlines()):
+            try:
+                _previous_event = json.loads(_line)
+                break
+            except (json.JSONDecodeError, TypeError):
+                continue
+    if _previous_event and _previous_event.get("event") != "run_completed":
+        print("[diagnose] Der vorherige Lauf endete bei:",
+              json.dumps(_previous_event, ensure_ascii=False))
+        if _previous_event.get("event") not in {"point_exception", "run_exception"}:
+            print("[diagnose] Keine Python-Ausnahme wurde protokolliert. Das spricht fuer "
+                  "eine extern beendete Colab-VM oder einen harten Prozess-Kill.")
+    _diagnostic_event("cell_started")
 
     # bitsandbytes meldet dieselbe bekannte BF16->FP16-Konvertierung fuer viele
     # Schichten erneut. Nur diese Meldung filtern; andere Warnungen bleiben sichtbar.
@@ -589,6 +680,7 @@ NEW_REWARD_CELL = '''if RUN_REWARD_COLLECTION:
     assert scorer.describe()["precision"] == ("int8" if ARMORM_PRECISION == "8bit" else "bfloat16")
     scorer.assert_golden_sample()          # VOR dem ersten echten Scoring
     print("Scorer:", scorer.describe())
+    _diagnostic_event("scorer_ready", scorer=scorer.describe())
     print(f"[time] ArmoRM-Setup inklusive Golden-Test: "
           f"{time.perf_counter() - _cell38_started:.1f} s")
 
@@ -630,34 +722,55 @@ NEW_REWARD_CELL = '''if RUN_REWARD_COLLECTION:
         _new_number = _progress["new_done"] + 1
         print(f"[time] Starte Merge-Punkt {_position}/{n_unique} "
               f"(offener Punkt {_new_number}/{_missing_initial}).")
-        with merged_model(base_model, DELTAS, lam):
-            answers = [generate_answer(record["prompt"]) for record in reward_prompts]
-        scores = np.asarray([
-            score_prompt_answer(record["prompt"], answer, ATTRIBUTES)
-            for record, answer in zip(reward_prompts, answers)
-        ], dtype=np.float64)
-        assert scores.shape == (len(reward_prompts), m), scores.shape
-        _progress["new_done"] += 1
-        _point_elapsed = time.perf_counter() - _point_started
-        _reward_elapsed = time.perf_counter() - _progress["started"]
-        _cell_elapsed = time.perf_counter() - _cell38_started
-        _average = _reward_elapsed / _progress["new_done"]
-        _remaining = _missing_initial - _progress["new_done"]
-        _eta_seconds = _average * _remaining
-        _finish = (datetime.now(ZoneInfo("Europe/Berlin")) + timedelta(seconds=_eta_seconds)).strftime("%d.%m. %H:%M %Z")
-        print(f"[time] Fertig {_progress['new_done']}/{_missing_initial} offen | "
-              f"letzter Punkt {_format_duration(_point_elapsed)} | "
-              f"Reward-Zeit {_format_duration(_reward_elapsed)} | "
-              f"Zellzeit {_format_duration(_cell_elapsed)} | "
-              f"Rest {_format_duration(_eta_seconds)} | erwartet {_finish}")
-        return scores          # NICHT mitteln: der gepaarte Bootstrap braucht die Rohwerte
+        _diagnostic_event("point_started", position=_position, total=n_unique,
+                          open_number=_new_number, open_total=_missing_initial,
+                          coefficient_key=_key, coefficients=np.asarray(lam).tolist())
+        try:
+            with merged_model(base_model, DELTAS, lam):
+                answers = [generate_answer(record["prompt"]) for record in reward_prompts]
+            _diagnostic_event("generation_finished", position=_position,
+                              answers=len(answers))
+            scores = np.asarray([
+                score_prompt_answer(record["prompt"], answer, ATTRIBUTES)
+                for record, answer in zip(reward_prompts, answers)
+            ], dtype=np.float64)
+            assert scores.shape == (len(reward_prompts), m), scores.shape
+            _progress["new_done"] += 1
+            _point_elapsed = time.perf_counter() - _point_started
+            _reward_elapsed = time.perf_counter() - _progress["started"]
+            _cell_elapsed = time.perf_counter() - _cell38_started
+            _average = _reward_elapsed / _progress["new_done"]
+            _remaining = _missing_initial - _progress["new_done"]
+            _eta_seconds = _average * _remaining
+            _finish = (datetime.now(ZoneInfo("Europe/Berlin")) + timedelta(seconds=_eta_seconds)).strftime("%d.%m. %H:%M %Z")
+            _diagnostic_event("point_scoring_finished", position=_position,
+                              elapsed_seconds=_point_elapsed,
+                              mean_reward=scores.mean(axis=0).tolist())
+            print(f"[time] Fertig {_progress['new_done']}/{_missing_initial} offen | "
+                  f"letzter Punkt {_format_duration(_point_elapsed)} | "
+                  f"Reward-Zeit {_format_duration(_reward_elapsed)} | "
+                  f"Zellzeit {_format_duration(_cell_elapsed)} | "
+                  f"Rest {_format_duration(_eta_seconds)} | erwartet {_finish}")
+            return scores      # NICHT mitteln: der gepaarte Bootstrap braucht die Rohwerte
+        except BaseException as error:
+            _diagnostic_event("point_exception", position=_position,
+                              error_type=type(error).__name__, error=str(error),
+                              traceback=traceback.format_exc())
+            raise
 
-    REWARD_TENSOR = collect_reward_tensor(
-        EVAL_POINTS, reward_of_lambda, REWARD_CACHE,
-        num_prompts=n_prompts, binding_sha256=BINDING_SHA256)
-    REWARD_MATRIX = REWARD_TENSOR.mean(axis=1)     # identisch zur frueheren Matrix
-    np.save(RESULTS_DIR / f"nb10_{RUN_TAG}_reward_tensor.npy", REWARD_TENSOR)
-    print(f"Reward-Tensor: {REWARD_TENSOR.shape}   Reward-Matrix: {REWARD_MATRIX.shape}")
+    try:
+        REWARD_TENSOR = collect_reward_tensor(
+            EVAL_POINTS, reward_of_lambda, REWARD_CACHE,
+            num_prompts=n_prompts, binding_sha256=BINDING_SHA256)
+        REWARD_MATRIX = REWARD_TENSOR.mean(axis=1)  # identisch zur frueheren Matrix
+        np.save(RESULTS_DIR / f"nb10_{RUN_TAG}_reward_tensor.npy", REWARD_TENSOR)
+        _diagnostic_event("run_completed", reward_tensor_shape=list(REWARD_TENSOR.shape))
+        print(f"Reward-Tensor: {REWARD_TENSOR.shape}   Reward-Matrix: {REWARD_MATRIX.shape}")
+    except BaseException as error:
+        _diagnostic_event("run_exception", error_type=type(error).__name__,
+                          error=str(error), traceback=traceback.format_exc())
+        print(f"[diagnose] Abbruchgrund dauerhaft gespeichert in {DIAGNOSTIC_LOG}")
+        raise
 '''
 
 
@@ -764,6 +877,13 @@ OLD_EXPORT = """    for path in (LAMBDA_CSV, FINAL_CSV, ROBUST_CSV, REPORT_JSON,
 
 NEW_EXPORT = """    for path in (LAMBDA_CSV, FINAL_CSV, ROBUST_CSV, STATS_CSV, REPORT_JSON, PREREG_JSON,
                  REWARD_CACHE, REWARD_PROMPT_PATH):"""
+
+OLD_EXPORT_TAIL = '''        if path.is_file():
+            archive.write(path, path.name)'''
+
+NEW_EXPORT_TAIL = OLD_EXPORT_TAIL + '''
+    if "DIAGNOSTIC_LOG" in globals() and Path(DIAGNOSTIC_LOG).is_file():
+        archive.write(Path(DIAGNOSTIC_LOG), "runtime_diagnostics.jsonl")'''
 
 OLD_REPORT = """    "n_preferences": len(PREF_SET),
     "n_lambda_rows": int(len(lam_df)),"""
@@ -921,6 +1041,8 @@ def main() -> int:
     replace_in(cells, i_gen, OLD_GEN_TAIL, NEW_GEN_TAIL, "generation format check", notes)
     i_export = find_cell(cells, "zip_path = RESULTS_DIR", "export")
     replace_in(cells, i_export, OLD_EXPORT, NEW_EXPORT, "export includes stats and prompts", notes)
+    replace_in(cells, i_export, OLD_EXPORT_TAIL, NEW_EXPORT_TAIL,
+               "export includes runtime diagnostics", notes)
     replace_in(cells, i_export, OLD_REPORT, NEW_REPORT, "report carries regime and precision", notes)
 
     i_reward = find_cell(cells, "def reward_of_lambda", "reward collection")

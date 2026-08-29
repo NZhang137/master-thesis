@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
@@ -205,6 +206,7 @@ def collect_reward_matrix(
                 + "\n"
             )
             cache_file.flush()
+            os.fsync(cache_file.fileno())
             print(
                 f"[reward] {index + 1}/{num_rows} "
                 f"lambda={np.round(coefficient, 3)} reward={np.round(reward, 4)}"
@@ -497,6 +499,7 @@ def collect_reward_tensor(
                 + "\n"
             )
             cache_file.flush()
+            os.fsync(cache_file.fileno())
             print(
                 f"[reward] {index + 1}/{num_rows} "
                 f"lambda={np.round(coefficient, 3)} "
