@@ -1,0 +1,25 @@
+{
+  "run_tag": "nb10_run1",
+  "created_utc": "2026-08-30T04:28:33.301596+00:00",
+  "notebook": "NB10 method comparison",
+  "primary_matrix": "R_cos",
+  "methods_from": "src.coefficient_portfolio (no method defined in this notebook)",
+  "n_preferences_phase_a": 75,
+  "n_preferences_phase_b": 11,
+  "regime": "rs_ppo",
+  "armorm_precision": "8bit",
+  "n_lambda_rows": 1275,
+  "n_unique_merge_points": 137,
+  "phase_b_run": true,
+  "gate_open": true,
+  "lambda_table_sha256": "e74335c3e92f45eebb50f981a3b6163eda5c3e6b9163ef1aeb22dbda2720f00f",
+  "metric_primary": "raw U_p, identity normalization",
+  "cert_note": "certificate row from NB09.1 run1; not measured",
+  "status_counts": {
+    "OK": 1019,
+    "INFEASIBLE_BALL_MISSES_SIMPLEX": 167,
+    "FLOOR_COLLAPSED": 75,
+    "OK_EXACT_D0": 13,
+    "SOLVER_FAILED": 1
+  }
+}
