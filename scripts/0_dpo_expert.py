@@ -41,7 +41,7 @@ HELPSTEER_ATTRIBUTES = (
 DEFAULT_BASE_MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 DEFAULT_DATASET = "nvidia/HelpSteer2"
 DEFAULT_SPLIT = "train"
-DEFAULT_SEED = 42
+DEFAULT_SEED = 137
 DEFAULT_MAX_PAIRS = 2690
 
 
@@ -201,7 +201,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset_revision", default=None)
     parser.add_argument("--split", default=DEFAULT_SPLIT)
     parser.add_argument(
-        "--output_root", default="results/dpo_rq2/nb11_pairs2690_seed42_run1"
+        "--output_root", default="results/dpo_rq2/nb11_pairs2690_seed137_run1"
     )
     parser.add_argument("--beta", type=float, default=0.1)
     parser.add_argument("--epochs", type=float, default=1.0)
