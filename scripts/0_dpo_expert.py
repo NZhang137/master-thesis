@@ -28,6 +28,8 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from packaging.version import Version
+
 
 HELPSTEER_ATTRIBUTES = (
     "helpfulness",
@@ -221,6 +223,15 @@ def main() -> None:
         raise ValueError("epochs, beta, and lr must be positive.")
     if args.batch_size < 1 or args.grad_accum < 1:
         raise ValueError("batch_size and grad_accum must be positive integers.")
+
+    transformers_version = Version(importlib.metadata.version("transformers"))
+    trl_version = Version(importlib.metadata.version("trl"))
+    if trl_version < Version("0.12") and transformers_version >= Version("4.46"):
+        raise RuntimeError(
+            "Incompatible DPO stack: TRL < 0.12 overrides get_batch_samples with "
+            "a signature that conflicts with Transformers >= 4.46. Use the NB11 "
+            "pins trl==0.11.4 and transformers==4.45.2."
+        )
 
     from datasets import Dataset, load_dataset
 
