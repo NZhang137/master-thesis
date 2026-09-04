@@ -55,6 +55,7 @@ class ArmoRMScorer:
         self,
         reward_model_name: str = DEFAULT_REWARD_MODEL,
         *,
+        revision: str | None = None,
         dtype: str = "bfloat16",
         load_in_8bit: bool = False,
         max_length: int = 4096,
@@ -62,6 +63,7 @@ class ArmoRMScorer:
         if dtype not in {"bfloat16", "float16", "float32"}:
             raise ValueError(f"Unsupported dtype {dtype!r} for ArmoRM.")
         self.reward_model_name = reward_model_name
+        self.revision = revision
         self.dtype = dtype
         self.load_in_8bit = bool(load_in_8bit)
         self.max_length = int(max_length)
@@ -78,7 +80,9 @@ class ArmoRMScorer:
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         self._tokenizer = AutoTokenizer.from_pretrained(
-            self.reward_model_name, trust_remote_code=True
+            self.reward_model_name,
+            revision=self.revision,
+            trust_remote_code=True,
         )
         if getattr(self._tokenizer, "chat_template", None) is None:
             raise RuntimeError(
@@ -103,7 +107,9 @@ class ArmoRMScorer:
                 load_kwargs["device_map"] = "auto"
 
         model = AutoModelForSequenceClassification.from_pretrained(
-            self.reward_model_name, **load_kwargs
+            self.reward_model_name,
+            revision=self.revision,
+            **load_kwargs,
         )
         model.requires_grad_(False)
         model.eval()
@@ -228,6 +234,7 @@ class ArmoRMScorer:
         """Return the resolved load settings, for the pre-registration record."""
         return {
             "reward_model_name": self.reward_model_name,
+            "revision": self.revision,
             "precision": "int8" if self.load_in_8bit else self.dtype,
             "batch_size": 1,
             "input_format": "apply_chat_template(user, assistant)",
@@ -239,6 +246,7 @@ class ArmoRMScorer:
 def make_score_prompt_answer(
     reward_model_name: str = DEFAULT_REWARD_MODEL,
     *,
+    revision: str | None = None,
     dtype: str = "bfloat16",
     load_in_8bit: bool = False,
 ) -> tuple[Any, ArmoRMScorer]:
@@ -248,7 +256,12 @@ def make_score_prompt_answer(
     `assert_golden_sample()` explicitly before the first merge point and can
     freeze `describe()` into the pre-registration.
     """
-    scorer = ArmoRMScorer(reward_model_name, dtype=dtype, load_in_8bit=load_in_8bit)
+    scorer = ArmoRMScorer(
+        reward_model_name,
+        revision=revision,
+        dtype=dtype,
+        load_in_8bit=load_in_8bit,
+    )
 
     def score_prompt_answer(
         prompt: str, answer: str, attributes: Sequence[str]

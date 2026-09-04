@@ -108,11 +108,16 @@ def collect_excluded_texts(paths: Iterable[Path]) -> tuple[set[str], list[str]]:
     return excluded, read
 
 
-def load_candidate_prompts(split: str = "validation") -> list[str]:
+def load_candidate_prompts(
+    split: str = "validation",
+    *,
+    dataset_name: str = "nvidia/HelpSteer2",
+    revision: str | None = None,
+) -> list[str]:
     """Load deduplicated, length-filtered user prompts from a HelpSteer2 split."""
     from datasets import load_dataset
 
-    dataset = load_dataset("nvidia/HelpSteer2", split=split)
+    dataset = load_dataset(dataset_name, split=split, revision=revision)
     seen: set[str] = set()
     prompts: list[str] = []
     for row in dataset:
@@ -130,6 +135,7 @@ def ensure_nb06_prompt_files(
     project_root: str | Path = ".",
     *,
     dataset_name: str = "nvidia/HelpSteer2",
+    dataset_revision: str | None = None,
     split: str = "validation",
     seed: int = 137,
     n_per_set: int = 80,
@@ -149,10 +155,12 @@ def ensure_nb06_prompt_files(
         "confirmatory_fixed_prompts.jsonl": n_per_set,
     }
     found, missing = find_prompt_files(root, tuple(names_and_offsets))
-    if not missing:
+    if not missing and dataset_revision is None:
+        # Preserve the historical NB10 behavior for callers that did not pin a
+        # dataset revision. Pinned callers (NB13) revalidate exact selection.
         return {"created": [], "found": {name: str(path) for name, path in found.items()}}
 
-    dataset = load_dataset(dataset_name, split=split)
+    dataset = load_dataset(dataset_name, split=split, revision=dataset_revision)
     seen: set[str] = set()
     candidates: list[dict[str, str]] = []
     for index, example in enumerate(dataset):
@@ -211,6 +219,9 @@ def build_eval_prompt_file(
     n: int = 80,
     seed: int = 137,
     split: str = "validation",
+    dataset_name: str = "nvidia/HelpSteer2",
+    dataset_revision: str | None = None,
+    prompt_id_prefix: str = "nb10",
     project_root: str | Path = ".",
     require_names: Sequence[str] = KNOWN_EARLIER_PROMPT_FILES,
     extra_exclude_paths: Sequence[str | Path] = (),
@@ -239,6 +250,25 @@ def build_eval_prompt_file(
     exclude_paths = list(found.values()) + [Path(p) for p in extra_exclude_paths]
     excluded, read_files = collect_excluded_texts(exclude_paths)
 
+    candidates: list[str] | None = None
+    expected_indices: list[int] | None = None
+    if dataset_revision is not None:
+        candidates = [
+            p
+            for p in load_candidate_prompts(
+                split,
+                dataset_name=dataset_name,
+                revision=dataset_revision,
+            )
+            if p not in excluded
+        ]
+        if n > len(candidates):
+            raise ValueError(
+                f"Requested {n} prompts, only {len(candidates)} remain after exclusion."
+            )
+        rng = np.random.default_rng(seed)
+        expected_indices = sorted(rng.choice(len(candidates), size=n, replace=False))
+
     if out_path.is_file() and not overwrite:
         summary = validate_prompt_file(out_path, expected_n=n)
         rows = [json.loads(line) for line in out_path.read_text(encoding="utf-8").splitlines()
@@ -249,12 +279,29 @@ def build_eval_prompt_file(
                 f"{out_path}: {len(overlap)} existing prompts also appear in an "
                 "earlier prompt file. Use a new output path or rebuild deliberately."
             )
+        if candidates is not None and expected_indices is not None:
+            expected_prompts = [candidates[int(index)] for index in expected_indices]
+            actual_prompts = [row["prompt"] for row in rows]
+            expected_ids = [f"{prompt_id_prefix}_{position:03d}" for position in range(1, n + 1)]
+            actual_ids = [row["prompt_id"] for row in rows]
+            if actual_prompts != expected_prompts or actual_ids != expected_ids:
+                raise RuntimeError(
+                    f"Existing {out_path} does not match the deterministic pinned "
+                    f"selection (dataset_revision={dataset_revision}, split={split}, "
+                    f"seed={seed}, prefix={prompt_id_prefix}). Use a new output path "
+                    "instead of silently changing a frozen prompt set."
+                )
         counts: dict[str, int] = {}
         for row in rows:
             counts[row["category"]] = counts.get(row["category"], 0) + 1
         summary.update({
+            "dataset_name": dataset_name,
+            "dataset_revision": dataset_revision,
             "split": split,
             "seed": seed,
+            "n_candidates_after_exclusion": (
+                len(candidates) if candidates is not None else None
+            ),
             "n_excluded_texts": len(excluded),
             "exclusion_files_read": read_files,
             "exclusion_files_missing": missing,
@@ -263,14 +310,30 @@ def build_eval_prompt_file(
         })
         return summary
 
-    candidates = [p for p in load_candidate_prompts(split) if p not in excluded]
-    if n > len(candidates):
-        raise ValueError(f"Requested {n} prompts, only {len(candidates)} remain after exclusion.")
+    if candidates is None:
+        candidates = [
+            p
+            for p in load_candidate_prompts(
+                split,
+                dataset_name=dataset_name,
+                revision=dataset_revision,
+            )
+            if p not in excluded
+        ]
+        if n > len(candidates):
+            raise ValueError(
+                f"Requested {n} prompts, only {len(candidates)} remain after exclusion."
+            )
+        rng = np.random.default_rng(seed)
+        expected_indices = sorted(rng.choice(len(candidates), size=n, replace=False))
+    assert expected_indices is not None
+    indices = expected_indices
 
-    rng = np.random.default_rng(seed)
-    indices = sorted(rng.choice(len(candidates), size=n, replace=False))
-
-    provenance = f"HelpSteer2 {split} split, seed={seed}, {MIN_CHARS}<=len<={MAX_CHARS}"
+    revision_note = dataset_revision or "unresolved revision"
+    provenance = (
+        f"{dataset_name} {split} split at {revision_note}, seed={seed}, "
+        f"{MIN_CHARS}<=len<={MAX_CHARS}"
+    )
     if read_files:
         provenance += f"; disjoint from {len(excluded)} texts in {len(read_files)} earlier prompt file(s)"
     else:
@@ -278,7 +341,7 @@ def build_eval_prompt_file(
 
     rows = [
         {
-            "prompt_id": f"nb10_{position:03d}",
+            "prompt_id": f"{prompt_id_prefix}_{position:03d}",
             "category": _categorize(candidates[int(index)]),
             "prompt": candidates[int(index)],
             "notes": provenance,
@@ -304,6 +367,8 @@ def build_eval_prompt_file(
         "path": str(out_path),
         "n": len(rows),
         "created": True,
+        "dataset_name": dataset_name,
+        "dataset_revision": dataset_revision,
         "split": split,
         "seed": seed,
         "n_candidates_after_exclusion": len(candidates),
