@@ -53,14 +53,16 @@ def test_prompt_builder_passes_dataset_revision_and_prefix(tmp_path, monkeypatch
     assert summary["dataset_revision"] == "dataset-commit"
 
 
-def test_nb13_is_parseable_and_fail_closed_by_default() -> None:
+def test_nb13_is_parseable_and_one_click_still_uses_the_gate() -> None:
     notebook = json.loads(NOTEBOOK.read_text(encoding="utf-8"))
     assert notebook["nbformat"] == 4
     assert len(notebook["cells"]) == 51
 
     all_source = "\n".join("".join(cell.get("source", [])) for cell in notebook["cells"])
-    assert 'RUN_REWARD_COLLECTION = False' in all_source
-    assert 'PREREG_CONFIRM = False' in all_source
+    assert 'RUN_REWARD_COLLECTION = True' in all_source
+    assert 'PREREG_CONFIRM = True' in all_source
+    assert 'execution_mode": "one_click_full_run' in all_source
+    assert 'if RUN_REWARD_COLLECTION and not GATE_OPEN:' in all_source
     assert 'RHO_GRID = [0.0, 0.1, 0.2, 0.5]' in all_source
     assert 'C_GRID = [0.0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 1.0]' in all_source
     assert 'ALPHA_GRID = [0.0, 0.5, 1.0, 2.0]' in all_source
