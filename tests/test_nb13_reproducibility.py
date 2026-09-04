@@ -59,6 +59,9 @@ def test_nb13_is_parseable_and_one_click_still_uses_the_gate() -> None:
     assert len(notebook["cells"]) == 51
 
     all_source = "\n".join("".join(cell.get("source", [])) for cell in notebook["cells"])
+    first_code_source = "".join(notebook["cells"][2].get("source", []))
+    assert 'drive.mount("/content/drive", force_remount=False)' in first_code_source
+    assert first_code_source.index("drive.mount") < first_code_source.index("repo_path")
     assert 'RUN_REWARD_COLLECTION = True' in all_source
     assert 'PREREG_CONFIRM = True' in all_source
     assert 'execution_mode": "one_click_full_run' in all_source
@@ -71,6 +74,8 @@ def test_nb13_is_parseable_and_one_click_still_uses_the_gate() -> None:
     assert 'RHO_AVG' not in all_source
     assert "97f41c1f2290bd1074a261577de5c273c3754d89e311f713d90d7d7cc2a5bbf3" in all_source
     assert "3864d363dbff91fdeda62029a16b0da3b3436fe3557d42cb75739c75649ff51e" in all_source
+    assert "9d2c642c0413a4e3cdb8309a830aaff46c3ba5559205952fc1641e609f161a26" in all_source
+    assert '"nb11_historical_hash_match": nb11_historical_hash_match' in all_source
     assert 'REGIME = "helpsteer2_dpo_nb11"' in all_source
     assert 'REGIME = "rs_ppo"' not in all_source
     assert "results/rs_ppo_armorm_circular" not in all_source
