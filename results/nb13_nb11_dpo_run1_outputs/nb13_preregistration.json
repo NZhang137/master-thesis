@@ -1,0 +1,551 @@
+{
+  "schema_version": 1,
+  "execution_mode": "one_click_full_run",
+  "run_tag": "nb13_nb11_dpo_run1",
+  "created_utc": "2026-09-06T12:16:40.768343+00:00",
+  "notebook": "NB13 HelpSteer2 DPO method comparison",
+  "claim_status": "exploratory",
+  "lambda_table_sha256": "efbf83ada9dd2af0bd2f030631cab48bd506b9af19d92925846b3e57141a2e63",
+  "binding": {
+    "schema_version": 1,
+    "execution_mode": "one_click_full_run",
+    "notebook": "NB13 HelpSteer2 DPO method comparison",
+    "claim_status": "exploratory",
+    "regime": "helpsteer2_dpo_nb11",
+    "adapter_bundle_sha256": "97f41c1f2290bd1074a261577de5c273c3754d89e311f713d90d7d7cc2a5bbf3",
+    "adapter_root": "results/dpo_rq2/nb11_pairs2690_seed137_run1",
+    "adapter_weights_sha256": {
+      "helpfulness": "761c8505af9dc5f537c0610d7b0e88e3b16ae4551fcdaca2bc793ff73452ac30",
+      "correctness": "33d128551fb27fe2bb5c4e3a95ca9d4ac847b96d911ecaa96810fe6db1617f36",
+      "coherence": "2093e068643dd677e060eb4aaab1bf816342d1bb9e1965697262aac03487dee6",
+      "complexity": "ccf4e64302dff0563142e4fdcfad3adef8ee41229436bfeea39d8355f7be4ff4",
+      "verbosity": "6a9934206819a3a887656f1f54f83eed0cf6e2e342196d057389c6e490065fbe"
+    },
+    "training_manifests_sha256": {
+      "helpfulness": "f9a0fb5d840d94f7167811e815215822f6b15c1d797b9133775a2e822a30973b",
+      "correctness": "4a4ad30de8841fab3f251992e3f027d021e1ff495caddeac5d079d8cbbadd7f0",
+      "coherence": "a3e9a13a90b80f94c6247a4c9fcc3b152436f870a90b7add43bf13b3d0c7ff5b",
+      "complexity": "57c539197517c1b01f94a2c1663f648a6b297b45d3a65204cbd91fadd46a6592",
+      "verbosity": "5d663190fd61bb79b9ab9e7cd44ab14cfc459bcf57e67f99e391739d5f489836"
+    },
+    "training_binding_sha256": {
+      "helpfulness": "da4229c4d2989cd637807f8ecba41aeac61da8845e8b804be098795279542071",
+      "correctness": "53bb9145aea749c02958a00e2758ebe7956dcf5e107d3b9f7b9dfe7c6d70820b",
+      "coherence": "f16714cbb75326240173c8fbc1d18014d56c5bb49fddf8d42a19ce155ed8d021",
+      "complexity": "e19af57859f3ddd73f756903bb5de7c3ebc0860df0351fbfb1eb6f9992f48673",
+      "verbosity": "6a903f31564101315de9c7326798e2224978c888c87322ae541d0b6ac37bc1c1"
+    },
+    "training_runtime_versions": {
+      "accelerate": "1.1.1",
+      "datasets": "3.1.0",
+      "peft": "0.13.2",
+      "tokenizers": "0.20.3",
+      "torch": "2.11.0+cu128",
+      "transformers": "4.45.2",
+      "trl": "0.11.4"
+    },
+    "base_model": {
+      "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+      "revision": "fe8a4ea1ffedaf415f4da2f062534de366a451e6"
+    },
+    "dataset": {
+      "name": "nvidia/HelpSteer2",
+      "revision": "990b2711a36180dd19d9c94b8627844866f8982a",
+      "training_split": "train",
+      "evaluation_split": "validation"
+    },
+    "reward_model": {
+      "name": "RLHFlow/ArmoRM-Llama3-8B-v0.1",
+      "revision": "eb2676d20da2f2d41082289d23c59b9f7427f955",
+      "precision": "8bit",
+      "batch_size": 1
+    },
+    "geometry": {
+      "primary_matrix": "R_cos",
+      "R_cos_sha256": "eb1a6e2e623ac19c545c17f56fb60b6a3365ab6fde2a0ab9801accf7e1337399",
+      "R_gram_sha256": "b199d4f5d34cd1f51cdbff276a29f4e9dc687692353007a6665d799c408b9c4a",
+      "norms_sha256": "976dab72dea7804fc8624968bdd95eefdad065f863413e9ea67b7f0ed7ce7030",
+      "report_sha256": "659abb45c7cc4f44e9997a21c3a863456b763deaec22a56afce33e2a7b5471d7"
+    },
+    "prompts": {
+      "evaluation_sha256": "e74c1cca83a0680aecce7d7f78333beb4cdb64bf8546b31398dd98a595b18944",
+      "nb11_exclusion_file_sha256": "c3c52347a94e818a5a0050b55c216fa652e0a79e8bfef6878a2d544f8cd29ddb",
+      "nb11_reconstructed_prompt_list_sha256": "9d2c642c0413a4e3cdb8309a830aaff46c3ba5559205952fc1641e609f161a26",
+      "nb11_reported_prompt_list_sha256": "3864d363dbff91fdeda62029a16b0da3b3436fe3557d42cb75739c75649ff51e",
+      "nb11_historical_hash_match": false,
+      "selection": {
+        "dataset_name": "nvidia/HelpSteer2",
+        "dataset_revision": "990b2711a36180dd19d9c94b8627844866f8982a",
+        "split": "validation",
+        "seed": 1313,
+        "n": 80,
+        "prompt_file_sha256": "e74c1cca83a0680aecce7d7f78333beb4cdb64bf8546b31398dd98a595b18944",
+        "nb11_exclusion_file_sha256": "c3c52347a94e818a5a0050b55c216fa652e0a79e8bfef6878a2d544f8cd29ddb",
+        "nb11_reconstructed_prompt_list_sha256": "9d2c642c0413a4e3cdb8309a830aaff46c3ba5559205952fc1641e609f161a26",
+        "nb11_reported_prompt_list_sha256": "3864d363dbff91fdeda62029a16b0da3b3436fe3557d42cb75739c75649ff51e",
+        "nb11_historical_hash_match": false,
+        "nb11_exclusion_basis": "committed selector plus pinned dataset revision",
+        "exclusion_files_missing": [],
+        "disjointness_verified": true
+      }
+    },
+    "attribute_order": [
+      "helpfulness",
+      "correctness",
+      "coherence",
+      "complexity",
+      "verbosity"
+    ],
+    "generation": {
+      "max_new_tokens": 256,
+      "repetition_penalty": 1.15,
+      "no_repeat_ngram_size": 5,
+      "decoding": "greedy; do_sample=False; num_beams=1",
+      "prompt_format": "base tokenizer chat template; add_generation_prompt=True",
+      "merge_dtype": "float32"
+    },
+    "grids": {
+      "rho_grid": [
+        0.0,
+        0.1,
+        0.2,
+        0.5
+      ],
+      "cert_c": 0.5,
+      "cert_eps": 1e-08,
+      "c_grid": [
+        0.0,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        0.9,
+        0.95,
+        1.0
+      ],
+      "alpha_grid": [
+        0.0,
+        0.5,
+        1.0,
+        2.0
+      ],
+      "eps_grid": [
+        0.01,
+        0.02,
+        0.05,
+        0.1
+      ]
+    },
+    "source_sha256": {
+      "coefficient_portfolio.py": "3526eb599376c6af342ef1d91642c9ac8d5b6a02449327e22c94ba6760529e09",
+      "merge.py": "0020bc0b0c4566304a9404645cbd579285cfd6efc5e879e488515ceec7589d25",
+      "proxy_validation.py": "d128c950350b97433fe3e6bbd990e2d371ba0957b89e8e9f8e077841c8098efd",
+      "metrics.py": "655e9924cea75c5ce14270cabcfd8020279b9ecde3f56614a75ba85108384b89",
+      "lambda_utils.py": "a0cdd2cf1103ca3deb5ddb20b6b952e33b353b168c1d8df3c594c8f0caac7e27",
+      "armorm_scorer.py": "2eef38afabf6287d4cb7d6e901afc328b40eab337b4d033c0912f189ca1e1190",
+      "armorm_objectives.py": "4eb7df3daa324a7284d79650bbacf4fb20d4c84acea2c5c90cb4b0edb741539e",
+      "eval_prompts.py": "cc10c82cb65933c7936737727a877a51b101893df26e1d0c9808800263b4b9e6",
+      "effective_lora_geometry.py": "1e842dfb521f68fcf0a3db2b4bc12e3a3f3bf3d5430d886bd03b640c30749f4a"
+    },
+    "protocol_notebook_sha256": "ccb11c32f5379accbcd5918bf064c897d93290542fcb093d51794e7ad6f33671",
+    "evaluation_runtime_versions": {
+      "python": "3.13.15",
+      "torch": "2.11.0+cu128",
+      "transformers": "4.45.2",
+      "tokenizers": "0.20.3",
+      "peft": "0.13.2",
+      "accelerate": "1.1.1",
+      "datasets": "3.1.0",
+      "huggingface_hub": "0.36.0",
+      "bitsandbytes": "0.50.2",
+      "numpy": "2.1.3",
+      "pandas": "2.2.3",
+      "scipy": "1.14.1"
+    }
+  },
+  "binding_sha256": "369bc6ab0bf80860a13ae48b63676176e382bf56954dbdbd0d5504cb6b8d433d",
+  "primary_matrix": "R_cos",
+  "floor_lp_summary": {
+    "n_preferences": 75,
+    "n_collapsed": 75,
+    "per_preference": {
+      "balanced": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_helpfulness": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_correctness": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_coherence": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_complexity": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_verbosity": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_helpfulness": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_correctness": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_coherence": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_complexity": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_verbosity": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_11": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_12": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_13": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_14": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_15": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_16": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_17": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_18": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_19": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_20": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_21": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_22": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_23": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_24": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_25": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_26": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_27": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_28": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_29": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_30": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_31": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_32": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_33": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_34": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_35": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_36": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_37": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_38": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_39": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_40": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_41": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_42": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_43": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_44": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_45": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_46": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_47": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_48": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_49": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_50": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_51": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_52": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_53": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_54": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_55": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_56": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_57": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_58": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_59": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_60": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_61": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_62": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_63": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_64": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_65": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_66": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_67": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_68": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_69": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_70": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_71": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_72": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_73": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_74": {
+        "t_lp": -0.0,
+        "collapsed": true
+      }
+    }
+  },
+  "methods": {
+    "Baseline": {
+      "definition": "lambda=p"
+    },
+    "Avg": {
+      "source": "src.coefficient_portfolio.avg",
+      "rho_grid": [
+        0.0,
+        0.1,
+        0.2,
+        0.5
+      ]
+    },
+    "Cert": {
+      "source": "src.coefficient_portfolio.cert",
+      "c": 0.5,
+      "eps": 1e-08,
+      "note": "computed anew on R_DPO; no NB09/NB10 certificate is reused"
+    },
+    "MaxMin": {
+      "source": "src.coefficient_portfolio.maxmin_c",
+      "c_grid": [
+        0.0,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        0.9,
+        0.95,
+        1.0
+      ]
+    },
+    "Fair": {
+      "source": "src.coefficient_portfolio.fair_alpha_eps",
+      "alpha_grid": [
+        0.0,
+        0.5,
+        1.0,
+        2.0
+      ],
+      "eps_grid": [
+        0.01,
+        0.02,
+        0.05,
+        0.1
+      ]
+    }
+  },
+  "n_preferences_phase_a": 75,
+  "n_preferences_phase_b": 11,
+  "phase_b_preference_rule": "all 11 named preferences; all usable frozen-grid candidates; exact lambda deduplication",
+  "phase_b_preference_names": [
+    "balanced",
+    "dominant_helpfulness",
+    "dominant_correctness",
+    "dominant_coherence",
+    "dominant_complexity",
+    "dominant_verbosity",
+    "only_helpfulness",
+    "only_correctness",
+    "only_coherence",
+    "only_complexity",
+    "only_verbosity"
+  ],
+  "n_unique_merge_points": 219,
+  "metric_primary": "raw U_p = sum_i p_i r_i using five anchored ArmoRM heads",
+  "metric_sensitivity": [
+    "minmax",
+    "rank"
+  ],
+  "proxy_diagnostics": "descriptive Spearman analysis for R_cos/R_gram geometry scores and predicted-vs-observed method deltas; never used to select a grid point",
+  "error_layer": "paired bootstrap over prompts; 10000 draws; alpha=0.05",
+  "multiplicity": "Holm correction over the complete NB13 method/preference family",
+  "decision_rule": "Report Delta U_p, paired percentile CI, raw p and Holm-adjusted p for every usable moving Phase-B row. Improvement requires Delta U_p>0 and p_Holm<0.05; harm is analogous. Because CLAIM_STATUS is exploratory by default, these are exploratory multiplicity-controlled findings unless status was changed and frozen before any Phase-B reward contact.",
+  "armorm_role": "ArmoRM is post-hoc only. NB11 manifests prove it was absent from pair selection, DPO optimization and checkpoint selection. NB13 excludes the 64 prompts reconstructed from the committed NB11 selector and pinned dataset. The binding records that their hash differs from the historical handoff hash because the original NB11 generation artifact is not present in the adapter bundle.",
+  "prior_results_policy": "No NB11 diagnostic rewards, NB10 rewards, matrices, certificates or caches are used to choose NB13 coefficients or prompts.",
+  "raw_scores_retained": true
+}

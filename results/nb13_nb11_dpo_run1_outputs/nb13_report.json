@@ -1,0 +1,401 @@
+{
+  "schema_version": 1,
+  "execution_mode": "one_click_full_run",
+  "run_tag": "nb13_nb11_dpo_run1",
+  "created_utc": "2026-09-06T15:34:26.250184+00:00",
+  "notebook": "NB13 HelpSteer2 DPO method comparison",
+  "claim_status": "exploratory",
+  "regime": "helpsteer2_dpo_nb11",
+  "primary_matrix": "R_cos",
+  "geometry": {
+    "regime": "helpsteer2_dpo_nb11",
+    "primary_matrix": "R_cos",
+    "attribute_order": [
+      "helpfulness",
+      "correctness",
+      "coherence",
+      "complexity",
+      "verbosity"
+    ],
+    "effective_update_numel": 968884224,
+    "update_norms": {
+      "helpfulness": 13.743444783556376,
+      "correctness": 13.659144042183113,
+      "coherence": 13.768693309081351,
+      "complexity": 13.988516254008237,
+      "verbosity": 13.85523250996554
+    },
+    "cosine_eigenvalues": [
+      0.9341841180319828,
+      0.95551754254267,
+      0.9621804981711785,
+      1.0318850948749438,
+      1.1162327463792254
+    ],
+    "cosine_condition_number": 1.1948744630028167,
+    "cosine_dominant_eigenvalue_share": 0.22324654927584506,
+    "cosine_offdiag_min": 0.0005085325490736661,
+    "cosine_offdiag_max": 0.06437098395267225,
+    "cosine_offdiag_mean": 0.026005913398432633,
+    "inverse_R_ones": [
+      0.8759873369332625,
+      0.8847245611750469,
+      0.900740320687828,
+      0.9182699137800243,
+      0.9530106094973797
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "materialized_crosscheck_modules": [
+      "base_model.model.model.layers.0.self_attn.k_proj",
+      "base_model.model.model.layers.0.self_attn.v_proj"
+    ],
+    "materialized_crosscheck_max_relative_error": 3.3306690738754696e-16,
+    "matrix_sha256": {
+      "R_cos": "eb1a6e2e623ac19c545c17f56fb60b6a3365ab6fde2a0ab9801accf7e1337399",
+      "R_gram": "b199d4f5d34cd1f51cdbff276a29f4e9dc687692353007a6665d799c408b9c4a"
+    }
+  },
+  "adapter_bundle_sha256": "97f41c1f2290bd1074a261577de5c273c3754d89e311f713d90d7d7cc2a5bbf3",
+  "training_method": "DPO",
+  "armorm_used_during_training": false,
+  "armorm_role": "post-hoc evaluator only",
+  "armorm_precision": "8bit",
+  "armorm_revision": "eb2676d20da2f2d41082289d23c59b9f7427f955",
+  "n_preferences_phase_a": 75,
+  "n_preferences_phase_b": 11,
+  "n_lambda_rows": 2175,
+  "n_unique_merge_points": 219,
+  "phase_b_run": true,
+  "gate_open": true,
+  "lambda_table_sha256": "efbf83ada9dd2af0bd2f030631cab48bd506b9af19d92925846b3e57141a2e63",
+  "binding_sha256": "369bc6ab0bf80860a13ae48b63676176e382bf56954dbdbd0d5504cb6b8d433d",
+  "prompt_provenance": {
+    "dataset_name": "nvidia/HelpSteer2",
+    "dataset_revision": "990b2711a36180dd19d9c94b8627844866f8982a",
+    "split": "validation",
+    "seed": 1313,
+    "n": 80,
+    "prompt_file_sha256": "e74c1cca83a0680aecce7d7f78333beb4cdb64bf8546b31398dd98a595b18944",
+    "nb11_exclusion_file_sha256": "c3c52347a94e818a5a0050b55c216fa652e0a79e8bfef6878a2d544f8cd29ddb",
+    "nb11_reconstructed_prompt_list_sha256": "9d2c642c0413a4e3cdb8309a830aaff46c3ba5559205952fc1641e609f161a26",
+    "nb11_reported_prompt_list_sha256": "3864d363dbff91fdeda62029a16b0da3b3436fe3557d42cb75739c75649ff51e",
+    "nb11_historical_hash_match": false,
+    "nb11_exclusion_basis": "committed selector plus pinned dataset revision",
+    "exclusion_files_missing": [],
+    "disjointness_verified": true
+  },
+  "floor_lp_summary": {
+    "n_preferences": 75,
+    "n_collapsed": 75,
+    "per_preference": {
+      "balanced": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_helpfulness": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_correctness": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_coherence": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_complexity": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dominant_verbosity": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_helpfulness": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_correctness": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_coherence": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_complexity": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "only_verbosity": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_11": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_12": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_13": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_14": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_15": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_16": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_17": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_18": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_19": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_20": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_21": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_22": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_23": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_24": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_25": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_26": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_27": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_28": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_29": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_30": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_31": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_32": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_33": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_34": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_35": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_36": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_37": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_38": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_39": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_40": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_41": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_42": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_43": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_44": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_45": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_46": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_47": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_48": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_49": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_50": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_51": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_52": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_53": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_54": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_55": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_56": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_57": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_58": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_59": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_60": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_61": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_62": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_63": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_64": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_65": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_66": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_67": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_68": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_69": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_70": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_71": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_72": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_73": {
+        "t_lp": -0.0,
+        "collapsed": true
+      },
+      "dirichlet_74": {
+        "t_lp": -0.0,
+        "collapsed": true
+      }
+    }
+  },
+  "status_counts": {
+    "OK": 1849,
+    "INFEASIBLE_BALL_MISSES_SIMPLEX": 240,
+    "FLOOR_COLLAPSED": 75,
+    "OK_EXACT_D0": 11
+  },
+  "metric_primary": "raw U_p; identity normalization",
+  "proxy_validation_written": true
+}

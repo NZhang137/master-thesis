@@ -1,0 +1,48 @@
+{
+  "regime": "helpsteer2_dpo_nb11",
+  "primary_matrix": "R_cos",
+  "attribute_order": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "effective_update_numel": 968884224,
+  "update_norms": {
+    "helpfulness": 13.743444783556376,
+    "correctness": 13.659144042183113,
+    "coherence": 13.768693309081351,
+    "complexity": 13.988516254008237,
+    "verbosity": 13.85523250996554
+  },
+  "cosine_eigenvalues": [
+    0.9341841180319828,
+    0.95551754254267,
+    0.9621804981711785,
+    1.0318850948749438,
+    1.1162327463792254
+  ],
+  "cosine_condition_number": 1.1948744630028167,
+  "cosine_dominant_eigenvalue_share": 0.22324654927584506,
+  "cosine_offdiag_min": 0.0005085325490736661,
+  "cosine_offdiag_max": 0.06437098395267225,
+  "cosine_offdiag_mean": 0.026005913398432633,
+  "inverse_R_ones": [
+    0.8759873369332625,
+    0.8847245611750469,
+    0.900740320687828,
+    0.9182699137800243,
+    0.9530106094973797
+  ],
+  "inverse_R_ones_strictly_positive": true,
+  "materialized_crosscheck_modules": [
+    "base_model.model.model.layers.0.self_attn.k_proj",
+    "base_model.model.model.layers.0.self_attn.v_proj"
+  ],
+  "materialized_crosscheck_max_relative_error": 3.3306690738754696e-16,
+  "matrix_sha256": {
+    "R_cos": "eb1a6e2e623ac19c545c17f56fb60b6a3365ab6fde2a0ab9801accf7e1337399",
+    "R_gram": "b199d4f5d34cd1f51cdbff276a29f4e9dc687692353007a6665d799c408b9c4a"
+  }
+}
