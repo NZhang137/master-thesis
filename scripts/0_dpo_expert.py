@@ -7,10 +7,12 @@ higher-rated response ``chosen``.  ArmoRM is deliberately absent from this
 file: pair construction, optimization, resumption, and completion checks use
 only HelpSteer2 and DPO state.
 
-The five NB11 calls must use the same base revision, seed, pair cap, LoRA
-configuration, and optimization settings.  Only ``--reward_name`` changes.
-The fixed pair cap gives every expert the same number of optimizer steps even
-though attribute-specific ties produce differently sized candidate pools.
+The five NB11 calls must use the same base revision, pair seed, training seed,
+pair cap, LoRA configuration, and optimization settings.  Only
+``--reward_name`` changes.  NB11.1 may keep the pair seed fixed while varying
+the training seed.  The fixed pair cap gives every expert the same number of
+optimizer steps even though attribute-specific ties produce differently sized
+candidate pools.
 """
 
 from __future__ import annotations
@@ -131,6 +133,11 @@ def select_pairs(
     return selected[:max_pairs]
 
 
+def resolve_pair_seed(training_seed: int, pair_seed: int | None) -> int:
+    """Keep NB11 backward compatible while allowing NB11.1 seed isolation."""
+    return int(training_seed if pair_seed is None else pair_seed)
+
+
 def format_pairs_for_dpo(
     pairs: Sequence[Mapping[str, str]],
     tokenizer: Any,
@@ -212,6 +219,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max_prompt_length", type=int, default=256)
     parser.add_argument("--max_pairs", type=int, default=DEFAULT_MAX_PAIRS)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    parser.add_argument(
+        "--pair_seed",
+        type=int,
+        default=None,
+        help=(
+            "Seed used only to select the fixed preference-pair subset. "
+            "Defaults to --seed, preserving the original NB11 behaviour."
+        ),
+    )
     parser.add_argument("--save_steps", type=int, default=100)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
@@ -240,8 +256,9 @@ def main() -> None:
     dataset = load_dataset(
         args.dataset_name, split=args.split, revision=args.dataset_revision
     )
+    pair_seed = resolve_pair_seed(args.seed, args.pair_seed)
     candidates = build_pairs_from_rows(dataset, args.reward_name)
-    selected = select_pairs(candidates, seed=args.seed, max_pairs=args.max_pairs)
+    selected = select_pairs(candidates, seed=pair_seed, max_pairs=args.max_pairs)
     print(
         f"[pairs] axis={args.reward_name} candidates={len(candidates)} "
         f"selected={len(selected)} prompts={len({p['raw_prompt'] for p in selected})}"
@@ -291,7 +308,7 @@ def main() -> None:
         "dataset_split": args.split,
         "dataset_fingerprint": getattr(dataset, "_fingerprint", None),
         "pair_rule": "within-prompt; higher target rating chosen; ties discarded",
-        "pair_seed": args.seed,
+        "pair_seed": pair_seed,
         "candidate_pair_count": len(candidates),
         "selected_pair_count": len(selected),
         "selected_pair_ids_sha256": canonical_hash(

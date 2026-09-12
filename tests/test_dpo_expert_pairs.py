@@ -60,6 +60,14 @@ def test_selection_is_exact_and_reproducible() -> None:
     assert len(first) == 5
 
 
+def test_pair_seed_defaults_to_training_seed_for_original_nb11() -> None:
+    assert MODULE.resolve_pair_seed(137, None) == 137
+
+
+def test_pair_seed_can_be_fixed_independently_for_nb11_1() -> None:
+    assert MODULE.resolve_pair_seed(141, 137) == 137
+
+
 def test_training_script_imports_no_reward_model_module() -> None:
     tree = ast.parse(SCRIPT.read_text(encoding="utf-8"))
     imported_modules = []
