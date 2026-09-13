@@ -19,6 +19,8 @@ def test_nb13_1_is_parseable_and_has_three_frozen_evaluators() -> None:
     assert "RLHFlow/ArmoRM-Llama3-8B-v0.1" in source
     assert "LxzGordon/URM-LLaMa-3.1-8B" in source
     assert "nvidia/Llama2-13B-SteerLM-RM" in source
+    assert "tritonclient[http]==2.60.0" in source
+    assert "nvidia-pytriton" not in source
     assert 'set(RM_TENSORS) == {"armorm", "urm", "steerlm"}' in source
     assert "answer_cache_sha256" in source
     assert "raw_scores_pooled_across_reward_models\": False" in source
@@ -40,4 +42,3 @@ def test_nb13_1_is_parseable_and_has_three_frozen_evaluators() -> None:
             else:
                 transformed.append(line)
         ast.parse("\n".join(transformed), filename=f"NB13.1 cell {index}")
-

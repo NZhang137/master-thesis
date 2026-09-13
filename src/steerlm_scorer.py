@@ -2,9 +2,10 @@
 
 ``nvidia/Llama2-13B-SteerLM-RM`` is released as a 26 GB ``.nemo`` checkpoint,
 not as a Transformers model.  NVIDIA's documented inference path is a
-NeMo-Aligner PyTriton server.  This module follows the official formatting and
-client protocol while retaining the raw regression outputs (the annotation
-script rounds them only when creating categorical training labels).
+NeMo-Aligner PyTriton server.  This module talks to that server through
+NVIDIA's lightweight Triton HTTP client while retaining the raw regression
+outputs (the annotation script rounds them only when creating categorical
+training labels).
 """
 
 from __future__ import annotations
@@ -99,31 +100,65 @@ class SteerLMRemoteScorer:
 
     @staticmethod
     def _as_server_array(sentences: Sequence[str]) -> np.ndarray:
-        values = np.asarray(list(sentences), dtype=str)[..., np.newaxis]
-        return np.char.encode(values, "utf-8")
+        # Triton's BYTES representation is an object array.  Explicitly encode
+        # each value so non-ASCII prompts have one unambiguous wire format.
+        values = np.empty((len(sentences), 1), dtype=object)
+        values[:, 0] = [str(sentence).encode("utf-8") for sentence in sentences]
+        return values
 
     def _raw_batch(self, sentences: Sequence[str]) -> np.ndarray:
+        if not sentences:
+            return np.empty((0, len(ALL_ATTRIBUTES)), dtype=np.float64)
         try:
-            from pytriton.client import FuturesModelClient
+            import tritonclient.http as httpclient
         except ImportError as error:
             raise RuntimeError(
-                "PyTriton client is missing. Install the notebook's "
-                "nvidia-pytriton dependency before SteerLM scoring."
+                "The Triton HTTP client is missing. Install the notebook's "
+                "tritonclient[http] dependency before SteerLM scoring."
             ) from error
 
         encoded = self._as_server_array(sentences)
-        rows = []
-        with FuturesModelClient(
-            f"{self.host}:{self.port}", self.server_model_name
-        ) as client:
-            futures = [
-                client.infer_batch(sentences=single)
-                for single in np.split(encoded, encoded.shape[0])
-            ]
-            for future in futures:
-                output = future.result()
-                reward = np.asarray(output["rewards"], dtype=np.float64).reshape(-1)
-                exceeded = np.asarray(output["exceeded"]).reshape(-1)
+        rows: list[np.ndarray] = []
+        client = httpclient.InferenceServerClient(
+            url=f"{self.host}:{self.port}",
+            verbose=False,
+            concurrency=max(1, min(len(sentences), 32)),
+        )
+        try:
+            if not client.is_server_live():
+                raise RuntimeError("SteerLM Triton server is not live.")
+            if not client.is_model_ready(self.server_model_name):
+                raise RuntimeError(
+                    f"SteerLM Triton model {self.server_model_name!r} is not ready."
+                )
+
+            # Preserve the reference client's one-request-per-text protocol.
+            # Asynchronous HTTP requests still let the server form its configured
+            # dynamic micro-batches without pulling PyTriton's bundled server into
+            # the Colab environment.
+            requests = []
+            for single in np.split(encoded, encoded.shape[0]):
+                input_tensor = httpclient.InferInput(
+                    "sentences", list(single.shape), "BYTES"
+                )
+                input_tensor.set_data_from_numpy(single, binary_data=True)
+                requests.append(
+                    client.async_infer(
+                        model_name=self.server_model_name,
+                        inputs=[input_tensor],
+                    )
+                )
+
+            for request in requests:
+                output = request.get_result()
+                raw_rewards = output.as_numpy("rewards")
+                raw_exceeded = output.as_numpy("exceeded")
+                if raw_rewards is None or raw_exceeded is None:
+                    raise RuntimeError(
+                        "SteerLM server response must contain rewards and exceeded."
+                    )
+                reward = np.asarray(raw_rewards, dtype=np.float64).reshape(-1)
+                exceeded = np.asarray(raw_exceeded).reshape(-1)
                 if exceeded.size and bool(exceeded[0]):
                     raise RuntimeError("SteerLM input exceeded its 4096-token context.")
                 if reward.shape != (len(ALL_ATTRIBUTES),):
@@ -131,6 +166,8 @@ class SteerLMRemoteScorer:
                         f"SteerLM server returned reward shape {reward.shape}, expected (9,)."
                     )
                 rows.append(reward)
+        finally:
+            client.close()
         result = np.asarray(rows, dtype=np.float64)
         if not np.all(np.isfinite(result)):
             raise RuntimeError("SteerLM server returned non-finite values.")
@@ -183,7 +220,8 @@ class SteerLMRemoteScorer:
             "reward_model_name": MODEL_NAME,
             "revision": MODEL_REVISION,
             "checkpoint_sha256": CHECKPOINT_SHA256,
-            "backend": "official NeMo-Aligner PyTriton reward server",
+            "backend": "official NeMo-Aligner PyTriton server via Triton HTTP client",
+            "client_package": "tritonclient[http]",
             "server": f"{self.host}:{self.port}/{self.server_model_name}",
             "operator_attestation": self.operator_attestation,
             "batch_size": 1,

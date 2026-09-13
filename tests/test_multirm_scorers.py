@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import sys
+import types
+
 import numpy as np
 import pytest
 
@@ -68,6 +71,89 @@ def test_steerlm_score_many_preserves_rows(monkeypatch) -> None:
         [4.0, 5.0, 6.0, 7.0, 8.0],
         [14.0, 15.0, 16.0, 17.0, 18.0],
     ]
+
+
+def test_steerlm_uses_lightweight_triton_http_protocol(monkeypatch) -> None:
+    captured_inputs = []
+    client_state = {"closed": False, "calls": 0}
+
+    class FakeInferInput:
+        def __init__(self, name, shape, datatype):
+            assert name == "sentences"
+            assert shape == [1, 1]
+            assert datatype == "BYTES"
+            self.data = None
+
+        def set_data_from_numpy(self, data, binary_data):
+            assert binary_data is True
+            self.data = data.copy()
+            captured_inputs.append(self.data)
+
+    class FakeResult:
+        def __init__(self, index):
+            self.index = index
+
+        def as_numpy(self, name):
+            if name == "rewards":
+                return (np.arange(9, dtype=float) + 10 * self.index)[None, :]
+            if name == "exceeded":
+                return np.asarray([[False]])
+            return None
+
+    class FakeRequest:
+        def __init__(self, index):
+            self.index = index
+
+        def get_result(self):
+            return FakeResult(self.index)
+
+    class FakeClient:
+        def __init__(self, *, url, verbose, concurrency):
+            assert url == "example.invalid:1424"
+            assert verbose is False
+            assert concurrency == 2
+
+        @staticmethod
+        def is_server_live():
+            return True
+
+        @staticmethod
+        def is_model_ready(model_name):
+            return model_name == "reward_model"
+
+        def async_infer(self, *, model_name, inputs):
+            assert model_name == "reward_model"
+            assert len(inputs) == 1
+            index = client_state["calls"]
+            client_state["calls"] += 1
+            return FakeRequest(index)
+
+        @staticmethod
+        def close():
+            client_state["closed"] = True
+
+    http_module = types.ModuleType("tritonclient.http")
+    http_module.InferenceServerClient = FakeClient
+    http_module.InferInput = FakeInferInput
+    triton_module = types.ModuleType("tritonclient")
+    triton_module.__path__ = []
+    triton_module.http = http_module
+    monkeypatch.setitem(sys.modules, "tritonclient", triton_module)
+    monkeypatch.setitem(sys.modules, "tritonclient.http", http_module)
+
+    expected = f"{MODEL_NAME}@{MODEL_REVISION}:sha256={CHECKPOINT_SHA256}"
+    scorer = SteerLMRemoteScorer(
+        host="example.invalid", operator_attestation=expected
+    )
+    result = scorer._raw_batch(["grüße", "second"])
+
+    assert result.tolist() == [
+        list(np.arange(9, dtype=float)),
+        list(np.arange(9, dtype=float) + 10),
+    ]
+    assert captured_inputs[0].dtype == object
+    assert captured_inputs[0][0, 0] == "grüße".encode("utf-8")
+    assert client_state == {"closed": True, "calls": 2}
 
 
 def test_cert_is_excluded_only_when_every_phase_b_row_collapses_to_p() -> None:
