@@ -81,3 +81,28 @@ def test_existing_output_is_reused_only_for_the_same_binding(tmp_path: Path) -> 
         [first, second], output, label="coherence", seeds=[137, 138]
     )
     assert repeated["binding_sha256"] == initial["binding_sha256"]
+
+
+def test_target_module_order_does_not_make_configs_incompatible() -> None:
+    base = {
+        "r": 8,
+        "lora_alpha": 16,
+        "inference_mode": True,
+        "target_modules": ["q_proj", "k_proj", "v_proj"],
+        "lora_dropout": 0.05,
+        "bias": "none",
+    }
+    reordered = {**base, "target_modules": ["v_proj", "q_proj", "k_proj"]}
+    assert MODULE._canonical_adapter_config(base) == MODULE._canonical_adapter_config(reordered)
+
+
+def test_true_config_difference_is_still_detected() -> None:
+    reference = MODULE._canonical_adapter_config({
+        "r": 8, "lora_alpha": 16, "inference_mode": True,
+        "target_modules": ["q_proj"], "lora_dropout": 0.05,
+    })
+    changed = MODULE._canonical_adapter_config({
+        "r": 8, "lora_alpha": 16, "inference_mode": True,
+        "target_modules": ["q_proj"], "lora_dropout": 0.0,
+    })
+    assert MODULE._different_config_fields(reference, changed) == ["lora_dropout"]

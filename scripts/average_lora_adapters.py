@@ -49,6 +49,13 @@ _TOKENIZER_FILES = (
     "tokenizer_config.json",
 )
 
+# PEFT stores target_modules internally as a set but serializes it as a JSON
+# list.  Its order can therefore differ across otherwise identical training
+# runs (and even across the five original NB11 adapters).  Only this field is
+# order-insensitive here; all other metadata remains part of the strict
+# compatibility check.
+_ORDER_INSENSITIVE_CONFIG_FIELDS = ("target_modules",)
+
 
 def sha256_file(path: str | Path) -> str:
     digest = hashlib.sha256()
@@ -88,6 +95,26 @@ def _validate_uniform_config(config: dict[str, Any]) -> tuple[int, float]:
     if rank <= 0 or not math.isfinite(alpha) or alpha < 0:
         raise ValueError(f"Invalid LoRA rank/alpha: r={rank}, alpha={alpha}")
     return rank, alpha
+
+
+def _canonical_adapter_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Return the strict comparison form of a PEFT LoRA configuration."""
+    ignored = {"r", "lora_alpha", "inference_mode"}
+    canonical = {key: value for key, value in config.items() if key not in ignored}
+    for field in _ORDER_INSENSITIVE_CONFIG_FIELDS:
+        value = canonical.get(field)
+        if isinstance(value, list):
+            if not all(isinstance(item, str) for item in value):
+                raise ValueError(f"{field} must contain only strings.")
+            canonical[field] = sorted(set(value))
+    return canonical
+
+
+def _different_config_fields(
+    reference: dict[str, Any], candidate: dict[str, Any]
+) -> list[str]:
+    keys = set(reference) | set(candidate)
+    return sorted(key for key in keys if reference.get(key) != candidate.get(key))
 
 
 def _group_keys(state: dict[str, torch.Tensor]) -> dict[str, dict[str, str]]:
@@ -150,13 +177,17 @@ def average_lora_adapters(
     if len(set(ranks_alphas)) != 1:
         raise ValueError(f"Source adapters differ in rank/alpha: {ranks_alphas}")
     reference_config = configs[0]
-    ignored = {"r", "lora_alpha", "inference_mode"}
-    canonical_configs = [
-        {key: value for key, value in config.items() if key not in ignored}
-        for config in configs
+    canonical_configs = [_canonical_adapter_config(config) for config in configs]
+    incompatible = [
+        (index, _different_config_fields(canonical_configs[0], config))
+        for index, config in enumerate(canonical_configs[1:], start=1)
+        if config != canonical_configs[0]
     ]
-    if any(config != canonical_configs[0] for config in canonical_configs[1:]):
-        raise ValueError("Source adapter configurations are not compatible.")
+    if incompatible:
+        raise ValueError(
+            "Source adapter configurations are not compatible; "
+            f"differing fields by input index: {incompatible}"
+        )
 
     source_states = [load_lora_factor_state_dict(path) for path in inputs]
     reference_keys = set(source_states[0])
@@ -232,6 +263,8 @@ def average_lora_adapters(
         output_config["inference_mode"] = True
         output_config["rank_pattern"] = {}
         output_config["alpha_pattern"] = {}
+        if isinstance(output_config.get("target_modules"), list):
+            output_config["target_modules"] = sorted(set(output_config["target_modules"]))
         (temporary / "adapter_config.json").write_text(
             json.dumps(output_config, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
