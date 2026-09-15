@@ -21,7 +21,12 @@ def test_nb13_1_is_parseable_and_has_three_frozen_evaluators() -> None:
     assert "nvidia/Llama2-13B-SteerLM-RM" in source
     assert "tritonclient[http]==2.60.0" in source
     assert "nvidia-pytriton" not in source
-    assert 'set(RM_TENSORS) == {"armorm", "urm", "steerlm"}' in source
+    assert "RUN_STEERLM = False" in source
+    assert "if RUN_REWARD_COLLECTION and RUN_STEERLM" in source
+    assert "set(RM_TENSORS) == REQUIRED_THIS_PASS" in source
+    assert "provisional_steerlm_deferred" in source
+    assert '"three_rm_protocol_complete": THREE_RM_COMPLETE' in source
+    assert "3792c4d6bcd68c0917729b04f31168e953db2f9eb2a12059fa942fe1b256a9c4" in source
     assert "answer_cache_sha256" in source
     assert "raw_scores_pooled_across_reward_models\": False" in source
     assert "should_exclude_cert_from_phase_b" in source
