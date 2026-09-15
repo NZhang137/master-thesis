@@ -1,0 +1,41 @@
+{
+  "regime": "helpsteer2_dpo_nb11_1_exact_mean_adapters",
+  "primary_matrix": "R_cos",
+  "attribute_order": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "effective_update_numel": 968884224,
+  "update_norms": {
+    "helpfulness": 6.1826755961604904,
+    "correctness": 6.170928647492946,
+    "coherence": 6.135665593073568,
+    "complexity": 6.336276095726278,
+    "verbosity": 6.398303990710531
+  },
+  "cosine_eigenvalues": [
+    0.9328819601212577,
+    0.9441636353222292,
+    0.9519157986039318,
+    1.0428655087095289,
+    1.1281730972430524
+  ],
+  "cosine_condition_number": 1.2093417446901968,
+  "cosine_offdiag_min": 0.003443870764170578,
+  "cosine_offdiag_max": 0.06677578206981892,
+  "cosine_offdiag_mean": 0.029720543882453765,
+  "inverse_R_ones": [
+    0.8714962542338527,
+    0.8730433529193633,
+    0.8871397051237273,
+    0.903315458253672,
+    0.9367520422008261
+  ],
+  "matrix_sha256": {
+    "R_cos": "0b2d93c67350cb0e54b0f4039f0d58ef0cfaad564f37bfc33ed37337397091fc",
+    "R_gram": "370e32310560761ee1281b20366bab0e36490fed92049e9a61e28760cea5a5f6"
+  }
+}

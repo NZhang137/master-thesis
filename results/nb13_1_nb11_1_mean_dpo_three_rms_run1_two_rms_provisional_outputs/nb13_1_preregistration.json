@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "run_tag": "nb13_1_nb11_1_mean_dpo_three_rms_run1",
+  "created_utc": "2026-09-13T22:39:40.305754+00:00",
+  "binding": {
+    "schema_version": 1,
+    "notebook": "NB13.1 HelpSteer2 DPO method comparison with three reward models",
+    "execution_mode": "generate_once_score_three_rms",
+    "claim_status": "exploratory",
+    "regime": "helpsteer2_dpo_nb11_1_exact_mean_adapters",
+    "adapter_bundle_sha256": "5b75c3d98ec94e05a8dab58fbec99d9da8c08ecd09ba35f2f14f6838ee6818fc",
+    "mean_adapter_weights_sha256": {
+      "helpfulness": "0a92c2ee9bcae440f72a64b258b30510b4c2565e668f6f1018b445463bfc2beb",
+      "correctness": "acbd7aaf637929115ea66d1d0387d8e27e133a93abdd5a716cf8733ccf0387da",
+      "coherence": "dfac5a90dc00d266b7e37b5e5e90a2968fa094466e0ed8c920048c2d75678001",
+      "complexity": "c5270dd153506f8576175a594247011668b9041de2c855aa8fe5091ec9aaa662",
+      "verbosity": "338f01384bfe9d19ffcf8823ab88c1452887e41283d669581b146e4a32a28ff7"
+    },
+    "mean_adapter_binding_sha256": {
+      "helpfulness": "a924c2fd762b5f3866bf9fcb6b391684f091fa8940a95e3f506e8a68f8524200",
+      "correctness": "82d7d0d6150d3678dfb2d211f194cd862e6e5ec6493a8a4d8c11ef05897646d6",
+      "coherence": "6bc292e2f5872d537904754fd3e44e0e636fb4f174896708dab8dbf42dedf6e6",
+      "complexity": "b82770f5b3be5da64b506661a89d888ccc1b129bdb91f15bdc0efe542fec8978",
+      "verbosity": "ebb5feceb8fa451d534f0dc9277e87b2880a6f3f0215d8a2141567e6bdcf6800"
+    },
+    "base_model": {
+      "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+      "revision": "fe8a4ea1ffedaf415f4da2f062534de366a451e6"
+    },
+    "dataset": {
+      "name": "nvidia/HelpSteer2",
+      "revision": "990b2711a36180dd19d9c94b8627844866f8982a",
+      "training_split": "train",
+      "evaluation_split": "validation"
+    },
+    "reward_models": {
+      "armorm": {
+        "name": "RLHFlow/ArmoRM-Llama3-8B-v0.1",
+        "revision": "eb2676d20da2f2d41082289d23c59b9f7427f955",
+        "precision": "int8",
+        "role": "primary post-hoc evaluator"
+      },
+      "urm": {
+        "name": "LxzGordon/URM-LLaMa-3.1-8B",
+        "revision": "7b5a6446f55725ae6d86002fdc30f702a2272e0f",
+        "precision": "int8",
+        "role": "sensitivity only; directly trained on HelpSteer2"
+      },
+      "steerlm": {
+        "name": "nvidia/Llama2-13B-SteerLM-RM",
+        "revision": "a8fd6a92a4967f934612f519a2ef078bb87ec431",
+        "checkpoint_sha256": "19851451def71de48d044bbebf93481308f1a778153e96e8b93f490047082b27",
+        "backend": "official NeMo-Aligner PyTriton server",
+        "role": "external robustness evaluator"
+      }
+    },
+    "attribute_order": [
+      "helpfulness",
+      "correctness",
+      "coherence",
+      "complexity",
+      "verbosity"
+    ],
+    "geometry": {
+      "primary_matrix": "R_cos",
+      "R_cos_sha256": "0b2d93c67350cb0e54b0f4039f0d58ef0cfaad564f37bfc33ed37337397091fc",
+      "R_gram_sha256": "370e32310560761ee1281b20366bab0e36490fed92049e9a61e28760cea5a5f6"
+    },
+    "prompts": {
+      "dataset_name": "nvidia/HelpSteer2",
+      "dataset_revision": "990b2711a36180dd19d9c94b8627844866f8982a",
+      "split": "validation",
+      "seed": 1313,
+      "n": 80,
+      "prompt_file_sha256": "47eada70d0430a41a4506f43cc26950f14657d78d3d351a0d951f8af43161055",
+      "nb11_exclusion_file_sha256": "99e26a3af362394b00570b229b88a83ff49c218102c0cf7a6b53619511781061",
+      "nb11_reconstructed_prompt_list_sha256": "9d2c642c0413a4e3cdb8309a830aaff46c3ba5559205952fc1641e609f161a26",
+      "nb11_reported_prompt_list_sha256": "3864d363dbff91fdeda62029a16b0da3b3436fe3557d42cb75739c75649ff51e",
+      "nb11_historical_hash_match": false,
+      "disjointness_verified": true
+    },
+    "generation": {
+      "max_new_tokens": 256,
+      "repetition_penalty": 1.15,
+      "no_repeat_ngram_size": 5,
+      "decoding": "greedy; do_sample=False; num_beams=1",
+      "prompt_format": "TinyLlama tokenizer chat template",
+      "merge_dtype": "float32"
+    },
+    "grids": {
+      "rho_grid": [
+        0.0,
+        0.1,
+        0.2,
+        0.5
+      ],
+      "cert_c": 0.5,
+      "cert_eps": 1e-08,
+      "c_grid": [
+        0.0,
+        0.1,
+        0.25,
+        0.5,
+        0.75,
+        0.9,
+        0.95,
+        1.0
+      ],
+      "alpha_grid": [
+        0.0,
+        0.5,
+        1.0,
+        2.0
+      ],
+      "eps_grid": [
+        0.01,
+        0.02,
+        0.05,
+        0.1
+      ]
+    },
+    "cert_policy": {
+      "tolerance": 2e-06,
+      "decision_scope": "all eleven named Phase-B preferences",
+      "cert_excluded_from_reward_evaluation": true,
+      "policy": "excluded_after_all Phase-B floors collapsed and lambda_cert equaled p",
+      "phase_a_collapsed": 75,
+      "phase_a_total": 75,
+      "phase_b_collapsed": 11,
+      "phase_b_lambda_equals_p": 11,
+      "phase_b_total": 11,
+      "audit_sha256": "a52edf651d999d5a5e3ff6565eeb2b360adc67494bbaea03e06c72e988574022"
+    },
+    "n_unique_merge_points": 217,
+    "source_sha256": {
+      "coefficient_portfolio.py": "3526eb599376c6af342ef1d91642c9ac8d5b6a02449327e22c94ba6760529e09",
+      "cert_floor_policy.py": "977cf23a64be2932bae1cf0c4509f7bd8e2e8b876ba5d5a6d91ff9b2befe5ff6",
+      "merge.py": "0020bc0b0c4566304a9404645cbd579285cfd6efc5e879e488515ceec7589d25",
+      "proxy_validation.py": "d128c950350b97433fe3e6bbd990e2d371ba0957b89e8e9f8e077841c8098efd",
+      "metrics.py": "655e9924cea75c5ce14270cabcfd8020279b9ecde3f56614a75ba85108384b89",
+      "lambda_utils.py": "a0cdd2cf1103ca3deb5ddb20b6b952e33b353b168c1d8df3c594c8f0caac7e27",
+      "armorm_scorer.py": "2eef38afabf6287d4cb7d6e901afc328b40eab337b4d033c0912f189ca1e1190",
+      "armorm_objectives.py": "4eb7df3daa324a7284d79650bbacf4fb20d4c84acea2c5c90cb4b0edb741539e",
+      "urm_scorer.py": "edb98132d2240c516ddcc5984ccb4a6ff504169995b7fc973daa83c7c4d1e7d3",
+      "steerlm_scorer.py": "c1a27afedb85677ee961abef67d30da18c5c2f36e347a0bf89da7e8f7271db43",
+      "eval_prompts.py": "cc10c82cb65933c7936737727a877a51b101893df26e1d0c9808800263b4b9e6",
+      "effective_lora_geometry.py": "1e842dfb521f68fcf0a3db2b4bc12e3a3f3bf3d5430d886bd03b640c30749f4a"
+    },
+    "protocol_notebook_sha256": "3792c4d6bcd68c0917729b04f31168e953db2f9eb2a12059fa942fe1b256a9c4",
+    "runtime_versions": {
+      "python": "3.13.15",
+      "torch": "2.11.0+cu128",
+      "transformers": "4.45.2",
+      "tokenizers": "0.20.3",
+      "peft": "0.13.2",
+      "accelerate": "1.1.1",
+      "datasets": "3.1.0",
+      "huggingface_hub": "0.36.0",
+      "bitsandbytes": "0.50.2",
+      "tritonclient": "2.60.0",
+      "numpy": "2.1.3",
+      "pandas": "2.2.3",
+      "scipy": "1.14.1"
+    }
+  },
+  "binding_sha256": "030bdf12398c86f6ae9349f663b06a61c2125a0e83b445185bf62f8759d26838",
+  "lambda_table_sha256": "9009e8d3a6e6d72d233b365cec31cf1d0cd1a1caa72722cb815aa4a23cf68bde",
+  "methods_evaluated": [
+    "Avg",
+    "Fair",
+    "MaxMin"
+  ],
+  "cert_excluded": true,
+  "cert_exclusion_rule": "exclude iff all Phase-B floor LPs collapse and lambda_cert equals p within tolerance",
+  "metric_primary": "within each RM: raw U_p = p^T r; never pooled across RMs",
+  "reported_scale": "ArmoRM additionally mapped by 5r-0.5; URM and SteerLM retain native regression scale",
+  "error_layer": "paired bootstrap over the same 80 prompts; 10000 draws",
+  "multiplicity": "Holm both within each RM and globally across all RM/method/preference tests",
+  "evaluator_roles": {
+    "armorm": "primary post-hoc evaluator",
+    "urm": "sensitivity only; directly trained on HelpSteer2",
+    "steerlm": "external robustness evaluator"
+  },
+  "raw_answers_retained": true
+}

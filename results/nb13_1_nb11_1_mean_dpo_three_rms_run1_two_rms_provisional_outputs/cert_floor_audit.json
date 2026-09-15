@@ -1,0 +1,11 @@
+{
+  "tolerance": 2e-06,
+  "decision_scope": "all eleven named Phase-B preferences",
+  "cert_excluded_from_reward_evaluation": true,
+  "policy": "excluded_after_all Phase-B floors collapsed and lambda_cert equaled p",
+  "phase_a_collapsed": 75,
+  "phase_a_total": 75,
+  "phase_b_collapsed": 11,
+  "phase_b_lambda_equals_p": 11,
+  "phase_b_total": 11
+}

@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "notebook": "NB13.1 HelpSteer2 DPO method comparison with three reward models",
+  "run_tag": "nb13_1_nb11_1_mean_dpo_three_rms_run1",
+  "created_utc": "2026-09-15T10:50:58.490711+00:00",
+  "claim_status": "exploratory",
+  "regime": "helpsteer2_dpo_nb11_1_exact_mean_adapters",
+  "analysis_status": "provisional_steerlm_deferred",
+  "three_rm_protocol_complete": false,
+  "evaluators_planned": [
+    "armorm",
+    "steerlm",
+    "urm"
+  ],
+  "evaluators_completed": [
+    "armorm",
+    "urm"
+  ],
+  "evaluators_pending": [
+    "steerlm"
+  ],
+  "implementation_notebook_sha256": "d4cda173e174747b9808b23fdfc566400fcd88f6a9bfb98c037149234a6764ca",
+  "binding_sha256": "030bdf12398c86f6ae9349f663b06a61c2125a0e83b445185bf62f8759d26838",
+  "adapter_bundle_sha256": "5b75c3d98ec94e05a8dab58fbec99d9da8c08ecd09ba35f2f14f6838ee6818fc",
+  "cert_excluded": true,
+  "cert_policy": "excluded_after_all Phase-B floors collapsed and lambda_cert equaled p",
+  "cert_audit": {
+    "tolerance": 2e-06,
+    "decision_scope": "all eleven named Phase-B preferences",
+    "cert_excluded_from_reward_evaluation": true,
+    "policy": "excluded_after_all Phase-B floors collapsed and lambda_cert equaled p",
+    "phase_a_collapsed": 75,
+    "phase_a_total": 75,
+    "phase_b_collapsed": 11,
+    "phase_b_lambda_equals_p": 11,
+    "phase_b_total": 11
+  },
+  "n_preferences_phase_a": 75,
+  "n_preferences_phase_b": 11,
+  "n_phase_b_method_rows_per_rm": 308,
+  "n_unique_merge_points": 217,
+  "n_prompts": 80,
+  "n_frozen_answers": 17360,
+  "answer_cache_sha256": "bb8f260b2e2c635cb7d15369d065ba11ff5c2245d95efec46ee3380d25ffdf2b",
+  "reward_models": {
+    "armorm": {
+      "reward_model_name": "RLHFlow/ArmoRM-Llama3-8B-v0.1",
+      "revision": "eb2676d20da2f2d41082289d23c59b9f7427f955",
+      "precision": "int8",
+      "batch_size": 1,
+      "input_format": "apply_chat_template(user, assistant)",
+      "max_length": 4096,
+      "golden_sample_checked": true,
+      "role": "primary post-hoc evaluator",
+      "native_to_0_4": "5 * raw - 0.5",
+      "training_overlap": "HelpSteer objective heads; not trained on NB11.1 generations"
+    },
+    "urm": {
+      "reward_model_name": "LxzGordon/URM-LLaMa-3.1-8B",
+      "revision": "7b5a6446f55725ae6d86002fdc30f702a2272e0f",
+      "precision": "int8",
+      "batch_size": 1,
+      "input_format": "tokenizer chat template (user, assistant)",
+      "output": "five normal-distribution means; uncertainty parameters unused",
+      "attribute_order": [
+        "helpfulness",
+        "correctness",
+        "coherence",
+        "complexity",
+        "verbosity"
+      ],
+      "golden_sample_checked": true,
+      "independence_role": "sensitivity only; trained directly on HelpSteer2",
+      "role": "sensitivity only",
+      "native_to_0_4": "identity; raw means are not clipped",
+      "training_overlap": "URM attribute head was trained directly on nvidia/HelpSteer2"
+    }
+  },
+  "reward_tensor_shapes": {
+    "armorm": [
+      217,
+      80,
+      5
+    ],
+    "urm": [
+      217,
+      80,
+      5
+    ]
+  },
+  "raw_scores_pooled_across_reward_models": false,
+  "global_holm_family_size": 452,
+  "files": {
+    "lambda_table_with_cert_audit.csv": "1f09d3e62f69afa1640fc3d4891968f4c336f7b5c990630d3ad40fcf5eee2d9e",
+    "lambda_table_evaluated.csv": "7447950c3ea09011effa9b665d805092a9526309798b347c2a4336b971f3f014",
+    "cert_floor_audit.csv": "a52edf651d999d5a5e3ff6565eeb2b360adc67494bbaea03e06c72e988574022",
+    "cert_floor_audit.json": "4fcd8a1859fe39920a318625a9870f308e74453a2af33d74aa61e48b84957254",
+    "nb13_1_preregistration.json": "d2910e8a280b5b635c7df9d0ea3fef16ddfe02ebe5ceb3094db88e06bdff900c",
+    "answer_cache.jsonl": "bb8f260b2e2c635cb7d15369d065ba11ff5c2245d95efec46ee3380d25ffdf2b",
+    "nb13_1_reward_prompts.jsonl": "47eada70d0430a41a4506f43cc26950f14657d78d3d351a0d951f8af43161055",
+    "nb11_diagnostic_prompts_exclusion.jsonl": "99e26a3af362394b00570b229b88a83ff49c218102c0cf7a6b53619511781061",
+    "R_mean_dpo_cos.csv": "0b2d93c67350cb0e54b0f4039f0d58ef0cfaad564f37bfc33ed37337397091fc",
+    "R_mean_dpo_gram.csv": "370e32310560761ee1281b20366bab0e36490fed92049e9a61e28760cea5a5f6",
+    "mean_dpo_update_norms.csv": "53389b90f85a185998230d0dc1d85e81e6f9a78d6b0d0f5c7d2ddf3700c738d5",
+    "mean_dpo_geometry_report.json": "923372cdadeb8033db07d8234b830929aea9b75aa871cddc87888af1bcb10012",
+    "method_comparison_by_rm.csv": "9b05d6d5ade342ad22a0f65b3006f80bae1f5b1ebe42a9d290863174486ca71a",
+    "paired_statistics_by_rm.csv": "17ac6dacfc4702fb5d5dfa961503f9d05c3f112c524ab7cf515a304067ec2d1e",
+    "normalization_robustness_by_rm.csv": "cef8d943008cadf07a755171fc9e66a7ab9ba963432261cfa0a1d6eaa5e4ff7d",
+    "proxy_method_diagnostics_by_rm.csv": "41b3308e6c9cd7e3b885a0f3536d638061c6d2e04d36aecc022441de03a6b9af",
+    "proxy_validation_by_rm.json": "c4ed5766e0b451a84756c0af93819c5d20bb17e3c036f3e4b22400c4e1c8eb61",
+    "reward_model_agreement.csv": "06e60b9b5470448ea0ca935b5a63de747ad7ca5b3b1f3d75789e43a089f44d6f",
+    "reward_cache_armorm.jsonl": "7599805d8711c0febe9c2993e8d012e69438fd9d140f6942f57186ced9c09a54",
+    "reward_cache_urm.jsonl": "2214f29a8adab65806ff1ecb745578db1e0d1f253e0ee46722146a051d4845c3",
+    "reward_tensor_armorm.npy": "3a5ce44e6175c40a45b0268b3fda4a0733bd7257d763bedf38adef3e305ed0f2",
+    "reward_tensor_urm.npy": "b129bd399202f8140167dc50b871f753382424f51e6127103c04ef1a6404be2b"
+  }
+}
