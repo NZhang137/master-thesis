@@ -1,0 +1,477 @@
+{
+  "schema_version": 1,
+  "notebook": "NB13.2 vertex length test",
+  "run_tag": "nb13_2_vertex_length_test_run1",
+  "created_utc": "2026-10-06T12:23:08.120449+00:00",
+  "claim_status": "exploratory_diagnostic",
+  "binding": {
+    "run_tag": "nb13_2_vertex_length_test_run1",
+    "claim_status": "exploratory_diagnostic",
+    "adapter_bundle_sha256": "5b75c3d98ec94e05a8dab58fbec99d9da8c08ecd09ba35f2f14f6838ee6818fc",
+    "nb13_1_files": {
+      "nb13_1_reward_prompts.jsonl": "47eada70d0430a41a4506f43cc26950f14657d78d3d351a0d951f8af43161055",
+      "answer_cache.jsonl": "bb8f260b2e2c635cb7d15369d065ba11ff5c2245d95efec46ee3380d25ffdf2b",
+      "reward_cache_armorm.jsonl": "7599805d8711c0febe9c2993e8d012e69438fd9d140f6942f57186ced9c09a54"
+    },
+    "points": {
+      "base": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "uniform": [
+        0.2,
+        0.2,
+        0.2,
+        0.2,
+        0.2
+      ],
+      "vertex_helpfulness": [
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "vertex_correctness": [
+        0.0,
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "vertex_coherence": [
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "vertex_complexity": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "vertex_verbosity": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    },
+    "token_conditions": [
+      256,
+      512
+    ],
+    "reused_condition": 256,
+    "generation": {
+      "repetition_penalty": 1.15,
+      "no_repeat_ngram_size": 5,
+      "decoding": "greedy; do_sample=False; num_beams=1",
+      "prompt_max_length": 512,
+      "prompt_format": "TinyLlama tokenizer chat template",
+      "merge_dtype": "float32"
+    },
+    "armorm": {
+      "name": "RLHFlow/ArmoRM-Llama3-8B-v0.1",
+      "revision": "eb2676d20da2f2d41082289d23c59b9f7427f955",
+      "precision": "int8"
+    },
+    "source_sha256": {
+      "merge.py": "0020bc0b0c4566304a9404645cbd579285cfd6efc5e879e488515ceec7589d25",
+      "armorm_scorer.py": "2eef38afabf6287d4cb7d6e901afc328b40eab337b4d033c0912f189ca1e1190",
+      "armorm_objectives.py": "4eb7df3daa324a7284d79650bbacf4fb20d4c84acea2c5c90cb4b0edb741539e",
+      "effective_lora_geometry.py": "1e842dfb521f68fcf0a3db2b4bc12e3a3f3bf3d5430d886bd03b640c30749f4a"
+    }
+  },
+  "binding_sha256": "87c14e6e5586f6ba6b07230c35ae933f249de32f25529789069dc3978349f4e5",
+  "answer_cache_sha256": "0a96839bc0c901d444ad827d52a7978fff2d48328d3fec53d57d612cdcf1f846",
+  "determinism_check": {
+    "n_checked": 8,
+    "n_identical": 8
+  },
+  "scorer_check_max_abs_diff": {
+    "uniform": 0.04296875,
+    "vertex_helpfulness": 0.0,
+    "vertex_correctness": 0.0,
+    "vertex_coherence": 0.0,
+    "vertex_complexity": 0.0,
+    "vertex_verbosity": 0.0625
+  },
+  "length": [
+    {
+      "max_new_tokens": 256,
+      "point": "base",
+      "mean_tokens": 221.85,
+      "median_tokens": 255.0,
+      "share_at_limit": 0.675,
+      "share_no_sentence_end": 0.625,
+      "mean_words": 148.025
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "uniform",
+      "mean_tokens": 246.325,
+      "median_tokens": 256.0,
+      "share_at_limit": 0.875,
+      "share_no_sentence_end": 0.825,
+      "mean_words": 166.675
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_helpfulness",
+      "mean_tokens": 231.6125,
+      "median_tokens": 256.0,
+      "share_at_limit": 0.7625,
+      "share_no_sentence_end": 0.65,
+      "mean_words": 155.2625
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_correctness",
+      "mean_tokens": 231.625,
+      "median_tokens": 256.0,
+      "share_at_limit": 0.7125,
+      "share_no_sentence_end": 0.6625,
+      "mean_words": 153.85
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_coherence",
+      "mean_tokens": 231.725,
+      "median_tokens": 255.0,
+      "share_at_limit": 0.7625,
+      "share_no_sentence_end": 0.6375,
+      "mean_words": 152.325
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_complexity",
+      "mean_tokens": 253.7875,
+      "median_tokens": 256.0,
+      "share_at_limit": 0.95,
+      "share_no_sentence_end": 0.85,
+      "mean_words": 174.3625
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_verbosity",
+      "mean_tokens": 252.55,
+      "median_tokens": 256.0,
+      "share_at_limit": 0.975,
+      "share_no_sentence_end": 0.9,
+      "mean_words": 176.575
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "base",
+      "mean_tokens": 326.3,
+      "median_tokens": 318.5,
+      "share_at_limit": 0.1875,
+      "share_no_sentence_end": 0.2,
+      "mean_words": 216.875
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "uniform",
+      "mean_tokens": 414.4375,
+      "median_tokens": 490.0,
+      "share_at_limit": 0.4875,
+      "share_no_sentence_end": 0.4375,
+      "mean_words": 279.65
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_helpfulness",
+      "mean_tokens": 376.975,
+      "median_tokens": 420.0,
+      "share_at_limit": 0.375,
+      "share_no_sentence_end": 0.3625,
+      "mean_words": 252.7625
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_correctness",
+      "mean_tokens": 360.7125,
+      "median_tokens": 367.5,
+      "share_at_limit": 0.3,
+      "share_no_sentence_end": 0.2625,
+      "mean_words": 239.35
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_coherence",
+      "mean_tokens": 383.3875,
+      "median_tokens": 451.0,
+      "share_at_limit": 0.4,
+      "share_no_sentence_end": 0.3625,
+      "mean_words": 253.325
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_complexity",
+      "mean_tokens": 424.5,
+      "median_tokens": 462.0,
+      "share_at_limit": 0.45,
+      "share_no_sentence_end": 0.4375,
+      "mean_words": 290.2125
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_verbosity",
+      "mean_tokens": 462.8875,
+      "median_tokens": 512.0,
+      "share_at_limit": 0.65,
+      "share_no_sentence_end": 0.65,
+      "mean_words": 324.6875
+    }
+  ],
+  "summary_by_condition": {
+    "256": {
+      "own_head_leaders": 1,
+      "leader_per_head": {
+        "helpfulness": "helpfulness",
+        "correctness": "helpfulness",
+        "coherence": "helpfulness",
+        "complexity": "verbosity",
+        "verbosity": "complexity"
+      },
+      "column_spread_per_head": {
+        "helpfulness": 0.03826,
+        "correctness": 0.03539,
+        "coherence": 0.02834,
+        "complexity": 0.0293,
+        "verbosity": 0.05063
+      },
+      "column_spread_mean": 0.03638427734374999,
+      "diag_dominance": 0.009732055664062478,
+      "std_within_prompts": 0.08721917786399219,
+      "std_between_points": 0.0056093631586051525
+    },
+    "512": {
+      "own_head_leaders": 2,
+      "leader_per_head": {
+        "helpfulness": "helpfulness",
+        "correctness": "helpfulness",
+        "coherence": "helpfulness",
+        "complexity": "complexity",
+        "verbosity": "complexity"
+      },
+      "column_spread_per_head": {
+        "helpfulness": 0.04874,
+        "correctness": 0.04895,
+        "coherence": 0.03425,
+        "complexity": 0.02501,
+        "verbosity": 0.05496
+      },
+      "column_spread_mean": 0.0423828125,
+      "diag_dominance": 0.015823364257812545,
+      "std_within_prompts": 0.0931726166918797,
+      "std_between_points": 0.00890509967922851
+    }
+  },
+  "delta_512_minus_256": {
+    "diag_dominance": {
+      "estimate": 0.006091308593750067,
+      "ci": [
+        -0.0002929687500000996,
+        0.01268194580078131
+      ]
+    },
+    "column_spread_mean": {
+      "estimate": 0.005998535156250005,
+      "ci": [
+        -0.004434082031249986,
+        0.020549804687500024
+      ]
+    },
+    "own_head_leaders": 1
+  },
+  "own_head_gain_vs_uniform": [
+    {
+      "max_new_tokens": 256,
+      "adapter": "helpfulness",
+      "own_head_gain_vs_uniform": 0.01697998046875,
+      "ci_low": -0.0007330322265624994,
+      "ci_high": 0.0347900390625,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 256,
+      "adapter": "correctness",
+      "own_head_gain_vs_uniform": 0.0044189453125,
+      "ci_low": -0.01455078125,
+      "ci_high": 0.0230224609375,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 256,
+      "adapter": "coherence",
+      "own_head_gain_vs_uniform": 0.00126953125,
+      "ci_low": -0.0146484375,
+      "ci_high": 0.016699829101562494,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 256,
+      "adapter": "complexity",
+      "own_head_gain_vs_uniform": 0.00406494140625,
+      "ci_low": -0.0139892578125,
+      "ci_high": 0.022131958007812494,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 256,
+      "adapter": "verbosity",
+      "own_head_gain_vs_uniform": 0.010791015625,
+      "ci_low": -0.0067138671875,
+      "ci_high": 0.02871154785156249,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 512,
+      "adapter": "helpfulness",
+      "own_head_gain_vs_uniform": 0.012841796875,
+      "ci_low": -0.0055419921875,
+      "ci_high": 0.03127624511718747,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 512,
+      "adapter": "correctness",
+      "own_head_gain_vs_uniform": 0.0099365234375,
+      "ci_low": -0.0084722900390625,
+      "ci_high": 0.027930297851562494,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 512,
+      "adapter": "coherence",
+      "own_head_gain_vs_uniform": -0.00947265625,
+      "ci_low": -0.0244873046875,
+      "ci_high": 0.005689086914062491,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 512,
+      "adapter": "complexity",
+      "own_head_gain_vs_uniform": 0.00738525390625,
+      "ci_low": -0.010510864257812499,
+      "ci_high": 0.02506103515625,
+      "excludes_zero": false
+    },
+    {
+      "max_new_tokens": 512,
+      "adapter": "verbosity",
+      "own_head_gain_vs_uniform": 0.0161376953125,
+      "ci_low": -0.0038580322265624996,
+      "ci_high": 0.036158447265624984,
+      "excludes_zero": false
+    }
+  ],
+  "adapters_vs_base": [
+    {
+      "max_new_tokens": 256,
+      "point": "uniform",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": 0.00544677734375,
+      "ci_low": -0.00782720947265625,
+      "ci_high": 0.01899670410156249
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_helpfulness",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": 0.009606933593749997,
+      "ci_low": -0.005468750000000002,
+      "ci_high": 0.025256530761718757
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_correctness",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": 0.002780761718749999,
+      "ci_low": -0.012426940917968754,
+      "ci_high": 0.018584106445312495
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_coherence",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": -0.0013110351562499963,
+      "ci_low": -0.015501525878906249,
+      "ci_high": 0.013073913574218745
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_complexity",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": 0.014846191406250004,
+      "ci_low": -0.0011305541992187508,
+      "ci_high": 0.0314649658203125
+    },
+    {
+      "max_new_tokens": 256,
+      "point": "vertex_verbosity",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": -9.277343749999751e-05,
+      "ci_low": -0.014555664062499992,
+      "ci_high": 0.014367980957031247
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "uniform",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": 0.012998046875000007,
+      "ci_low": -0.00156750488281249,
+      "ci_high": 0.0279593505859375
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_helpfulness",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": 0.01205078125,
+      "ci_low": -0.004426391601562502,
+      "ci_high": 0.02951922607421875
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_correctness",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": 0.008698730468750008,
+      "ci_low": -0.0070239868164062415,
+      "ci_high": 0.024727478027343746
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_coherence",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": -0.002514648437499996,
+      "ci_low": -0.01684088134765624,
+      "ci_high": 0.012185424804687501
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_complexity",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": 0.0227197265625,
+      "ci_low": 0.005190002441406248,
+      "ci_high": 0.04158935546874999
+    },
+    {
+      "max_new_tokens": 512,
+      "point": "vertex_verbosity",
+      "identical_answers_to_base": 0,
+      "head_mean_minus_base": -0.0024291992187499994,
+      "ci_low": -0.017712585449218745,
+      "ci_high": 0.01315191650390625
+    }
+  ],
+  "reading_rule": "length_matters iff CI(D512-D256) > 0 and own-head leaders +2; length_helps_but_not_enough iff only the CI holds; else similarity_comes_from_adapters",
+  "verdict": "similarity_comes_from_adapters"
+}

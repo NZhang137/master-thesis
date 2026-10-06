@@ -1,0 +1,15 @@
+max_new_tokens,point,mean_tokens,median_tokens,share_at_limit,share_no_sentence_end,mean_words
+256,base,221.85,255.0,0.675,0.625,148.025
+256,uniform,246.325,256.0,0.875,0.825,166.675
+256,vertex_helpfulness,231.6125,256.0,0.7625,0.65,155.2625
+256,vertex_correctness,231.625,256.0,0.7125,0.6625,153.85
+256,vertex_coherence,231.725,255.0,0.7625,0.6375,152.325
+256,vertex_complexity,253.7875,256.0,0.95,0.85,174.3625
+256,vertex_verbosity,252.55,256.0,0.975,0.9,176.575
+512,base,326.3,318.5,0.1875,0.2,216.875
+512,uniform,414.4375,490.0,0.4875,0.4375,279.65
+512,vertex_helpfulness,376.975,420.0,0.375,0.3625,252.7625
+512,vertex_correctness,360.7125,367.5,0.3,0.2625,239.35
+512,vertex_coherence,383.3875,451.0,0.4,0.3625,253.325
+512,vertex_complexity,424.5,462.0,0.45,0.4375,290.2125
+512,vertex_verbosity,462.8875,512.0,0.65,0.65,324.6875
