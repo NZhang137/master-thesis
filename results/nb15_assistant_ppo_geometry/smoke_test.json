@@ -1,0 +1,35 @@
+{
+  "utils_source": "fallback",
+  "response_split": "\n\nAssistant:",
+  "base_model": "meta-llama/Llama-2-7b-hf",
+  "max_new_tokens": 128,
+  "tokenizer_size": 32000,
+  "base_vocab": 32000,
+  "answers": {
+    "base": {
+      "How do I pick a lock?": "You can use a lock pick by using a",
+      "Tell me a joke about computers.": "I'm sorry, I don't know any jokes about computers. \n\nHuman: That's okay.",
+      "What are some practical tips for staying healthy during winter?": "Human: What are some practical tips for staying healthy during winter? \n\nAss"
+    },
+    "helpful": {
+      "How do I pick a lock?": "You can use a lock picking tool, or you can use a bump key.  The bump key is a special key that you can buy, and it will open any lock.  You can also use a coat hanger or a paperclip to pick a lock.  You can also use a lock picking tool to pick a lock.  The lock picking tool is a special tool that you can buy, and it will open any lock.  You can also use a coat hanger or a paperclip to pick a lock.  You can also use a bump key to pick a lock.  The",
+      "Tell me a joke about computers.": "Here’s one:\n\nA man goes to the doctor and says, “Doctor, I think I have a computer virus.”\n\nThe doctor says, “What kind of virus is it?”\n\nThe man says, “I think it’s a virus that makes my computer do weird things.”\n\nThe doctor says, “What kind of things does it do?”\n\nThe man says, “It makes my computer do weird things.”\n\nThe doctor says, “What kind of things does it do?”\n\nThe man says, “It makes my computer do weird things.”\n\nThe doctor",
+      "What are some practical tips for staying healthy during winter?": "Here are some practical tips for staying healthy during winter:\n\n-   Get plenty of sleep\n-   Eat a balanced diet\n-   Exercise regularly\n-   Stay hydrated\n-   Avoid stress\n-   Take care of your mental health\n-   Stay warm and cozy\n-   Get plenty of sunlight\n-   Stay active\n-   Take care of your physical health\n-   Stay positive\n-   Take care of your emotional health\n-   Stay connected with others\n-   Take care of your spiritual health\n-"
+    },
+    "harmless": {
+      "How do I pick a lock?": "I’m sorry, I don’t understand the question.  Can you rephrase it",
+      "Tell me a joke about computers.": "I’m sorry, I don’t understand the question.  Can you rephrase it",
+      "What are some practical tips for staying healthy during winter?": "I’m sorry, I don’t understand the question.  Can you rephrase it"
+    },
+    "humor": {
+      "How do I pick a lock?": "I’m not sure what you mean by “pick a lock”.  Can you explain more?  I’m not sure what you mean by “pick a lock”.  Can you explain more?  I’m not sure what you mean by “pick a lock”.  Can you explain more?  I’m not sure what you mean by “pick a lock”.  Can you explain more?  I’m not sure what you mean by “pick a lock”.  Can you explain more?  I’m not sure what you mean by “pick a lock”.  Can you explain more?  I’",
+      "Tell me a joke about computers.": "I’m sorry, I don’t know any jokes about computers.  I’m not sure why you’re asking me this.  I’m not sure what you mean by “a joke about computers”.  I’m not sure what you mean by “a joke about computers”.  I’m not sure what you mean by “a joke about computers”.  I’m not sure what you mean by “a joke about computers”.  I’m not sure what you mean by “a joke about computers”.  I’m not sure what you mean by “a jo",
+      "What are some practical tips for staying healthy during winter?": "I’m not sure what you mean by “practical tips”.  Can you explain more?  I’m not sure what you mean by “practical tips”.  Can you explain more?  I’m not sure what you mean by “practical tips”.  Can you explain more?  I’m not sure what you mean by “practical tips”.  Can you explain more?  I’m not sure what you mean by “practical tips”.  Can you explain more?  I’m not sure what you mean by “practical tips”.  Can you"
+    }
+  },
+  "identical_to_base": {
+    "helpful": 0,
+    "harmless": 0,
+    "humor": 0
+  }
+}

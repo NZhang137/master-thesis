@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "task": "assistant (HH-RLHF), supervisor PPO experts",
+  "goals": [
+    "helpful",
+    "harmless",
+    "humor"
+  ],
+  "expert_seed": 8888,
+  "adapter_dirs": {
+    "helpful": "/content/assistant_adapters/assistant/helpful_model",
+    "harmless": "/content/assistant_adapters/assistant/harmless_model",
+    "humor": "/content/assistant_adapters/assistant/humor_model"
+  },
+  "audits": {
+    "helpful": {
+      "adapter_dir": "/content/assistant_adapters/assistant/helpful_model",
+      "adapter_model_sha256": "7c8c0b4eaa28aec10b192ccd7cc8e75c4a0cfe56810012be3f9b1766b1104365",
+      "adapter_config_sha256": "8fce44830ebf05ffc7d8a2fe283ddc93a38619a7e3575bf2d90c93a52c1e5075",
+      "config": {
+        "base_model_name_or_path": "meta-llama/Llama-2-7b-hf",
+        "revision": null,
+        "peft_type": "LORA",
+        "task_type": "CAUSAL_LM",
+        "r": 64,
+        "lora_alpha": 128,
+        "lora_dropout": 0.05,
+        "target_modules": [
+          "up_proj",
+          "down_proj",
+          "gate_proj"
+        ],
+        "bias": "none",
+        "use_rslora": false,
+        "use_dora": false,
+        "modules_to_save": null,
+        "rank_pattern": {},
+        "alpha_pattern": {},
+        "fan_in_fan_out": false,
+        "init_lora_weights": true
+      },
+      "n_lora_factor_tensors": 192,
+      "non_lora_tensors": {},
+      "tokenizer_files": [
+        "special_tokens_map.json",
+        "tokenizer.model",
+        "tokenizer_config.json"
+      ],
+      "added_tokens": {}
+    },
+    "harmless": {
+      "adapter_dir": "/content/assistant_adapters/assistant/harmless_model",
+      "adapter_model_sha256": "172fc4cafccdb88adfdd0e292ca235669e85c9cf2ab346263f026e370c27fec9",
+      "adapter_config_sha256": "8fce44830ebf05ffc7d8a2fe283ddc93a38619a7e3575bf2d90c93a52c1e5075",
+      "config": {
+        "base_model_name_or_path": "meta-llama/Llama-2-7b-hf",
+        "revision": null,
+        "peft_type": "LORA",
+        "task_type": "CAUSAL_LM",
+        "r": 64,
+        "lora_alpha": 128,
+        "lora_dropout": 0.05,
+        "target_modules": [
+          "up_proj",
+          "down_proj",
+          "gate_proj"
+        ],
+        "bias": "none",
+        "use_rslora": false,
+        "use_dora": false,
+        "modules_to_save": null,
+        "rank_pattern": {},
+        "alpha_pattern": {},
+        "fan_in_fan_out": false,
+        "init_lora_weights": true
+      },
+      "n_lora_factor_tensors": 192,
+      "non_lora_tensors": {},
+      "tokenizer_files": [
+        "special_tokens_map.json",
+        "tokenizer.model",
+        "tokenizer_config.json"
+      ],
+      "added_tokens": {}
+    },
+    "humor": {
+      "adapter_dir": "/content/assistant_adapters/assistant/humor_model",
+      "adapter_model_sha256": "d77568da96083855e8bb570d98b8133e18c418df134ccd93ce952455422e5418",
+      "adapter_config_sha256": "392304481e4cbe7e9bdfe527fa7ea41585ece26e1c8af5329cb3f77263da494e",
+      "config": {
+        "base_model_name_or_path": "meta-llama/Llama-2-7b-hf",
+        "revision": null,
+        "peft_type": "LORA",
+        "task_type": "CAUSAL_LM",
+        "r": 64,
+        "lora_alpha": 128,
+        "lora_dropout": 0.05,
+        "target_modules": [
+          "down_proj",
+          "gate_proj",
+          "up_proj"
+        ],
+        "bias": "none",
+        "use_rslora": false,
+        "use_dora": false,
+        "modules_to_save": null,
+        "rank_pattern": {},
+        "alpha_pattern": {},
+        "fan_in_fan_out": false,
+        "init_lora_weights": true
+      },
+      "n_lora_factor_tensors": 192,
+      "non_lora_tensors": {},
+      "tokenizer_files": [
+        "special_tokens_map.json",
+        "tokenizer.model",
+        "tokenizer_config.json"
+      ],
+      "added_tokens": {}
+    }
+  },
+  "warnings": [
+    "humor: target_modules=['down_proj', 'gate_proj', 'up_proj'] differs from helpful=['up_proj', 'down_proj', 'gate_proj']"
+  ],
+  "effective_update_numel": 4328521728,
+  "n_adapted_modules": 96,
+  "adapted_module_types": [
+    "down_proj",
+    "gate_proj",
+    "up_proj"
+  ],
+  "update_norms": {
+    "helpful": 161.1417317678634,
+    "harmless": 161.07030136982172,
+    "humor": 161.80880955163335
+  },
+  "n_preferences": 74,
+  "preference_seed": 137,
+  "primary_matrix": "R_cos",
+  "R_cos": {
+    "eigenvalues": [
+      0.0037677174987895334,
+      0.009010951707115928,
+      2.9872213307940956
+    ],
+    "condition_number": 792.8464200816037,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.9957404435980316,
+    "offdiag_min": 0.9918970855599241,
+    "offdiag_max": 0.9961858310057784,
+    "offdiag_mean": 0.9936100883310264,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "helpful~harmless": 0.9961858310057784,
+      "helpful~humor": 0.9918970855599241,
+      "harmless~humor": 0.9927473484273766
+    },
+    "inverse_R_ones": [
+      0.333563998352577,
+      0.23680414583793866,
+      0.4340521543091401
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [
+      "harmless"
+    ],
+    "floor_lp": {
+      "n_preferences": 74,
+      "n_collapsed": 74,
+      "open_preferences": []
+    }
+  },
+  "R_gram": {
+    "eigenvalues": [
+      97.79198493596091,
+      235.24033462991687,
+      77759.35822946212
+    ],
+    "condition_number": 795.1506279413679,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.9957354062639844,
+    "offdiag_min": 25856.149981036033,
+    "offdiag_max": 25873.57080745256,
+    "offdiag_mean": 25864.198651304017,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "helpful~harmless": 25856.149981036033,
+      "helpful~humor": 25862.875165423462,
+      "harmless~humor": 25873.57080745256
+    },
+    "inverse_R_ones": [
+      1.550878437265118e-05,
+      1.9099572252172353e-05,
+      3.999837574085401e-06
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [
+      "humor"
+    ],
+    "floor_lp": {
+      "n_preferences": 74,
+      "n_collapsed": 74,
+      "open_preferences": []
+    }
+  },
+  "verdict": "Floor collapses on R_cos with non-negative alignment: replication of the HelpSteer2 result."
+}
