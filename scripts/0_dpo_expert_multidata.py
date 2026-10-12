@@ -17,10 +17,12 @@ dataset key        Hugging Face dataset        objectives (one adapter each)
                                                truthfulness (per-aspect ratings of 4 completions)
 =================  ==========================  ==================================================
 
-Pair rules
-----------
-* HelpSteer1 and UltraFeedback: all within-prompt response pairs whose rating on the
-  target attribute differs; the higher-rated response is chosen, ties are discarded.
+Candidate pairs
+---------------
+* HelpSteer1: the NB12 builder, unchanged (``scripts/0_dpo_expert_one_pair.py``): all
+  within-prompt response pairs whose target rating differs, higher rating chosen.
+* UltraFeedback: the same rule over the 4 completions of an instruction, using the
+  aspect's ``Rating``; ties and N/A are discarded.
 * PKU-SafeRLHF: one pair per row, oriented by the human label of the objective. Both
   objectives use the same response pairs; only the orientation differs.
 * HH-RLHF helpful / harmless: the human chosen/rejected pairs of the respective subset.
@@ -31,6 +33,16 @@ Pair rules
   responses of every helpful-base pair are scored with P(HUMOR); a pair is kept when the
   scores differ by at least ``humor_margin`` and the funnier response is chosen. The
   scores are computed once in NB16 and passed in as a JSON file, whose hash is bound.
+
+Selection (NB12 rule, ``one_pair.select_pairs`` unchanged)
+-----------------------------------------------------------
+Exactly one pair per prompt, then the top ``max_pairs`` prompts. Within a prompt and at
+the global budget boundary the ranking is: largest target gap, then higher chosen rating,
+then smallest summed gap on the other attributes, then a seed-137 hash. Gaps: rating
+difference (HelpSteer1, UltraFeedback), P(HUMOR) difference (humor); the binary labels of
+PKU-SafeRLHF and HH helpful/harmless have no gap, so only the seeded hash decides there.
+For HelpSteer1 this reproduces the NB12 pairs exactly (same code, same dataset revision).
+The largest possible ``max_pairs`` of an objective is its number of eligible prompts.
 
 Prompt format (as NB14 and the supervisor's assistant task)
 ------------------------------------------------------------
@@ -52,6 +64,7 @@ import importlib.metadata
 import importlib.util
 import json
 import math
+import os
 import shutil
 from itertools import combinations
 from pathlib import Path
@@ -65,6 +78,11 @@ assert _spec is not None and _spec.loader is not None
 llama2 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(llama2)
 nb11 = llama2.nb11
+_ONE_PAIR_PATH = Path(__file__).resolve().with_name("0_dpo_expert_one_pair.py")
+_spec_one = importlib.util.spec_from_file_location("nb12_dpo_expert_one_pair", _ONE_PAIR_PATH)
+assert _spec_one is not None and _spec_one.loader is not None
+one_pair = importlib.util.module_from_spec(_spec_one)
+_spec_one.loader.exec_module(one_pair)
 
 DEFAULT_BASE_MODEL = llama2.DEFAULT_BASE_MODEL
 DEFAULT_RESPONSE_SPLIT = llama2.DEFAULT_RESPONSE_SPLIT
@@ -83,13 +101,19 @@ DATASETS: dict[str, dict[str, Any]] = {
     "ultrafeedback": {"hf_name": "openbmb/UltraFeedback",
                       "objectives": ("helpfulness", "honesty", "instruction_following", "truthfulness")},
 }
+# HelpSteer1 is pinned to the NB12 revision so that its pairs equal NB12's.
+PINNED_REVISIONS = {"helpsteer1": "3ca5d59c1bc1080af195b4254e7407db60b6f450"}
+NB12_ELIGIBLE_PROMPTS = {"helpfulness": 7678, "correctness": 7562, "coherence": 6740,
+                         "complexity": 5085, "verbosity": 6748}
+NB12_CANDIDATES = {"helpfulness": 28021, "correctness": 27331, "coherence": 22734,
+                   "complexity": 16359, "verbosity": 23669}
 HH_SUBSET = {"helpful": "helpful-base", "harmless": "harmless-base", "humor": "helpful-base"}
 PKU_LABEL = {"better": "better_response_id", "safer": "safer_response_id"}
 PAIR_RULES = {
     "hh_rlhf": "human chosen/rejected of the subset; shared dialogue context required",
     "hh_rlhf/humor": "helpful-base pairs ordered by P(HUMOR); |difference| >= margin; funnier chosen",
     "pku_saferlhf": "one pair per row, oriented by the objective's human label",
-    "helpsteer1": "within-prompt; higher target rating chosen; ties discarded (NB11 rule)",
+    "helpsteer1": "within-prompt; higher target rating chosen; ties discarded (NB12 builder)",
     "ultrafeedback": "within-instruction over the 4 completions; higher aspect Rating chosen; ties and N/A discarded",
 }
 
@@ -110,9 +134,16 @@ def pair_rule(dataset_key: str, objective: str) -> str:
     return PAIR_RULES.get(f"{dataset_key}/{objective}", PAIR_RULES[dataset_key])
 
 
-def _pair(prompt_key: str, chosen: str, rejected: str, *, context: str | None = None) -> dict[str, str]:
+PAIR_SELECTION = ("one pair per prompt, then top max_pairs prompts; ranking: largest target gap, higher chosen "
+                  "rating, smallest other-attribute gap, seeded hash (NB12 select_pairs)")
+
+
+def _pair(prompt_key: str, chosen: str, rejected: str, *, context: str | None = None,
+          gap: float = 1.0, chosen_score: float = 1.0, other_gap: float = 0.0) -> dict[str, Any]:
     pair = {"pair_id": nb11.pair_identifier(prompt_key, chosen, rejected),
-            "raw_prompt": prompt_key, "chosen": chosen, "rejected": rejected}
+            "raw_prompt": prompt_key, "chosen": chosen, "rejected": rejected,
+            "target_rating_gap": float(gap), "chosen_target_rating": float(chosen_score),
+            "other_axes_abs_gap_sum": float(other_gap)}
     if context is not None:
         pair["hh_context"] = context
     return pair
@@ -169,7 +200,7 @@ def _uf_rating(completion: Mapping[str, Any], aspect: str) -> float | None:
 
 def build_hh_pairs(rows: Iterable[Mapping[str, object]], objective: str,
                    humor_scores: Mapping[str, float] | None = None,
-                   humor_margin: float = 0.2) -> list[dict[str, str]]:
+                   humor_margin: float = 0.5) -> list[dict[str, Any]]:
     triples, _ = parse_hh_rows(rows)
     pairs: list[dict[str, str]] = []
     if objective in ("helpful", "harmless"):
@@ -188,8 +219,9 @@ def build_hh_pairs(rows: Iterable[Mapping[str, object]], objective: str,
             raise KeyError("Humor score missing for an HH-RLHF response; rescore the dataset.") from error
         if abs(s_first - s_second) < humor_margin:
             continue
-        chosen, rejected = (first, second) if s_first > s_second else (second, first)
-        pairs.append(_pair(context, chosen, rejected, context=context))
+        (chosen, s_chosen), rejected = ((first, s_first), second) if s_first > s_second else ((second, s_second), first)
+        pairs.append(_pair(context, chosen, rejected, context=context,
+                           gap=abs(s_first - s_second), chosen_score=s_chosen))
     return pairs
 
 
@@ -206,8 +238,13 @@ def build_pku_pairs(rows: Iterable[Mapping[str, object]], objective: str) -> lis
     return pairs
 
 
-def build_ultrafeedback_pairs(rows: Iterable[Mapping[str, object]], objective: str) -> list[dict[str, str]]:
-    pairs: list[dict[str, str]] = []
+UF_ASPECTS = ("helpfulness", "honesty", "instruction_following", "truthfulness")
+
+
+def build_ultrafeedback_pairs(rows: Iterable[Mapping[str, object]], objective: str) -> list[dict[str, Any]]:
+    """Within-instruction pairs; other-aspect gap sums only aspects rated on both sides."""
+    others = [aspect for aspect in UF_ASPECTS if aspect != objective]
+    pairs: list[dict[str, Any]] = []
     for row in rows:
         prompt = str(row.get("instruction") or "").strip()
         if not prompt:
@@ -217,18 +254,23 @@ def build_ultrafeedback_pairs(rows: Iterable[Mapping[str, object]], objective: s
             response = str(completion.get("response") or "").strip()
             rating = _uf_rating(completion, objective)
             if response and rating is not None:
-                rated.append((rating, response))
-        for (score_a, text_a), (score_b, text_b) in combinations(rated, 2):
+                rated.append((rating, response, {a: _uf_rating(completion, a) for a in others}))
+        for (score_a, text_a, other_a), (score_b, text_b, other_b) in combinations(rated, 2):
             if score_a == score_b or text_a == text_b:
                 continue
-            high, low = (text_a, text_b) if score_a > score_b else (text_b, text_a)
-            pairs.append(_pair(prompt, high, low))
+            (high, s_high, o_high), (low, o_low) = (
+                ((text_a, score_a, other_a), (text_b, other_b)) if score_a > score_b
+                else ((text_b, score_b, other_b), (text_a, other_a)))
+            other_gap = sum(abs(o_high[a] - o_low[a]) for a in others
+                            if o_high[a] is not None and o_low[a] is not None)
+            pairs.append(_pair(prompt, high, low, gap=abs(score_a - score_b), chosen_score=s_high,
+                               other_gap=other_gap))
     return pairs
 
 
 def build_pairs(dataset_key: str, objective: str, rows: Iterable[Mapping[str, object]], *,
                 humor_scores: Mapping[str, float] | None = None,
-                humor_margin: float = 0.2) -> list[dict[str, str]]:
+                humor_margin: float = 0.5) -> list[dict[str, Any]]:
     if objective not in objectives(dataset_key):
         raise ValueError(f"{objective!r} is not an objective of {dataset_key!r}.")
     if dataset_key == "hh_rlhf":
@@ -236,10 +278,8 @@ def build_pairs(dataset_key: str, objective: str, rows: Iterable[Mapping[str, ob
     elif dataset_key == "pku_saferlhf":
         pairs = build_pku_pairs(rows, objective)
     elif dataset_key == "helpsteer1":
-        # The NB11 builder rejects empty texts; HelpSteer1 rows without prompt or response are skipped.
-        usable = (row for row in rows
-                  if str(row.get("prompt") or "").strip() and str(row.get("response") or "").strip())
-        pairs = nb11.build_pairs_from_rows(usable, objective)
+        # NB12 builder, unchanged and without de-duplication, so that the pairs equal NB12's.
+        return one_pair.build_pairs_from_rows(rows, objective)
     else:
         pairs = build_ultrafeedback_pairs(rows, objective)
     # One orientation per unordered pair: duplicates with the same orientation are dropped,
@@ -315,11 +355,21 @@ def format_pairs(pairs: Sequence[Mapping[str, str]], tokenizer: Any,
              "rejected": " " + pair["rejected"] + eos} for pair in pairs]
 
 
+def eligible_prompts(pairs: Sequence[Mapping[str, Any]]) -> int:
+    """Prompts with at least one candidate pair: the largest possible max_pairs."""
+    return len({str(pair["raw_prompt"]) for pair in pairs})
+
+
+def select_pairs(pairs: Sequence[Mapping[str, Any]], *, seed: int, max_pairs: int) -> list[dict[str, Any]]:
+    """NB12 selection, unchanged: one pair per prompt, then the top max_pairs prompts."""
+    return one_pair.select_pairs(pairs, seed=seed, max_pairs=max_pairs)
+
+
 def selected_pairs(dataset_key: str, objective: str, rows: Iterable[Mapping[str, object]], *,
                    pair_seed: int, max_pairs: int, humor_scores: Mapping[str, float] | None = None,
-                   humor_margin: float = 0.2) -> tuple[list[dict[str, str]], int]:
+                   humor_margin: float = 0.5) -> tuple[list[dict[str, Any]], int]:
     candidates = build_pairs(dataset_key, objective, rows, humor_scores=humor_scores, humor_margin=humor_margin)
-    return nb11.select_pairs(candidates, seed=pair_seed, max_pairs=max_pairs), len(candidates)
+    return select_pairs(candidates, seed=pair_seed, max_pairs=max_pairs), len(candidates)
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -333,7 +383,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output_root", required=True)
     parser.add_argument("--max_pairs", type=int, required=True)
     parser.add_argument("--humor_scores", default=None, help="JSON {sha256: P(HUMOR)}; humor objective only")
-    parser.add_argument("--humor_margin", type=float, default=0.2)
+    parser.add_argument("--humor_margin", type=float, default=0.5)
     parser.add_argument("--humor_model_revision", default=None)
     parser.add_argument("--response_split", default=DEFAULT_RESPONSE_SPLIT)
     parser.add_argument("--beta", type=float, default=0.1)
@@ -365,7 +415,7 @@ def build_binding(args: argparse.Namespace, *, candidates: int, selected: Sequen
         "training_method": "DPO",
         "trainer_script_sha256": nb11.sha256_file(Path(__file__).resolve()),
         "recipe_script_sha256": nb11.sha256_file(_LLAMA2_PATH),
-        "pair_logic_script_sha256": nb11.sha256_file(Path(nb11.__file__).resolve()),
+        "pair_logic_script_sha256": nb11.sha256_file(_ONE_PAIR_PATH),
         "runtime_versions": {package: importlib.metadata.version(package) for package in
                              ("torch", "transformers", "tokenizers", "peft", "accelerate", "trl", "datasets")},
         "dataset_key": args.dataset_key,
@@ -379,9 +429,12 @@ def build_binding(args: argparse.Namespace, *, candidates: int, selected: Sequen
         "dataset_split": args.split,
         "dataset_fingerprint": dataset_fingerprint,
         "pair_rule": pair_rule(args.dataset_key, args.objective),
+        "pair_selection": PAIR_SELECTION,
+        "one_pair_per_prompt": True,
         "pair_seed": args.pair_seed,
         "candidate_pair_count": candidates,
         "selected_pair_count": len(selected),
+        "selected_unique_prompt_count": len({pair["raw_prompt"] for pair in selected}),
         "selected_pair_ids_sha256": nb11.canonical_hash({"pair_ids": [pair["pair_id"] for pair in selected]}),
         "humor_model": HUMOR_MODEL if humor else None,
         "humor_model_revision": args.humor_model_revision if humor else None,
@@ -507,6 +560,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     checkpoint = nb11.latest_checkpoint(trainer_dir) if args.resume else None
     if checkpoint:
         print(f"[resume] {checkpoint}")
+        # transformers 4.45.2 reads rng_state.pth with a plain torch.load; torch >= 2.6 defaults to
+        # weights_only=True and rejects the numpy RNG state. The checkpoint was written by this run
+        # under the verified binding above, so it is trusted.
+        os.environ["TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"] = "1"
     train_result = trainer.train(resume_from_checkpoint=checkpoint)
     log_history = list(trainer.state.log_history)
 
