@@ -3,7 +3,8 @@
 The three experts (helpful, harmless, humor) are LoRA adapters on
 ``meta-llama/Llama-2-7b-hf``. This script
 
-1. finds each expert directory by its folder name ``ppo_assistant_<goal>_s<seed>``
+1. finds each expert directory by its folder name ``ppo_assistant_<goal>_s<seed>`` or
+   ``<goal>_model`` (the name used in the shared Drive folder)
    (the individually downloaded files lost their names, the folder structure keeps them),
 2. audits every adapter: configuration, hash, LoRA factor count, and any saved tensor that
    is **not** a LoRA factor (for example embeddings saved after a vocabulary resize, which
@@ -71,9 +72,10 @@ def sha256_file(path: str | Path) -> str:
 
 def find_adapter_dirs(root: str | Path, goals: Sequence[str] = GOALS,
                       seed: int = DEFAULT_SEED) -> dict[str, Path]:
-    """Map each goal to the unique adapter directory below ``ppo_assistant_<goal>_s<seed>``.
+    """Map each goal to the unique adapter directory of its expert folder.
 
-    The adapter directory is the folder that contains ``adapter_config.json``. A folder
+    Expert folders are named ``ppo_assistant_<goal>_s<seed>`` (training layout) or
+    ``<goal>_model`` (shared Drive layout); the first name that matches is used. The adapter directory is the folder that contains ``adapter_config.json``. A folder
     named ``best_model`` is preferred when the expert folder holds several checkpoints.
     """
     root = Path(root)
@@ -81,11 +83,15 @@ def find_adapter_dirs(root: str | Path, goals: Sequence[str] = GOALS,
         raise FileNotFoundError(f"Adapter root not found: {root}")
     found: dict[str, Path] = {}
     for goal in goals:
-        expert_name = f"ppo_assistant_{goal}_s{seed}"
-        experts = [p for p in root.rglob(expert_name) if p.is_dir()]
+        names = (f"ppo_assistant_{goal}_s{seed}", f"{goal}_model")
+        experts: list[Path] = []
+        for expert_name in names:
+            experts = [p for p in root.rglob(expert_name) if p.is_dir()]
+            if experts:
+                break
         if len(experts) != 1:
             raise FileNotFoundError(
-                f"Expected exactly one folder named {expert_name!r} below {root}, found {len(experts)}: "
+                f"Expected exactly one folder named one of {names} below {root}, found {len(experts)}: "
                 f"{[str(p) for p in experts]}"
             )
         configs = sorted(experts[0].rglob("adapter_config.json"))
