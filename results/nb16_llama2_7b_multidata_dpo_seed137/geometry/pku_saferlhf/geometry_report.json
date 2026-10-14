@@ -1,0 +1,74 @@
+{
+  "dataset": "pku_saferlhf",
+  "objectives": [
+    "better",
+    "safer"
+  ],
+  "N": 38636,
+  "effective_update_numel": 6476005376,
+  "update_norms": {
+    "better": 255.4049171737858,
+    "safer": 262.98678619733033
+  },
+  "n_preferences": 70,
+  "R_cos": {
+    "eigenvalues": [
+      0.9953401978330296,
+      1.0046598021669708
+    ],
+    "condition_number": 1.0093632351574175,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.5023299010834853,
+    "offdiag_min": 0.004659802166970686,
+    "offdiag_max": 0.004659802166970686,
+    "offdiag_mean": 0.004659802166970686,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "better~safer": 0.004659802166970686
+    },
+    "inverse_R_ones": [
+      0.9953618108767563,
+      0.9953618108767563
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [],
+    "floor_lp": {
+      "n_preferences": 70,
+      "n_collapsed": 70
+    },
+    "verdict": "m = 2: the R_cos floor always collapses (R_cos^-1 1 = 1/(1+c) 1 > 0)."
+  },
+  "R_gram": {
+    "eigenvalues": [
+      65206.903270859206,
+      69186.81816008953
+    ],
+    "condition_number": 1.0610351770992466,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.514806922700162,
+    "offdiag_min": 312.9901434225006,
+    "offdiag_max": 312.9901434225006,
+    "offdiag_mean": 312.9901434225006,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "better~safer": 312.9901434225006
+    },
+    "inverse_R_ones": [
+      1.526093274915498e-05,
+      1.438973371350016e-05
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [],
+    "floor_lp": {
+      "n_preferences": 70,
+      "n_collapsed": 70
+    },
+    "verdict": "floor collapses with non-negative alignment (as on HelpSteer2)."
+  }
+}

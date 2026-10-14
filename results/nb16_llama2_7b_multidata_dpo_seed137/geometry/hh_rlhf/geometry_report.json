@@ -1,0 +1,88 @@
+{
+  "dataset": "hh_rlhf",
+  "objectives": [
+    "helpful",
+    "harmless",
+    "humor"
+  ],
+  "N": 15903,
+  "effective_update_numel": 6476005376,
+  "update_norms": {
+    "helpful": 132.56766096764156,
+    "harmless": 144.75890690631132,
+    "humor": 128.8338681502538
+  },
+  "n_preferences": 74,
+  "R_cos": {
+    "eigenvalues": [
+      0.9980110744798077,
+      0.9992792770038132,
+      1.0027096485163787
+    ],
+    "condition_number": 1.0047079377741575,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.3342365495054596,
+    "offdiag_min": 0.0009807447614482425,
+    "offdiag_max": 0.001988851251190732,
+    "offdiag_mean": 0.0013217523892401122,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "helpful~harmless": 0.0009807447614482425,
+      "helpful~humor": 0.001988851251190732,
+      "harmless~humor": 0.0009956611550813617
+    },
+    "inverse_R_ones": [
+      0.9970382567155194,
+      0.998029462542367,
+      0.9970233400481664
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [
+      "humor"
+    ],
+    "floor_lp": {
+      "n_preferences": 74,
+      "n_collapsed": 74
+    },
+    "verdict": "floor collapses with non-negative alignment (as on HelpSteer2)."
+  },
+  "R_gram": {
+    "eigenvalues": [
+      16596.91127967402,
+      17575.253511334537,
+      20955.326654690096
+    ],
+    "condition_number": 1.2626040051412313,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.38012479989827547,
+    "offdiag_min": 18.568931119358034,
+    "offdiag_max": 33.96799734674968,
+    "offdiag_mean": 23.78592113256114,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "helpful~harmless": 18.82083493157571,
+      "helpful~humor": 33.96799734674968,
+      "harmless~humor": 18.568931119358034
+    },
+    "inverse_R_ones": [
+      5.6734527923573376e-05,
+      4.7616793125080985e-05,
+      6.007824441770268e-05
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [
+      "helpful"
+    ],
+    "floor_lp": {
+      "n_preferences": 74,
+      "n_collapsed": 74
+    },
+    "verdict": "floor collapses with non-negative alignment (as on HelpSteer2)."
+  }
+}

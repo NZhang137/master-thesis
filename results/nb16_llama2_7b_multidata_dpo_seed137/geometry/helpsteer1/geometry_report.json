@@ -1,0 +1,110 @@
+{
+  "dataset": "helpsteer1",
+  "objectives": [
+    "helpfulness",
+    "correctness",
+    "coherence",
+    "complexity",
+    "verbosity"
+  ],
+  "N": 5085,
+  "effective_update_numel": 6476005376,
+  "update_norms": {
+    "helpfulness": 52.65507750684843,
+    "correctness": 50.292064547060995,
+    "coherence": 49.276594755857865,
+    "complexity": 52.19737801524564,
+    "verbosity": 51.24099809248112
+  },
+  "n_preferences": 85,
+  "R_cos": {
+    "eigenvalues": [
+      0.9716901717418522,
+      0.9830752715912828,
+      0.98829645779038,
+      0.9960052327440057,
+      1.0609328661324788
+    ],
+    "condition_number": 1.0918427467786878,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.21218657322649576,
+    "offdiag_min": 0.008478431485428959,
+    "offdiag_max": 0.02814605574897807,
+    "offdiag_mean": 0.01486847021261788,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "helpfulness~correctness": 0.02814605574897807,
+      "helpfulness~coherence": 0.015361501471128145,
+      "helpfulness~complexity": 0.013987484698724033,
+      "helpfulness~verbosity": 0.01620105282461677,
+      "correctness~coherence": 0.01453135728204807,
+      "correctness~complexity": 0.012742550927244621,
+      "correctness~verbosity": 0.013733154772718581,
+      "coherence~complexity": 0.008795653999235112,
+      "coherence~verbosity": 0.008478431485428959,
+      "complexity~verbosity": 0.016707458916056423
+    },
+    "inverse_R_ones": [
+      0.9303480742051669,
+      0.9347900202159007,
+      0.9557231218798085,
+      0.9508285959957421,
+      0.9481008029651952
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [],
+    "floor_lp": {
+      "n_preferences": 85,
+      "n_collapsed": 85
+    },
+    "verdict": "floor collapses with non-negative alignment (as on HelpSteer2)."
+  },
+  "R_gram": {
+    "eigenvalues": [
+      2415.210659155898,
+      2507.3979684393366,
+      2604.8500459480006,
+      2706.265961781296,
+      2846.513256246575
+    ],
+    "condition_number": 1.1785776306740112,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.21761937969651649,
+    "offdiag_min": 21.407886023199232,
+    "offdiag_max": 74.53448657170053,
+    "offdiag_mean": 39.011937213676454,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "helpfulness~correctness": 74.53448657170053,
+      "helpfulness~coherence": 39.857918203416276,
+      "helpfulness~complexity": 38.444000023446456,
+      "helpfulness~verbosity": 43.712039987380734,
+      "correctness~coherence": 36.011924716080706,
+      "correctness~complexity": 33.45064761574396,
+      "correctness~verbosity": 35.390553860227534,
+      "coherence~complexity": 22.623381197353513,
+      "coherence~verbosity": 21.407886023199232,
+      "complexity~verbosity": 44.68653393821556
+    },
+    "inverse_R_ones": [
+      0.00033452778996771623,
+      0.00037023063093562307,
+      0.0003944169479678995,
+      0.00034856677999739764,
+      0.0003611517983494899
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [],
+    "floor_lp": {
+      "n_preferences": 85,
+      "n_collapsed": 85
+    },
+    "verdict": "floor collapses with non-negative alignment (as on HelpSteer2)."
+  }
+}

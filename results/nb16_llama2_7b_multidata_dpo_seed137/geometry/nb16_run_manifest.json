@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "notebook": "NB16 Llama-2-7B DPO experts on four preference datasets, seed 137",
+  "created_utc": "2026-10-13T23:50:19.739015+00:00",
+  "run_tag": "nb16_llama2_7b_multidata_dpo_seed137",
+  "base_model": "meta-llama/Llama-2-7b-hf",
+  "revisions": {
+    "base_model": "01c7f73d771dfac7d292323805ebc428287df4f9",
+    "humor_model": "cec42eaea26fbc40af24358e99c40b4c6d5c3448",
+    "datasets": {
+      "pku_saferlhf": "9421ffafec3fa40a1f1a7d567b4d525079477ecb",
+      "hh_rlhf": "09be8c5bbc57cb3887f3a9732ad6aa7ec602a1fa",
+      "helpsteer1": "3ca5d59c1bc1080af195b4254e7407db60b6f450",
+      "ultrafeedback": "40b436560ca83a8dba36114c22ab3c66e43f6d5e"
+    }
+  },
+  "seed": 137,
+  "pair_seed": 137,
+  "n_pairs_per_dataset": {
+    "helpsteer1": 5085,
+    "hh_rlhf": 15903,
+    "pku_saferlhf": 38636
+  },
+  "max_pairs_cap": null,
+  "same_n_all_datasets": false,
+  "pair_selection": "one pair per prompt (NB12 select_pairs)",
+  "eligible_prompts": {
+    "helpsteer1/helpfulness": 7678,
+    "helpsteer1/correctness": 7562,
+    "helpsteer1/coherence": 6740,
+    "helpsteer1/complexity": 5085,
+    "helpsteer1/verbosity": 6748,
+    "hh_rlhf/helpful": 43533,
+    "hh_rlhf/harmless": 41851,
+    "hh_rlhf/humor": 15903,
+    "pku_saferlhf/better": 38636,
+    "pku_saferlhf/safer": 38636
+  },
+  "humor_margin": 0.5,
+  "humor_scores_sha256": "a3eee6f828c7c6eba4178e34ce3ac36d2d2dfe1244f282229b91165132d78734",
+  "prompt_format": "\\n\\nHuman: {prompt} \\n\\nAssistant:",
+  "training_script_sha256": "cc80eb22980d929022953f1271b85f85a5de75263df0e5bbbe79cab767147aa8",
+  "recipe_script_sha256": "c00148f6ed7c859dc86928d1747d7608b9e00219c0319bb92a84ad7cefa14ddb",
+  "pair_logic_script_sha256": "a92bfee4e757bf5e16de52e38203a4bf55f8fe995b403493845a9b392e7f8c2d",
+  "nb11_helpers_script_sha256": "b4ee3dfd8cc91afef0add1c8aad8661fce8713ce07c3d3619e8e51c738a1538b",
+  "adapter_hashes": {
+    "helpsteer1/helpfulness": "faf51a9805fca3b12d0d3c6936b38ae4aca3fab90567c941e4180259a75d8167",
+    "helpsteer1/correctness": "41c2b9ded6172f98ed748efac3e82ac562341737b32fbfc6657b15681e367982",
+    "helpsteer1/coherence": "f305db145ab9432f7e691517b2e174dc2409efc65277dc8a90e849408a9d3fa6",
+    "helpsteer1/complexity": "528a937367a8f064018d3f43a88f4961c494fff4c17c1ecca5892df2ce8d3c6e",
+    "helpsteer1/verbosity": "1d73c7ad74c3778e8b6fdecf409d212a01da9f33ed1bce8499a50bf199b1f2eb",
+    "hh_rlhf/helpful": "36b1cb551bee13ac0ff05f5b896931af8b5c0f17e25ecec81df60cc8e0d19d41",
+    "hh_rlhf/harmless": "7037f39d461eac415187e512535b3867c594934c795320fb280cb4b2e58ede77",
+    "hh_rlhf/humor": "81881be8d357e44a5dae4ad533b8331fe4b83c563ac3a1216c53f1b47e56f3c5",
+    "pku_saferlhf/better": "1d9ee7267be73652b0fc83c0fd82bb16aa49c057844dbb59d33809cc61eee41e",
+    "pku_saferlhf/safer": "de7d5e4438e13ec798b9e2a84215618f429c7602625c38ab4d62d6a6a9847c72"
+  },
+  "pair_hashes": {
+    "helpsteer1/helpfulness": "d3423cf089621fb4c9eba293fba56fe01f2d44e796d454acbe19166cd4caeae2",
+    "helpsteer1/correctness": "a43baecfae5555a2790977cc6d0236fbdc3ea3c454a5aa7b0fed2e9ba94f19b5",
+    "helpsteer1/coherence": "ca620e52ced1fd44be583bf466d1ea37fba628f5e80d2f6cbafc84ba6337ccc2",
+    "helpsteer1/complexity": "d0996d0c49db09e10fd5ceefd8f3cd45a6c8b01466d1e96272c883d1faded302",
+    "helpsteer1/verbosity": "d36eaab6112cd4dbed3dd0d13f6d8ab92a449bfd1869ebcb05d51d941c97bd90",
+    "hh_rlhf/helpful": "e8c4fda99113888e83d80d95a1ddc69bd37088d8f7affed2e3b57e1ea715f71a",
+    "hh_rlhf/harmless": "94f83d5c36ba4d3df087e6e5ac619f157091a625d25fd39f52ef4d2424629464",
+    "hh_rlhf/humor": "351f5ec8b244bf788c8cad0bbab92f664f5d6ca2c714a526d44932263488775d",
+    "pku_saferlhf/better": "f4e0899aaded575d1a3e721bf5d7a2afa72919e9a7078293b3659fceb231b4dd",
+    "pku_saferlhf/safer": "f4e0899aaded575d1a3e721bf5d7a2afa72919e9a7078293b3659fceb231b4dd"
+  },
+  "candidate_counts": {
+    "helpsteer1/helpfulness": 28021,
+    "helpsteer1/correctness": 27331,
+    "helpsteer1/coherence": 22734,
+    "helpsteer1/complexity": 16359,
+    "helpsteer1/verbosity": 23669,
+    "hh_rlhf/helpful": 43596,
+    "hh_rlhf/harmless": 42336,
+    "hh_rlhf/humor": 15911,
+    "pku_saferlhf/better": 73868,
+    "pku_saferlhf/safer": 73868
+  },
+  "training_wall_clock_h": {
+    "helpsteer1/helpfulness": 0.9267142722269445,
+    "helpsteer1/correctness": 0.9317928141347223,
+    "helpsteer1/coherence": 0.9054424056927777,
+    "helpsteer1/complexity": 0.8809069507422227,
+    "helpsteer1/verbosity": 0.8856768166563895,
+    "hh_rlhf/helpful": 2.6783255772013885,
+    "hh_rlhf/harmless": 2.684281872586666,
+    "hh_rlhf/humor": 2.6676457888352787,
+    "pku_saferlhf/better": 6.367014811673331,
+    "pku_saferlhf/safer": 1.6584601514927777
+  },
+  "reward_model_used_during_training": false
+}
