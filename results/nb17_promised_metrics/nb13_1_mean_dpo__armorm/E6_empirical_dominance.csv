@@ -1,0 +1,11 @@
+p_name,n_points,n_dominating,n_dominating_95,best_worst_head_gain
+balanced,216,61,0,0.006518554687499956
+dominant_coherence,216,3,0,0.004077148437499956
+dominant_complexity,216,1,0,0.0005615234374999334
+dominant_correctness,216,7,0,0.0010986328125
+dominant_helpfulness,216,1,0,0.0006103515625
+dominant_verbosity,216,5,0,0.006335449218749956
+only_coherence,216,85,0,0.013134765624999933
+only_complexity,216,0,0,0.0
+only_correctness,216,68,0,0.011035156250000067
+only_verbosity,216,14,0,0.004248046875000022
