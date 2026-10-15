@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "notebook": "NB16 Llama-2-7B DPO experts on four preference datasets, seed 137",
-  "created_utc": "2026-10-13T23:50:19.739015+00:00",
+  "created_utc": "2026-10-15T22:38:56.123026+00:00",
   "run_tag": "nb16_llama2_7b_multidata_dpo_seed137",
   "base_model": "meta-llama/Llama-2-7b-hf",
   "revisions": {
@@ -19,7 +19,8 @@
   "n_pairs_per_dataset": {
     "helpsteer1": 5085,
     "hh_rlhf": 15903,
-    "pku_saferlhf": 38636
+    "pku_saferlhf": 38636,
+    "ultrafeedback": 53383
   },
   "max_pairs_cap": null,
   "same_n_all_datasets": false,
@@ -34,7 +35,11 @@
     "hh_rlhf/harmless": 41851,
     "hh_rlhf/humor": 15903,
     "pku_saferlhf/better": 38636,
-    "pku_saferlhf/safer": 38636
+    "pku_saferlhf/safer": 38636,
+    "ultrafeedback/helpfulness": 61988,
+    "ultrafeedback/honesty": 58000,
+    "ultrafeedback/instruction_following": 61931,
+    "ultrafeedback/truthfulness": 53383
   },
   "humor_margin": 0.5,
   "humor_scores_sha256": "a3eee6f828c7c6eba4178e34ce3ac36d2d2dfe1244f282229b91165132d78734",
@@ -53,7 +58,11 @@
     "hh_rlhf/harmless": "7037f39d461eac415187e512535b3867c594934c795320fb280cb4b2e58ede77",
     "hh_rlhf/humor": "81881be8d357e44a5dae4ad533b8331fe4b83c563ac3a1216c53f1b47e56f3c5",
     "pku_saferlhf/better": "1d9ee7267be73652b0fc83c0fd82bb16aa49c057844dbb59d33809cc61eee41e",
-    "pku_saferlhf/safer": "de7d5e4438e13ec798b9e2a84215618f429c7602625c38ab4d62d6a6a9847c72"
+    "pku_saferlhf/safer": "de7d5e4438e13ec798b9e2a84215618f429c7602625c38ab4d62d6a6a9847c72",
+    "ultrafeedback/helpfulness": "5303235d676adf8bc1d7110db2cd71bc27e6e1a8cccb76ad608034ebd08a35c7",
+    "ultrafeedback/honesty": "7ab0f855fed9804ccb694aef091c0bad9fb375e3e48607e96828a9d7479ac20e",
+    "ultrafeedback/instruction_following": "f80bef9fa9e8bf1ced8bc14dda24bbd49d28f57649745424b490edb33b40584a",
+    "ultrafeedback/truthfulness": "9b5b611f8712507059d65fa6cf682da261f97e1cf89c07c9aae4406bdde1d0cf"
   },
   "pair_hashes": {
     "helpsteer1/helpfulness": "d3423cf089621fb4c9eba293fba56fe01f2d44e796d454acbe19166cd4caeae2",
@@ -65,7 +74,11 @@
     "hh_rlhf/harmless": "94f83d5c36ba4d3df087e6e5ac619f157091a625d25fd39f52ef4d2424629464",
     "hh_rlhf/humor": "351f5ec8b244bf788c8cad0bbab92f664f5d6ca2c714a526d44932263488775d",
     "pku_saferlhf/better": "f4e0899aaded575d1a3e721bf5d7a2afa72919e9a7078293b3659fceb231b4dd",
-    "pku_saferlhf/safer": "f4e0899aaded575d1a3e721bf5d7a2afa72919e9a7078293b3659fceb231b4dd"
+    "pku_saferlhf/safer": "f4e0899aaded575d1a3e721bf5d7a2afa72919e9a7078293b3659fceb231b4dd",
+    "ultrafeedback/helpfulness": "48308451b86bfa5e6c77b7f87dcfb2d66ec3fdce4cb65df73ea0dabd53552506",
+    "ultrafeedback/honesty": "823dd873406176bda8d2b5a6d1404b80bba5477f52584f42c71c981add9037e1",
+    "ultrafeedback/instruction_following": "86a76f3d584ffb5a5fe90d4c0984023c8bb0f5eef5cc58e26cee0144c12892c1",
+    "ultrafeedback/truthfulness": "8dad2d66668479b6de4465894a43bb41450d7c03c2102d42f591fa3b6f901875"
   },
   "candidate_counts": {
     "helpsteer1/helpfulness": 28021,
@@ -77,7 +90,11 @@
     "hh_rlhf/harmless": 42336,
     "hh_rlhf/humor": 15911,
     "pku_saferlhf/better": 73868,
-    "pku_saferlhf/safer": 73868
+    "pku_saferlhf/safer": 73868,
+    "ultrafeedback/helpfulness": 283635,
+    "ultrafeedback/honesty": 248540,
+    "ultrafeedback/instruction_following": 293483,
+    "ultrafeedback/truthfulness": 214453
   },
   "training_wall_clock_h": {
     "helpsteer1/helpfulness": 0.9267142722269445,
@@ -89,7 +106,11 @@
     "hh_rlhf/harmless": 2.684281872586666,
     "hh_rlhf/humor": 2.6676457888352787,
     "pku_saferlhf/better": 6.367014811673331,
-    "pku_saferlhf/safer": 1.6584601514927777
+    "pku_saferlhf/safer": 1.6584601514927777,
+    "ultrafeedback/helpfulness": 9.383782465281389,
+    "ultrafeedback/honesty": 9.165804413636666,
+    "ultrafeedback/instruction_following": 4.102295727624445,
+    "ultrafeedback/truthfulness": 9.662423604998612
   },
   "reward_model_used_during_training": false
 }

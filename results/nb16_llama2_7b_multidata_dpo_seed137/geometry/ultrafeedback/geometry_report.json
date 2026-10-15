@@ -1,0 +1,96 @@
+{
+  "dataset": "ultrafeedback",
+  "objectives": [
+    "helpfulness",
+    "honesty",
+    "instruction_following",
+    "truthfulness"
+  ],
+  "N": 53383,
+  "effective_update_numel": 6476005376,
+  "update_norms": {
+    "helpfulness": 323.30779800006974,
+    "honesty": 322.14298791673843,
+    "instruction_following": 322.97911446828726,
+    "truthfulness": 320.34098439844314
+  },
+  "n_preferences": 79,
+  "R_cos": {
+    "eigenvalues": [
+      0.9960493016293296,
+      0.9967487729476933,
+      0.9973419330392423,
+      1.0098599923837352
+    ],
+    "condition_number": 1.013865469040352,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.2524649980959338,
+    "offdiag_min": 0.0029316764706830323,
+    "offdiag_max": 0.003938117882873808,
+    "offdiag_mean": 0.003278505906015111,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "helpfulness~honesty": 0.0034722403575267844,
+      "helpfulness~instruction_following": 0.003938117882873808,
+      "helpfulness~truthfulness": 0.002991945500834057,
+      "honesty~instruction_following": 0.003311369382511708,
+      "honesty~truthfulness": 0.003025685841661277,
+      "instruction_following~truthfulness": 0.0029316764706830323
+    },
+    "inverse_R_ones": [
+      0.9896976364174043,
+      0.9902866696025066,
+      0.989917545903493,
+      0.9911404642768912
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [],
+    "floor_lp": {
+      "n_preferences": 79,
+      "n_collapsed": 79
+    },
+    "verdict": "floor collapses with non-negative alignment (as on HelpSteer2)."
+  },
+  "R_gram": {
+    "eigenvalues": [
+      102496.65363257125,
+      103589.65364395895,
+      104003.92574158312,
+      105147.65856154707
+    ],
+    "condition_number": 1.025864307126349,
+    "near_singular": false,
+    "dominant_eigenvalue_share": 0.2532226964199756,
+    "offdiag_min": 303.32135452034925,
+    "offdiag_max": 411.22483141060604,
+    "offdiag_mean": 340.47118413157136,
+    "n_negative_offdiag": 0,
+    "pairs": {
+      "helpfulness~honesty": 361.6384862625357,
+      "helpfulness~instruction_following": 411.22483141060604,
+      "helpfulness~truthfulness": 309.872020509052,
+      "honesty~instruction_following": 344.5329405982958,
+      "honesty~truthfulness": 312.23747148858934,
+      "instruction_following~truthfulness": 303.32135452034925
+    },
+    "inverse_R_ones": [
+      9.467839305374157e-06,
+      9.542569651404269e-06,
+      9.489375471302379e-06,
+      9.659172451554098e-06
+    ],
+    "inverse_R_ones_strictly_positive": true,
+    "global_floor_lp_value": -0.0,
+    "global_floor_collapsed": true,
+    "redundant_axes_inverse_R_ones_nonpositive": [],
+    "middle_axes_closer_to_both_others": [],
+    "floor_lp": {
+      "n_preferences": 79,
+      "n_collapsed": 79
+    },
+    "verdict": "floor collapses with non-negative alignment (as on HelpSteer2)."
+  }
+}
