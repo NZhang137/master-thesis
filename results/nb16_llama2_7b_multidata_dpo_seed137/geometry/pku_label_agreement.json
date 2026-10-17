@@ -1,0 +1,7 @@
+{
+  "selected_pairs_better": 38636,
+  "shared_pairs": 38636,
+  "label_agreement": 0.753649446112434,
+  "cosine_predicted_2a_minus_1": 0.507298892224868,
+  "cosine_measured": 0.0046598021669706
+}

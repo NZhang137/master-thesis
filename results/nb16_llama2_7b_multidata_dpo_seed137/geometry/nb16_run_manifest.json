@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "notebook": "NB16 Llama-2-7B DPO experts on four preference datasets, seed 137",
-  "created_utc": "2026-10-15T22:38:56.123026+00:00",
+  "created_utc": "2026-10-17T20:42:02.534678+00:00",
   "run_tag": "nb16_llama2_7b_multidata_dpo_seed137",
   "base_model": "meta-llama/Llama-2-7b-hf",
   "revisions": {
